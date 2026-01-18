@@ -1,0 +1,50 @@
+.league-filter {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 1rem;
+  background: #f8f9fa;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.league-filter::-webkit-scrollbar {
+  display: none;
+}
+
+.league-btn {
+  background: white;
+  border: 1px solid #ddd;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+  color: #333;
+}
+
+.league-btn:hover {
+  border-color: #1a237e;
+  color: #1a237e;
+}
+
+.league-btn.active {
+  background: #1a237e;
+  color: white;
+  border-color: #1a237e;
+}
+
+.count {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+}
+
+.league-btn.active .count {
+  background: rgba(255, 255, 255, 0.2);
+}
