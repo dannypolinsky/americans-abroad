@@ -45,8 +45,24 @@ class ApiFootballService {
 
   // Get today's fixtures for a specific league
   async getFixturesByLeague(leagueId, date) {
-    const endpoint = `/fixtures?league=${leagueId}&date=${date}`
+    const season = this.getCurrentSeason()
+    const endpoint = `/fixtures?league=${leagueId}&date=${date}&season=${season}`
     return this.fetchFromApi(endpoint)
+  }
+
+  // Get all fixtures for a specific date (no league filter)
+  async getFixturesByDate(date) {
+    const endpoint = `/fixtures?date=${date}`
+    return this.fetchFromApi(endpoint)
+  }
+
+  // Calculate the current football season (e.g., 2025 for 2025-2026 season)
+  getCurrentSeason() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1 // 0-indexed
+    // Football seasons typically start in August, so if we're before August, use previous year
+    return month < 8 ? year - 1 : year
   }
 
   // Get live fixtures for a specific league

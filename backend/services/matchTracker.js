@@ -147,24 +147,27 @@ class MatchTracker {
   async fetchTodaysMatches() {
     const today = this.getTodayDate()
     const leagues = this.getUniqueLeagues()
-    const allFixtures = []
+    const trackedLeagueIds = new Set(leagues.map(l => l.apiId).filter(Boolean))
 
     console.log(`Fetching matches for ${today}...`)
 
-    for (const league of leagues) {
-      if (league.apiId) {
-        try {
-          const response = await this.api.getFixturesByLeague(league.apiId, today)
-          if (response.response) {
-            allFixtures.push(...response.response)
-          }
-        } catch (error) {
-          console.error(`Error fetching ${league.name} fixtures:`, error.message)
-        }
+    try {
+      // Fetch all fixtures for today in a single API call
+      const response = await this.api.getFixturesByDate(today)
+
+      if (response.response) {
+        // Filter to only include fixtures from our tracked leagues
+        const filteredFixtures = response.response.filter(fixture =>
+          trackedLeagueIds.has(fixture.league.id)
+        )
+        console.log(`Found ${response.response.length} total fixtures, ${filteredFixtures.length} in tracked leagues`)
+        return filteredFixtures
       }
+    } catch (error) {
+      console.error('Error fetching today\'s fixtures:', error.message)
     }
 
-    return allFixtures
+    return []
   }
 
   // Fetch live matches only
