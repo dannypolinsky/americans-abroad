@@ -25,13 +25,15 @@
     {
       "id": 3,
       "name": "Yunus Musah",
-      "team": "AC Milan",
+      "team": "Atalanta",
       "league": "Serie A",
       "country": "Italy",
       "position": "Midfielder",
       "number": 80,
       "age": 22,
-      "caps": 40
+      "caps": 40,
+      "onLoan": true,
+      "parentClub": "AC Milan"
     },
     {
       "id": 4,
