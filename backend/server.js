@@ -329,6 +329,7 @@ app.post('/api/matches/refresh', async (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
+    version: SERVER_VERSION,
     mode: isDemoMode ? 'demo' : 'live',
     timestamp: new Date().toISOString()
   })
@@ -349,6 +350,7 @@ app.get('/api/status', (req, res) => {
 })
 
 // Start server
+const SERVER_VERSION = '1.1.0' // Added last game tracking
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
