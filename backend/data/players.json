@@ -47,7 +47,7 @@
     {
       "id": 5,
       "name": "Giovanni Reyna",
-      "team": "Borussia Dortmund",
+      "team": "Borussia Monchengladbach",
       "league": "Bundesliga",
       "country": "Germany",
       "position": "Attacking Midfielder",
@@ -91,9 +91,9 @@
     {
       "id": 9,
       "name": "Matt Turner",
-      "team": "Crystal Palace",
-      "league": "Premier League",
-      "country": "England",
+      "team": "New England Revolution",
+      "league": "MLS",
+      "country": "USA",
       "position": "Goalkeeper",
       "number": 1,
       "age": 30,
@@ -619,7 +619,7 @@
     {
       "id": 57,
       "name": "Gio Reyna",
-      "team": "Borussia Dortmund",
+      "team": "Borussia Monchengladbach",
       "league": "Bundesliga",
       "country": "Germany",
       "position": "Attacking Midfielder",

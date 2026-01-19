@@ -5,9 +5,16 @@ import LeagueFilter from './components/LeagueFilter'
 import playersData from './data/players.json'
 import './App.css'
 
+// Helper to generate dates for demo data
+const daysAgo = (days) => {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
+  return d.toISOString()
+}
+
 // Demo match data (used when no backend available)
 const DEMO_MATCH_DATA = {
-  1: { // Christian Pulisic
+  1: { // Christian Pulisic - live match
     status: 'live',
     homeTeam: 'AC Milan',
     awayTeam: 'Inter',
@@ -15,12 +22,27 @@ const DEMO_MATCH_DATA = {
     awayScore: 1,
     minute: 67,
     isHome: true,
+    participated: true,
+    minutesPlayed: 67,
+    started: true,
     events: [
       { type: 'goal', minute: 23 },
       { type: 'assist', minute: 55 }
-    ]
+    ],
+    lastGame: {
+      date: daysAgo(7),
+      homeTeam: 'Roma',
+      awayTeam: 'AC Milan',
+      homeScore: 1,
+      awayScore: 2,
+      isHome: false,
+      participated: true,
+      minutesPlayed: 90,
+      started: true,
+      events: [{ type: 'goal', minute: 78 }]
+    }
   },
-  2: { // Weston McKennie
+  2: { // Weston McKennie - live match
     status: 'live',
     homeTeam: 'Juventus',
     awayTeam: 'Napoli',
@@ -28,12 +50,26 @@ const DEMO_MATCH_DATA = {
     awayScore: 0,
     minute: 34,
     isHome: true,
+    participated: true,
+    minutesPlayed: 34,
+    started: true,
     events: [
-      { type: 'sub_in', minute: 0 },
       { type: 'yellow', minute: 28 }
-    ]
+    ],
+    lastGame: {
+      date: daysAgo(5),
+      homeTeam: 'Juventus',
+      awayTeam: 'Torino',
+      homeScore: 2,
+      awayScore: 0,
+      isHome: true,
+      participated: true,
+      minutesPlayed: 85,
+      started: true,
+      events: [{ type: 'assist', minute: 44 }, { type: 'sub_out', minute: 85 }]
+    }
   },
-  6: { // Antonee Robinson
+  6: { // Antonee Robinson - live match
     status: 'live',
     homeTeam: 'Fulham',
     awayTeam: 'Chelsea',
@@ -41,24 +77,51 @@ const DEMO_MATCH_DATA = {
     awayScore: 1,
     minute: 82,
     isHome: true,
-    events: [
-      { type: 'sub_in', minute: 0 }
-    ]
+    participated: true,
+    minutesPlayed: 82,
+    started: true,
+    events: [],
+    lastGame: {
+      date: daysAgo(4),
+      homeTeam: 'Fulham',
+      awayTeam: 'Arsenal',
+      homeScore: 0,
+      awayScore: 3,
+      isHome: true,
+      participated: true,
+      minutesPlayed: 90,
+      started: true,
+      events: []
+    }
   },
-  5: { // Giovanni Reyna
+  5: { // Giovanni Reyna - finished match
     status: 'finished',
-    homeTeam: 'Borussia Dortmund',
+    homeTeam: 'Borussia Monchengladbach',
     awayTeam: 'Bayern Munich',
     homeScore: 0,
     awayScore: 2,
     minute: 90,
     isHome: true,
+    participated: true,
+    minutesPlayed: 25,
+    started: false,
     events: [
-      { type: 'sub_in', minute: 60 },
-      { type: 'sub_out', minute: 85 }
-    ]
+      { type: 'sub_in', minute: 65 }
+    ],
+    lastGame: {
+      date: daysAgo(6),
+      homeTeam: 'Wolfsburg',
+      awayTeam: 'Borussia Monchengladbach',
+      homeScore: 1,
+      awayScore: 1,
+      isHome: false,
+      participated: true,
+      minutesPlayed: 70,
+      started: true,
+      events: [{ type: 'sub_out', minute: 70 }]
+    }
   },
-  16: { // Ricardo Pepi
+  16: { // Ricardo Pepi - upcoming match
     status: 'upcoming',
     homeTeam: 'PSV',
     awayTeam: 'Ajax',
@@ -66,9 +129,24 @@ const DEMO_MATCH_DATA = {
     awayScore: 0,
     minute: 0,
     isHome: true,
-    events: []
+    participated: false,
+    minutesPlayed: 0,
+    started: false,
+    events: [],
+    lastGame: {
+      date: daysAgo(3),
+      homeTeam: 'PSV',
+      awayTeam: 'Feyenoord',
+      homeScore: 2,
+      awayScore: 0,
+      isHome: true,
+      participated: true,
+      minutesPlayed: 90,
+      started: true,
+      events: [{ type: 'goal', minute: 34 }, { type: 'goal', minute: 67 }]
+    }
   },
-  12: { // Folarin Balogun
+  12: { // Folarin Balogun - upcoming match
     status: 'upcoming',
     homeTeam: 'AS Monaco',
     awayTeam: 'PSG',
@@ -76,28 +154,92 @@ const DEMO_MATCH_DATA = {
     awayScore: 0,
     minute: 0,
     isHome: true,
-    events: []
+    participated: false,
+    minutesPlayed: 0,
+    started: false,
+    events: [],
+    lastGame: {
+      date: daysAgo(8),
+      homeTeam: 'Lyon',
+      awayTeam: 'AS Monaco',
+      homeScore: 1,
+      awayScore: 3,
+      isHome: false,
+      participated: true,
+      minutesPlayed: 72,
+      started: true,
+      events: [{ type: 'goal', minute: 23 }, { type: 'sub_out', minute: 72 }]
+    }
+  },
+  // Players with no match today but have last game data
+  7: { // Tyler Adams
+    status: 'no_match_today',
+    lastGame: {
+      date: daysAgo(2),
+      homeTeam: 'Bournemouth',
+      awayTeam: 'Liverpool',
+      homeScore: 0,
+      awayScore: 4,
+      isHome: true,
+      participated: true,
+      minutesPlayed: 90,
+      started: true,
+      events: [{ type: 'yellow', minute: 56 }]
+    }
+  },
+  3: { // Yunus Musah
+    status: 'no_match_today',
+    lastGame: {
+      date: daysAgo(10),
+      homeTeam: 'Atalanta',
+      awayTeam: 'Udinese',
+      homeScore: 3,
+      awayScore: 1,
+      isHome: true,
+      participated: true,
+      minutesPlayed: 15,
+      started: false,
+      events: [{ type: 'sub_in', minute: 75 }]
+    }
+  },
+  4: { // Timothy Weah - didn't play last game
+    status: 'no_match_today',
+    lastGame: {
+      date: daysAgo(5),
+      homeTeam: 'Juventus',
+      awayTeam: 'Torino',
+      homeScore: 2,
+      awayScore: 0,
+      isHome: true,
+      participated: false,
+      minutesPlayed: 0,
+      started: false,
+      events: []
+    }
   }
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || null
+const RETRY_DELAY = 5000 // 5 seconds between retries
 
 function App() {
   const [filter, setFilter] = useState('today')
   const [selectedLeague, setSelectedLeague] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
-  const [matchData, setMatchData] = useState(DEMO_MATCH_DATA)
-  const [apiMode, setApiMode] = useState('demo')
-  const [lastUpdate, setLastUpdate] = useState(new Date())
+  const [matchData, setMatchData] = useState({})
+  const [apiMode, setApiMode] = useState(API_BASE ? 'loading' : 'demo')
+  const [lastUpdate, setLastUpdate] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isApiLoading, setIsApiLoading] = useState(!!API_BASE)
 
-  // Try to fetch from API if configured
-  const loadMatchData = useCallback(async () => {
+  // Try to fetch from API if configured, with retry on failure
+  const loadMatchData = useCallback(async (isRetry = false) => {
     if (!API_BASE) {
       // No API configured, use demo data
       setMatchData(DEMO_MATCH_DATA)
       setApiMode('demo')
       setLastUpdate(new Date())
+      setIsApiLoading(false)
       return
     }
 
@@ -105,13 +247,14 @@ function App() {
       const response = await fetch(`${API_BASE}/matches`)
       if (!response.ok) throw new Error('API error')
       const data = await response.json()
-      setMatchData(data.data || DEMO_MATCH_DATA)
+      setMatchData(data.data || {})
       setApiMode(data.mode || 'live')
       setLastUpdate(new Date())
+      setIsApiLoading(false)
     } catch (err) {
-      console.log('API unavailable, using demo data')
-      setMatchData(DEMO_MATCH_DATA)
-      setApiMode('demo')
+      console.log('API unavailable, retrying in', RETRY_DELAY / 1000, 'seconds...')
+      // Keep the loading state and retry after delay
+      setTimeout(() => loadMatchData(true), RETRY_DELAY)
     }
   }, [])
 
@@ -138,6 +281,34 @@ function App() {
     }, {})
   }, [uniquePlayers])
 
+  // Get most recent game date for a player (either today's match or last game)
+  const getMostRecentGameDate = (playerId) => {
+    const data = matchData[playerId]
+    if (!data) return null
+
+    // If player has a match today, use today's date (prioritize these)
+    if (data.status && data.status !== 'no_match_today') {
+      return new Date().toISOString()
+    }
+
+    // Otherwise use last game date
+    if (data.lastGame?.date) {
+      return data.lastGame.date
+    }
+
+    return null
+  }
+
+  // Check if player participated in today's game or game hasn't started yet
+  const hasPlayedOrUpcoming = (playerId) => {
+    const data = matchData[playerId]
+    if (!data || data.status === 'no_match_today') return false
+    // Upcoming games count as "has played or upcoming"
+    if (data.status === 'upcoming') return true
+    // For live/finished games, check if they participated
+    return data.participated === true || (data.events && data.events.length > 0)
+  }
+
   // Filter players based on current filters
   const filteredPlayers = useMemo(() => {
     let players = uniquePlayers
@@ -162,8 +333,28 @@ function App() {
     if (filter === 'live') {
       players = players.filter(p => matchData[p.id]?.status === 'live')
     } else if (filter === 'today') {
-      players = players.filter(p => matchData[p.id])
+      players = players.filter(p => matchData[p.id] && matchData[p.id].status !== 'no_match_today')
     }
+
+    // Sort players by most recent game
+    players = [...players].sort((a, b) => {
+      const dateA = getMostRecentGameDate(a.id)
+      const dateB = getMostRecentGameDate(b.id)
+
+      // For "today" filter, prioritize players who played or have upcoming games
+      if (filter === 'today') {
+        const aPlayedOrUpcoming = hasPlayedOrUpcoming(a.id)
+        const bPlayedOrUpcoming = hasPlayedOrUpcoming(b.id)
+        if (aPlayedOrUpcoming && !bPlayedOrUpcoming) return -1
+        if (!aPlayedOrUpcoming && bPlayedOrUpcoming) return 1
+      }
+
+      // Then sort by most recent game date
+      if (!dateA && !dateB) return 0
+      if (!dateA) return 1
+      if (!dateB) return -1
+      return new Date(dateB) - new Date(dateA)
+    })
 
     return players
   }, [uniquePlayers, filter, selectedLeague, searchTerm, matchData])
@@ -181,13 +372,16 @@ function App() {
 
   return (
     <div className="app">
-      <Header filter={filter} setFilter={setFilter} liveCount={liveCount} />
-
-      {apiMode === 'demo' && (
-        <div className="demo-banner">
-          Demo mode - showing sample match data
+      {isApiLoading && (
+        <div className="api-loading-overlay">
+          <div className="api-loading-content">
+            <div className="loading-spinner"></div>
+            <p>Loading the live game API; wait a few moments.</p>
+          </div>
         </div>
       )}
+
+      <Header filter={filter} setFilter={setFilter} liveCount={liveCount} />
 
       <div className="search-bar">
         <input
@@ -228,6 +422,7 @@ function App() {
                 key={player.id}
                 player={player}
                 matchData={matchData[player.id] || null}
+                showLastGame={filter === 'all'}
               />
             ))}
           </div>
@@ -243,10 +438,7 @@ function App() {
       <footer className="footer">
         <p>Americans Abroad - Tracking US Soccer Players Worldwide</p>
         <p className="footer-note">
-          {apiMode === 'demo'
-            ? 'Demo mode - sample data shown'
-            : 'Data updates every 5 minutes during live matches'
-          }
+          Data updates every 5 minutes during live matches
         </p>
       </footer>
     </div>

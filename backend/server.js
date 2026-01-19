@@ -32,9 +32,16 @@ const matchTracker = new MatchTracker(apiService)
 // Demo mode - use sample data when no API key
 const isDemoMode = !apiKey
 
+// Helper to generate dates
+const daysAgo = (days) => {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
+  return d.toISOString()
+}
+
 // Sample match data for demo mode
 const sampleMatchData = {
-  1: {
+  1: { // Pulisic - live match today
     fixtureId: 12345,
     status: 'live',
     homeTeam: 'AC Milan',
@@ -43,12 +50,27 @@ const sampleMatchData = {
     awayScore: 1,
     minute: 67,
     isHome: true,
+    participated: true,
+    minutesPlayed: 67,
+    started: true,
     events: [
       { type: 'goal', minute: 23 },
       { type: 'assist', minute: 55 }
-    ]
+    ],
+    lastGame: {
+      date: daysAgo(7),
+      homeTeam: 'Roma',
+      awayTeam: 'AC Milan',
+      homeScore: 1,
+      awayScore: 2,
+      isHome: false,
+      participated: true,
+      minutesPlayed: 90,
+      started: true,
+      events: [{ type: 'goal', minute: 78 }]
+    }
   },
-  6: {
+  6: { // Antonee Robinson - live match
     fixtureId: 12346,
     status: 'live',
     homeTeam: 'Fulham',
@@ -57,25 +79,52 @@ const sampleMatchData = {
     awayScore: 1,
     minute: 82,
     isHome: true,
-    events: [
-      { type: 'sub_in', minute: 0 }
-    ]
+    participated: true,
+    minutesPlayed: 82,
+    started: true,
+    events: [],
+    lastGame: {
+      date: daysAgo(4),
+      homeTeam: 'Fulham',
+      awayTeam: 'Arsenal',
+      homeScore: 0,
+      awayScore: 3,
+      isHome: true,
+      participated: true,
+      minutesPlayed: 90,
+      started: true,
+      events: []
+    }
   },
-  5: {
+  5: { // Giovanni Reyna - finished match today
     fixtureId: 12347,
     status: 'finished',
-    homeTeam: 'Borussia Dortmund',
+    homeTeam: 'Borussia Monchengladbach',
     awayTeam: 'Bayern Munich',
     homeScore: 0,
     awayScore: 2,
     minute: 90,
     isHome: true,
+    participated: true,
+    minutesPlayed: 25,
+    started: false,
     events: [
-      { type: 'sub_in', minute: 60 },
-      { type: 'sub_out', minute: 85 }
-    ]
+      { type: 'sub_in', minute: 65 }
+    ],
+    lastGame: {
+      date: daysAgo(6),
+      homeTeam: 'Wolfsburg',
+      awayTeam: 'Borussia Monchengladbach',
+      homeScore: 1,
+      awayScore: 1,
+      isHome: false,
+      participated: true,
+      minutesPlayed: 70,
+      started: true,
+      events: [{ type: 'sub_out', minute: 70 }]
+    }
   },
-  16: {
+  16: { // Ricardo Pepi - upcoming match today
     fixtureId: 12348,
     status: 'upcoming',
     homeTeam: 'PSV',
@@ -84,10 +133,25 @@ const sampleMatchData = {
     awayScore: 0,
     minute: 0,
     isHome: true,
+    participated: false,
+    minutesPlayed: 0,
+    started: false,
     events: [],
-    kickoff: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+    kickoff: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    lastGame: {
+      date: daysAgo(3),
+      homeTeam: 'PSV',
+      awayTeam: 'Feyenoord',
+      homeScore: 2,
+      awayScore: 0,
+      isHome: true,
+      participated: true,
+      minutesPlayed: 90,
+      started: true,
+      events: [{ type: 'goal', minute: 34 }, { type: 'goal', minute: 67 }]
+    }
   },
-  2: {
+  2: { // McKennie - live match
     fixtureId: 12349,
     status: 'live',
     homeTeam: 'Juventus',
@@ -96,12 +160,26 @@ const sampleMatchData = {
     awayScore: 0,
     minute: 34,
     isHome: true,
+    participated: true,
+    minutesPlayed: 34,
+    started: true,
     events: [
-      { type: 'sub_in', minute: 0 },
       { type: 'yellow', minute: 28 }
-    ]
+    ],
+    lastGame: {
+      date: daysAgo(5),
+      homeTeam: 'Juventus',
+      awayTeam: 'Torino',
+      homeScore: 2,
+      awayScore: 0,
+      isHome: true,
+      participated: true,
+      minutesPlayed: 85,
+      started: true,
+      events: [{ type: 'assist', minute: 44 }, { type: 'sub_out', minute: 85 }]
+    }
   },
-  12: {
+  12: { // Balogun - upcoming match
     fixtureId: 12350,
     status: 'upcoming',
     homeTeam: 'AS Monaco',
@@ -110,8 +188,69 @@ const sampleMatchData = {
     awayScore: 0,
     minute: 0,
     isHome: true,
+    participated: false,
+    minutesPlayed: 0,
+    started: false,
     events: [],
-    kickoff: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString()
+    kickoff: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+    lastGame: {
+      date: daysAgo(8),
+      homeTeam: 'Lyon',
+      awayTeam: 'AS Monaco',
+      homeScore: 1,
+      awayScore: 3,
+      isHome: false,
+      participated: true,
+      minutesPlayed: 72,
+      started: true,
+      events: [{ type: 'goal', minute: 23 }, { type: 'sub_out', minute: 72 }]
+    }
+  },
+  // Players with no match today but have last game data
+  7: { // Tyler Adams - no match today
+    status: 'no_match_today',
+    lastGame: {
+      date: daysAgo(2),
+      homeTeam: 'Bournemouth',
+      awayTeam: 'Liverpool',
+      homeScore: 0,
+      awayScore: 4,
+      isHome: true,
+      participated: true,
+      minutesPlayed: 90,
+      started: true,
+      events: [{ type: 'yellow', minute: 56 }]
+    }
+  },
+  3: { // Yunus Musah - no match today
+    status: 'no_match_today',
+    lastGame: {
+      date: daysAgo(10),
+      homeTeam: 'Atalanta',
+      awayTeam: 'Udinese',
+      homeScore: 3,
+      awayScore: 1,
+      isHome: true,
+      participated: true,
+      minutesPlayed: 15,
+      started: false,
+      events: [{ type: 'sub_in', minute: 75 }]
+    }
+  },
+  4: { // Timothy Weah - no match today, didn't play last game
+    status: 'no_match_today',
+    lastGame: {
+      date: daysAgo(5),
+      homeTeam: 'Juventus',
+      awayTeam: 'Torino',
+      homeScore: 2,
+      awayScore: 0,
+      isHome: true,
+      participated: false,
+      minutesPlayed: 0,
+      started: false,
+      events: []
+    }
   }
 }
 

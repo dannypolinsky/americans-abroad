@@ -1,11 +1,39 @@
 import './PlayerCard.css'
 
-function PlayerCard({ player, matchData }) {
+function PlayerCard({ player, matchData, showLastGame = false }) {
   const isLive = matchData?.status === 'live'
-  const hasMatch = matchData !== null
+  const hasTodayMatch = matchData !== null && matchData.status !== 'no_match_today'
+  const lastGame = matchData?.lastGame
+
+  // Format date for display
+  const formatDate = (dateStr) => {
+    if (!dateStr) return ''
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
+  // Render events with icons
+  const renderEvents = (events) => {
+    if (!events || events.length === 0) return null
+    return (
+      <div className="player-events">
+        {events.map((event, idx) => (
+          <span key={idx} className={`event ${event.type}`}>
+            {event.type === 'goal' && '⚽'}
+            {event.type === 'assist' && '🅰️'}
+            {event.type === 'sub_in' && '🔼'}
+            {event.type === 'sub_out' && '🔽'}
+            {event.type === 'yellow' && '🟨'}
+            {event.type === 'red' && '🟥'}
+            {event.minute}'
+          </span>
+        ))}
+      </div>
+    )
+  }
 
   return (
-    <div className={`player-card ${isLive ? 'live' : ''} ${hasMatch ? 'has-match' : ''}`}>
+    <div className={`player-card ${isLive ? 'live' : ''} ${hasTodayMatch ? 'has-match' : ''}`}>
       {isLive && <div className="live-indicator">LIVE</div>}
 
       <div className="player-info">
@@ -22,7 +50,7 @@ function PlayerCard({ player, matchData }) {
         </div>
       </div>
 
-      {hasMatch && (
+      {hasTodayMatch && (
         <div className="match-info">
           <div className="match-teams">
             <span className={matchData.isHome ? 'highlight' : ''}>{matchData.homeTeam}</span>
@@ -34,27 +62,44 @@ function PlayerCard({ player, matchData }) {
             {isLive ? `${matchData.minute}'` : matchData.status}
           </div>
 
-          {matchData.events && matchData.events.length > 0 && (
-            <div className="player-events">
-              {matchData.events.map((event, idx) => (
-                <span key={idx} className={`event ${event.type}`}>
-                  {event.type === 'goal' && '⚽'}
-                  {event.type === 'assist' && '🅰️'}
-                  {event.type === 'sub_in' && '🔼'}
-                  {event.type === 'sub_out' && '🔽'}
-                  {event.type === 'yellow' && '🟨'}
-                  {event.type === 'red' && '🟥'}
-                  {event.minute}'
-                </span>
-              ))}
+          {renderEvents(matchData.events)}
+        </div>
+      )}
+
+      {!hasTodayMatch && showLastGame && lastGame && (
+        <div className="last-game-info">
+          <div className="last-game-header">
+            Last Game: {formatDate(lastGame.date)}
+          </div>
+          <div className="match-teams">
+            <span className={lastGame.isHome ? 'highlight' : ''}>{lastGame.homeTeam}</span>
+            <span className="score">{lastGame.homeScore} - {lastGame.awayScore}</span>
+            <span className={!lastGame.isHome ? 'highlight' : ''}>{lastGame.awayTeam}</span>
+          </div>
+
+          {lastGame.participated ? (
+            <div className="last-game-stats">
+              <span className="minutes-played">{lastGame.minutesPlayed} mins</span>
+              {!lastGame.started && <span className="sub-badge">SUB</span>}
+              {renderEvents(lastGame.events)}
+            </div>
+          ) : (
+            <div className="last-game-stats">
+              <span className="did-not-play">Did not play</span>
             </div>
           )}
         </div>
       )}
 
-      {!hasMatch && (
+      {!hasTodayMatch && !showLastGame && (
         <div className="no-match">
           <p>No match today</p>
+        </div>
+      )}
+
+      {!hasTodayMatch && showLastGame && !lastGame && (
+        <div className="no-match">
+          <p>No recent match data</p>
         </div>
       )}
     </div>

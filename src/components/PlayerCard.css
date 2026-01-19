@@ -203,6 +203,54 @@
   margin: 0;
 }
 
+.last-game-info {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  border: 1px dashed #ddd;
+}
+
+.last-game-header {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.last-game-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.minutes-played {
+  font-size: 0.8rem;
+  color: #666;
+  background: #e8f5e9;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.sub-badge {
+  font-size: 0.7rem;
+  color: #f57c00;
+  background: #fff3e0;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.did-not-play {
+  font-size: 0.8rem;
+  color: #999;
+  font-style: italic;
+}
+
 @media (max-width: 480px) {
   .player-card {
     padding: 0.75rem;

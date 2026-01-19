@@ -12,7 +12,8 @@ class MatchTracker {
   constructor(apiService) {
     this.api = apiService
     this.players = this.loadPlayers()
-    this.matchData = new Map() // playerId -> match data
+    this.matchData = new Map() // playerId -> today's match data
+    this.lastGameData = new Map() // playerId -> last game data
     this.isPolling = false
     this.pollInterval = null
   }
@@ -43,6 +44,13 @@ class MatchTracker {
   // Get today's date in YYYY-MM-DD format
   getTodayDate() {
     return new Date().toISOString().split('T')[0]
+  }
+
+  // Get date N days ago in YYYY-MM-DD format
+  getDateDaysAgo(daysAgo) {
+    const date = new Date()
+    date.setDate(date.getDate() - daysAgo)
+    return date.toISOString().split('T')[0]
   }
 
   // Check if a team name matches (fuzzy matching)
@@ -112,6 +120,46 @@ class MatchTracker {
     }
 
     return playerEvents
+  }
+
+  // Calculate minutes played from events
+  calculateMinutesPlayed(events, matchMinute, status) {
+    const subIn = events.find(e => e.type === 'sub_in')
+    const subOut = events.find(e => e.type === 'sub_out')
+    const fullTime = status === 'finished' ? 90 : matchMinute
+
+    if (subIn && subOut) {
+      // Came on and went off
+      return subOut.minute - subIn.minute
+    } else if (subIn) {
+      // Came on as sub, played until end
+      return fullTime - subIn.minute
+    } else if (subOut) {
+      // Started, was subbed off
+      return subOut.minute
+    } else if (status === 'finished' || status === 'live') {
+      // No sub events - check if they likely played
+      // If they have any events (goals, assists, cards), they played
+      if (events.length > 0) {
+        return fullTime
+      }
+      // Otherwise assume they didn't play (were unused sub)
+      return 0
+    }
+    return 0
+  }
+
+  // Check if player participated (started or came on as sub)
+  didPlayerParticipate(events) {
+    // Player participated if they have any events or were subbed in
+    const hasSubIn = events.some(e => e.type === 'sub_in')
+    const hasSubOut = events.some(e => e.type === 'sub_out')
+    const hasOtherEvents = events.some(e => !['sub_in', 'sub_out'].includes(e.type))
+
+    // If subbed out but not subbed in, they started
+    // If subbed in, they came on
+    // If they have goals/assists/cards, they played
+    return hasSubIn || hasSubOut || hasOtherEvents
   }
 
   // Get match status string
@@ -191,6 +239,105 @@ class MatchTracker {
     return liveFixtures
   }
 
+  // Fetch matches from recent days to find last games
+  async fetchRecentMatches(daysBack = 14) {
+    const leagues = this.getUniqueLeagues()
+    const trackedLeagueIds = new Set(leagues.map(l => l.apiId).filter(Boolean))
+    const allFixtures = []
+
+    console.log(`Fetching matches from the past ${daysBack} days...`)
+
+    for (let i = 1; i <= daysBack; i++) {
+      const date = this.getDateDaysAgo(i)
+      try {
+        const response = await this.api.getFixturesByDate(date)
+        if (response.response) {
+          const filteredFixtures = response.response.filter(fixture =>
+            trackedLeagueIds.has(fixture.league.id)
+          )
+          allFixtures.push(...filteredFixtures)
+        }
+      } catch (error) {
+        console.error(`Error fetching fixtures for ${date}:`, error.message)
+      }
+    }
+
+    console.log(`Found ${allFixtures.length} fixtures from recent days`)
+    return allFixtures
+  }
+
+  // Update last game data for all players
+  async updateLastGameData() {
+    try {
+      const recentFixtures = await this.fetchRecentMatches(14)
+      const playersByTeam = this.getPlayersByTeam()
+
+      // Sort fixtures by date (most recent first)
+      recentFixtures.sort((a, b) => new Date(b.fixture.date) - new Date(a.fixture.date))
+
+      for (const [teamName, players] of Object.entries(playersByTeam)) {
+        // Find the most recent fixture for this team
+        for (const fixture of recentFixtures) {
+          const homeTeam = fixture.teams.home.name
+          const awayTeam = fixture.teams.away.name
+          let isHome = null
+
+          if (this.teamMatches(homeTeam, teamName)) {
+            isHome = true
+          } else if (this.teamMatches(awayTeam, teamName)) {
+            isHome = false
+          }
+
+          if (isHome !== null) {
+            const status = this.getMatchStatus(fixture)
+            if (status !== 'finished') continue // Only count finished games
+
+            // Fetch events for this fixture
+            let events = []
+            try {
+              const eventsResponse = await this.api.getFixtureEvents(fixture.fixture.id)
+              events = eventsResponse.response || []
+            } catch (error) {
+              console.error(`Error fetching events for fixture ${fixture.fixture.id}:`, error.message)
+            }
+
+            for (const player of players) {
+              // Skip if we already have a more recent last game for this player
+              if (this.lastGameData.has(player.id)) continue
+
+              const playerEvents = this.parsePlayerEvents(events, player.name,
+                isHome ? fixture.teams.home.id : fixture.teams.away.id)
+
+              const participated = this.didPlayerParticipate(playerEvents)
+              const minutesPlayed = this.calculateMinutesPlayed(playerEvents, 90, status)
+
+              this.lastGameData.set(player.id, {
+                fixtureId: fixture.fixture.id,
+                date: fixture.fixture.date,
+                homeTeam: fixture.teams.home.name,
+                awayTeam: fixture.teams.away.name,
+                homeScore: fixture.goals.home || 0,
+                awayScore: fixture.goals.away || 0,
+                isHome,
+                events: playerEvents,
+                participated,
+                minutesPlayed,
+                started: !playerEvents.some(e => e.type === 'sub_in') && participated
+              })
+            }
+            break // Found this team's most recent game, move to next team
+          }
+        }
+      }
+
+      console.log(`Updated last game data for ${this.lastGameData.size} players`)
+      return true
+    } catch (error) {
+      console.error('Error updating last game data:', error)
+      return false
+    }
+  }
+
   // Get unique leagues from players
   getUniqueLeagues() {
     const data = JSON.parse(readFileSync(join(__dirname, '../data/players.json'), 'utf-8'))
@@ -227,6 +374,9 @@ class MatchTracker {
             const playerEvents = this.parsePlayerEvents(events, player.name,
               isHome ? fixture.teams.home.id : fixture.teams.away.id)
 
+            const participated = this.didPlayerParticipate(playerEvents)
+            const minutesPlayed = this.calculateMinutesPlayed(playerEvents, fixture.fixture.status.elapsed || 90, status)
+
             this.matchData.set(player.id, {
               fixtureId: fixture.fixture.id,
               status,
@@ -238,7 +388,10 @@ class MatchTracker {
               isHome,
               events: playerEvents,
               kickoff: fixture.fixture.date,
-              venue: fixture.fixture.venue?.name || ''
+              venue: fixture.fixture.venue?.name || '',
+              participated,
+              minutesPlayed,
+              started: !playerEvents.some(e => e.type === 'sub_in') && participated
             })
           }
         }
@@ -257,13 +410,32 @@ class MatchTracker {
     return this.matchData.get(playerId) || null
   }
 
-  // Get all match data
+  // Get all match data including last game data
   getAllMatchData() {
     const data = {}
-    for (const [playerId, matchData] of this.matchData) {
-      data[playerId] = matchData
+    for (const player of this.players) {
+      const todayMatch = this.matchData.get(player.id)
+      const lastGame = this.lastGameData.get(player.id)
+
+      if (todayMatch) {
+        data[player.id] = {
+          ...todayMatch,
+          lastGame: lastGame || null
+        }
+      } else if (lastGame) {
+        // No match today but we have last game data
+        data[player.id] = {
+          status: 'no_match_today',
+          lastGame
+        }
+      }
     }
     return data
+  }
+
+  // Get last game data for a specific player
+  getPlayerLastGame(playerId) {
+    return this.lastGameData.get(playerId) || null
   }
 
   // Check if any matches are currently live
@@ -277,7 +449,7 @@ class MatchTracker {
   }
 
   // Start polling for live match updates
-  startPolling(intervalMs = 5 * 60 * 1000) {
+  async startPolling(intervalMs = 5 * 60 * 1000) {
     if (this.isPolling) {
       console.log('Already polling')
       return
@@ -286,8 +458,9 @@ class MatchTracker {
     this.isPolling = true
     console.log(`Starting match polling every ${intervalMs / 1000} seconds`)
 
-    // Initial update
-    this.updateMatchData()
+    // Initial update - fetch today's matches and recent history
+    await this.updateMatchData()
+    await this.updateLastGameData()
 
     // Set up interval
     this.pollInterval = setInterval(async () => {
