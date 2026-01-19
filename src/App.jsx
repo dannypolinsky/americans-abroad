@@ -223,8 +223,14 @@ const API_BASE = import.meta.env.VITE_API_URL || null
 const RETRY_DELAY = 5000 // 5 seconds between retries
 
 function App() {
-  const [filter, setFilter] = useState('today')
-  const [selectedLeague, setSelectedLeague] = useState('all')
+  const [filter, setFilter] = useState(() => {
+    const saved = localStorage.getItem('americansAbroad_filter')
+    return saved || 'today'
+  })
+  const [selectedLeague, setSelectedLeague] = useState(() => {
+    const saved = localStorage.getItem('americansAbroad_league')
+    return saved || 'all'
+  })
   const [searchTerm, setSearchTerm] = useState('')
   const [matchData, setMatchData] = useState({})
   const [apiMode, setApiMode] = useState(API_BASE ? 'loading' : 'demo')
@@ -262,6 +268,16 @@ function App() {
   useEffect(() => {
     loadMatchData()
   }, [loadMatchData])
+
+  // Persist filter to localStorage
+  useEffect(() => {
+    localStorage.setItem('americansAbroad_filter', filter)
+  }, [filter])
+
+  // Persist selected league to localStorage
+  useEffect(() => {
+    localStorage.setItem('americansAbroad_league', selectedLeague)
+  }, [selectedLeague])
 
   // Remove duplicates from players
   const uniquePlayers = useMemo(() => {
