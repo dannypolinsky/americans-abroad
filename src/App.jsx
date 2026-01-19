@@ -253,8 +253,10 @@ function App() {
       const response = await fetch(`${API_BASE}/matches`)
       if (!response.ok) throw new Error('API error')
       const data = await response.json()
-      setMatchData(data.data || {})
-      setApiMode(data.mode || 'live')
+      // Use demo data if API returns empty data (no matches today and no historical data)
+      const hasData = data.data && Object.keys(data.data).length > 0
+      setMatchData(hasData ? data.data : DEMO_MATCH_DATA)
+      setApiMode(hasData ? (data.mode || 'live') : 'demo')
       setLastUpdate(new Date())
       setIsApiLoading(false)
     } catch (err) {
