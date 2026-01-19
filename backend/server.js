@@ -311,10 +311,11 @@ app.post('/api/matches/refresh', async (req, res) => {
   } else {
     try {
       await matchTracker.updateMatchData()
+      await matchTracker.updateLastGameData()
       res.json({
         mode: 'live',
         success: true,
-        message: 'Match data refreshed'
+        message: 'Match data and last game data refreshed'
       })
     } catch (error) {
       res.status(500).json({
