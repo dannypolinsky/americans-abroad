@@ -1121,6 +1121,28 @@
       "number": 22,
       "age": 26,
       "caps": 0
+    },
+    {
+      "id": 103,
+      "name": "Noahkai Banks",
+      "team": "Augsburg",
+      "league": "Bundesliga",
+      "country": "Germany",
+      "position": "Defender",
+      "number": 0,
+      "age": 19,
+      "caps": 0
+    },
+    {
+      "id": 104,
+      "name": "Cavan Sullivan",
+      "team": "Philadelphia Union",
+      "league": "MLS",
+      "country": "USA",
+      "position": "Midfielder",
+      "number": 0,
+      "age": 15,
+      "caps": 0
     }
   ],
   "leagues": [
