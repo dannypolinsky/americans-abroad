@@ -37,7 +37,18 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
       {isLive && <div className="live-indicator">LIVE</div>}
 
       <div className="player-info">
-        <div className="player-avatar">
+        {player.image ? (
+          <img
+            src={player.image}
+            alt={player.name}
+            className="player-headshot"
+            onError={(e) => {
+              e.target.style.display = 'none'
+              e.target.nextSibling.style.display = 'flex'
+            }}
+          />
+        ) : null}
+        <div className="player-avatar" style={player.image ? {display: 'none'} : {}}>
           {player.name.split(' ').map(n => n[0]).join('')}
         </div>
         <div className="player-details">
