@@ -351,7 +351,7 @@ app.get('/api/status', (req, res) => {
 })
 
 // Start server
-const SERVER_VERSION = '1.2.0' // Added last game tracking + refresh fix
+const SERVER_VERSION = '1.3.0' // Reduced API calls to stay within rate limits
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗

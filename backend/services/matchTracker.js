@@ -240,7 +240,8 @@ class MatchTracker {
   }
 
   // Fetch matches from recent days to find last games
-  async fetchRecentMatches(daysBack = 14) {
+  // Note: Using 3 days to stay within API rate limits (free tier = 100 req/day)
+  async fetchRecentMatches(daysBack = 3) {
     const leagues = this.getUniqueLeagues()
     const trackedLeagueIds = new Set(leagues.map(l => l.apiId).filter(Boolean))
     const allFixtures = []
@@ -269,7 +270,7 @@ class MatchTracker {
   // Update last game data for all players
   async updateLastGameData() {
     try {
-      const recentFixtures = await this.fetchRecentMatches(14)
+      const recentFixtures = await this.fetchRecentMatches(3)
       const playersByTeam = this.getPlayersByTeam()
 
       // Sort fixtures by date (most recent first)
