@@ -293,24 +293,11 @@ class MatchTracker {
             const status = this.getMatchStatus(fixture)
             if (status !== 'finished') continue // Only count finished games
 
-            // Fetch events for this fixture
-            let events = []
-            try {
-              const eventsResponse = await this.api.getFixtureEvents(fixture.fixture.id)
-              events = eventsResponse.response || []
-            } catch (error) {
-              console.error(`Error fetching events for fixture ${fixture.fixture.id}:`, error.message)
-            }
-
+            // Note: Skipping event fetching for historical games to stay within API rate limits
+            // Just record that the game happened - detailed player stats not available for past games
             for (const player of players) {
               // Skip if we already have a more recent last game for this player
               if (this.lastGameData.has(player.id)) continue
-
-              const playerEvents = this.parsePlayerEvents(events, player.name,
-                isHome ? fixture.teams.home.id : fixture.teams.away.id)
-
-              const participated = this.didPlayerParticipate(playerEvents)
-              const minutesPlayed = this.calculateMinutesPlayed(playerEvents, 90, status)
 
               this.lastGameData.set(player.id, {
                 fixtureId: fixture.fixture.id,
@@ -320,10 +307,10 @@ class MatchTracker {
                 homeScore: fixture.goals.home || 0,
                 awayScore: fixture.goals.away || 0,
                 isHome,
-                events: playerEvents,
-                participated,
-                minutesPlayed,
-                started: !playerEvents.some(e => e.type === 'sub_in') && participated
+                events: [],
+                participated: true, // Assume participation - we don't have detailed lineup data
+                minutesPlayed: null, // Unknown without event data
+                started: null // Unknown without event data
               })
             }
             break // Found this team's most recent game, move to next team

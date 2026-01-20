@@ -351,7 +351,7 @@ app.get('/api/status', (req, res) => {
 })
 
 // Start server
-const SERVER_VERSION = '1.3.0' // Reduced API calls to stay within rate limits
+const SERVER_VERSION = '1.4.0' // Skip event fetching for historical games to stay within rate limits
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
