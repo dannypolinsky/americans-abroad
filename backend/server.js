@@ -275,10 +275,21 @@ app.get('/api/matches', (req, res) => {
       data: sampleMatchData
     })
   } else {
-    res.json({
-      mode: 'live',
-      data: matchTracker.getAllMatchData()
-    })
+    const liveData = matchTracker.getAllMatchData()
+    // If live API returns no data, fall back to sample data with indicator
+    if (Object.keys(liveData).length === 0) {
+      res.json({
+        mode: 'live',
+        apiStatus: 'unavailable',
+        message: 'Live API temporarily unavailable - showing sample data',
+        data: sampleMatchData
+      })
+    } else {
+      res.json({
+        mode: 'live',
+        data: liveData
+      })
+    }
   }
 })
 
@@ -365,7 +376,7 @@ app.get('/api/football-status', async (req, res) => {
 })
 
 // Start server
-const SERVER_VERSION = '1.5.0' // Added API diagnostics endpoint
+const SERVER_VERSION = '1.6.0' // Fall back to sample data when API unavailable
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
