@@ -96,6 +96,19 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
           </div>
 
           {renderEvents(matchData.events)}
+
+          {matchData.status === 'finished' && (
+            <div className="player-participation">
+              {matchData.participated ? (
+                <>
+                  <span className="minutes-played">{matchData.minutesPlayed} mins</span>
+                  {!matchData.started && <span className="sub-badge">SUB</span>}
+                </>
+              ) : (
+                <span className="did-not-play">Did not play</span>
+              )}
+            </div>
+          )}
         </div>
       )}
 
