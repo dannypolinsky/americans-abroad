@@ -209,6 +209,23 @@
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px dashed #eee;
+  flex-wrap: wrap;
+}
+
+.stat-badge {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.stat-badge.goal {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.stat-badge.assist {
+  background: #e3f2fd;
+  color: #1565c0;
 }
 
 .no-match {

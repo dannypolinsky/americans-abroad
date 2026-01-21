@@ -103,6 +103,12 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                 <>
                   <span className="minutes-played">{matchData.minutesPlayed} mins</span>
                   {!matchData.started && <span className="sub-badge">SUB</span>}
+                  {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
+                    <span key={`goal-${i}`} className="stat-badge goal">⚽ {e.minute}'</span>
+                  ))}
+                  {matchData.events?.filter(e => e.type === 'assist').map((e, i) => (
+                    <span key={`assist-${i}`} className="stat-badge assist">🅰️ {e.minute}'</span>
+                  ))}
                 </>
               ) : (
                 <span className="did-not-play">Did not play</span>
