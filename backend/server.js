@@ -4,8 +4,8 @@ import dotenv from 'dotenv'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import ApiFootballService from './services/apiFootball.js'
-import MatchTracker from './services/matchTracker.js'
+import { FootballDataService } from './services/footballData.js'
+import MatchTrackerFD from './services/matchTrackerFD.js'
 
 dotenv.config()
 
@@ -24,13 +24,13 @@ const playersData = JSON.parse(
   readFileSync(join(__dirname, 'data/players.json'), 'utf-8')
 )
 
-// Initialize services
-const apiKey = process.env.API_FOOTBALL_KEY || ''
-const apiService = new ApiFootballService(apiKey)
-const matchTracker = new MatchTracker(apiService)
+// Initialize services - Football-Data.org
+const footballDataKey = process.env.FOOTBALL_DATA_KEY || ''
+const apiService = new FootballDataService(footballDataKey)
+const matchTracker = new MatchTrackerFD(apiService)
 
 // Demo mode - use sample data when no API key
-const isDemoMode = !apiKey
+const isDemoMode = !footballDataKey
 
 // Helper to generate dates
 const daysAgo = (days) => {
@@ -352,7 +352,8 @@ app.get('/api/health', (req, res) => {
 app.get('/api/status', (req, res) => {
   res.json({
     mode: isDemoMode ? 'demo' : 'live',
-    apiKeyConfigured: !!apiKey,
+    apiKeyConfigured: !!footballDataKey,
+    apiProvider: 'football-data.org',
     playersCount: playersData.players.length,
     leaguesCount: playersData.leagues.length,
     polling: matchTracker.isPolling,
@@ -362,14 +363,14 @@ app.get('/api/status', (req, res) => {
   })
 })
 
-// API-Football subscription status (for debugging rate limits)
+// Football-Data.org status (for debugging)
 app.get('/api/football-status', async (req, res) => {
   if (isDemoMode) {
     res.json({ mode: 'demo', message: 'API not configured' })
   } else {
     try {
       const status = await apiService.getApiStatus()
-      res.json(status)
+      res.json({ provider: 'football-data.org', ...status })
     } catch (error) {
       res.status(500).json({ error: error.message })
     }
@@ -377,14 +378,14 @@ app.get('/api/football-status', async (req, res) => {
 })
 
 // Start server
-const SERVER_VERSION = '1.9.0' // Fetch events for games within last 24 hours
+const SERVER_VERSION = '2.0.0' // Switched to Football-Data.org API
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║        Americans Abroad - Backend Server              ║
 ╠═══════════════════════════════════════════════════════╣
 ║  Server running on http://localhost:${PORT}              ║
-║  Mode: ${isDemoMode ? 'DEMO (sample data)' : 'LIVE (API-Football)'}                      ${isDemoMode ? ' ' : ''}║
+║  Mode: ${isDemoMode ? 'DEMO (sample data)' : 'LIVE (Football-Data.org)'}                 ${isDemoMode ? ' ' : ''}║
 ║  Players tracked: ${playersData.players.length}                              ║
 ╚═══════════════════════════════════════════════════════╝
   `)
@@ -392,9 +393,9 @@ app.listen(PORT, () => {
   if (isDemoMode) {
     console.log('⚠️  Running in DEMO mode with sample data.')
     console.log('   To enable live data, create a .env file with:')
-    console.log('   API_FOOTBALL_KEY=your_api_key_here')
+    console.log('   FOOTBALL_DATA_KEY=your_api_key_here')
     console.log('')
-    console.log('   Get a free API key at: https://www.api-football.com/')
+    console.log('   Get a free API key at: https://www.football-data.org/')
     console.log('')
   } else {
     // Start polling for live matches (every 5 minutes)
