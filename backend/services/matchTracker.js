@@ -337,14 +337,15 @@ class MatchTracker {
             const status = this.getMatchStatus(fixture)
             if (status !== 'finished') continue // Only count finished games
 
-            // Check if game was today - if so, fetch events for detailed stats
-            const gameDate = fixture.fixture.date.split('T')[0]
-            const today = this.getTodayDate()
-            const isToday = gameDate === today
+            // Check if game was within last 24 hours - if so, fetch events for detailed stats
+            const gameTime = new Date(fixture.fixture.date)
+            const now = new Date()
+            const hoursSinceGame = (now - gameTime) / (1000 * 60 * 60)
+            const isRecent = hoursSinceGame < 24
 
             let events = []
-            if (isToday) {
-              // Fetch events only for today's games to stay within API rate limits
+            if (isRecent) {
+              // Fetch events only for recent games (last 24h) to stay within API rate limits
               try {
                 const eventsResponse = await this.api.getFixtureEvents(fixture.fixture.id)
                 events = eventsResponse.response || []
@@ -357,11 +358,11 @@ class MatchTracker {
               // Skip if we already have a more recent last game for this player
               if (this.lastGameData.has(player.id)) continue
 
-              const playerEvents = isToday ? this.parsePlayerEvents(events, player.name,
+              const playerEvents = isRecent ? this.parsePlayerEvents(events, player.name,
                 isHome ? fixture.teams.home.id : fixture.teams.away.id) : []
 
-              const participated = isToday ? this.didPlayerParticipate(playerEvents) : true
-              const minutesPlayed = isToday ? this.calculateMinutesPlayed(playerEvents, 90, status) : null
+              const participated = isRecent ? this.didPlayerParticipate(playerEvents) : true
+              const minutesPlayed = isRecent ? this.calculateMinutesPlayed(playerEvents, 90, status) : null
 
               this.lastGameData.set(player.id, {
                 fixtureId: fixture.fixture.id,
@@ -374,7 +375,7 @@ class MatchTracker {
                 events: playerEvents,
                 participated,
                 minutesPlayed,
-                started: isToday ? (!playerEvents.some(e => e.type === 'sub_in') && participated) : null
+                started: isRecent ? (!playerEvents.some(e => e.type === 'sub_in') && participated) : null
               })
             }
             break // Found this team's most recent game, move to next team

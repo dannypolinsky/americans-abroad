@@ -377,7 +377,7 @@ app.get('/api/football-status', async (req, res) => {
 })
 
 // Start server
-const SERVER_VERSION = '1.8.0' // Fetch events for today's completed games
+const SERVER_VERSION = '1.9.0' // Fetch events for games within last 24 hours
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
