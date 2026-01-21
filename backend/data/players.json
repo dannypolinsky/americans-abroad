@@ -49,18 +49,6 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/9/9e/2022_FIFA_World_Cup_United_States_1%E2%80%931_Wales_-_%2817%29_%28cropped%29.jpg"
     },
     {
-      "id": 5,
-      "name": "Giovanni Reyna",
-      "team": "Borussia Monchengladbach",
-      "league": "Bundesliga",
-      "country": "Germany",
-      "position": "Attacking Midfielder",
-      "number": 7,
-      "age": 22,
-      "caps": 30,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/3/31/Giovanni_Reyna_2020.jpg"
-    },
-    {
       "id": 6,
       "name": "Antonee Robinson",
       "team": "Fulham",
