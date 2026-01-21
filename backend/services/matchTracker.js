@@ -337,11 +337,31 @@ class MatchTracker {
             const status = this.getMatchStatus(fixture)
             if (status !== 'finished') continue // Only count finished games
 
-            // Note: Skipping event fetching for historical games to stay within API rate limits
-            // Just record that the game happened - detailed player stats not available for past games
+            // Check if game was today - if so, fetch events for detailed stats
+            const gameDate = fixture.fixture.date.split('T')[0]
+            const today = this.getTodayDate()
+            const isToday = gameDate === today
+
+            let events = []
+            if (isToday) {
+              // Fetch events only for today's games to stay within API rate limits
+              try {
+                const eventsResponse = await this.api.getFixtureEvents(fixture.fixture.id)
+                events = eventsResponse.response || []
+              } catch (error) {
+                console.error(`Error fetching events for fixture ${fixture.fixture.id}:`, error.message)
+              }
+            }
+
             for (const player of players) {
               // Skip if we already have a more recent last game for this player
               if (this.lastGameData.has(player.id)) continue
+
+              const playerEvents = isToday ? this.parsePlayerEvents(events, player.name,
+                isHome ? fixture.teams.home.id : fixture.teams.away.id) : []
+
+              const participated = isToday ? this.didPlayerParticipate(playerEvents) : true
+              const minutesPlayed = isToday ? this.calculateMinutesPlayed(playerEvents, 90, status) : null
 
               this.lastGameData.set(player.id, {
                 fixtureId: fixture.fixture.id,
@@ -351,10 +371,10 @@ class MatchTracker {
                 homeScore: fixture.goals.home || 0,
                 awayScore: fixture.goals.away || 0,
                 isHome,
-                events: [],
-                participated: true, // Assume participation - we don't have detailed lineup data
-                minutesPlayed: null, // Unknown without event data
-                started: null // Unknown without event data
+                events: playerEvents,
+                participated,
+                minutesPlayed,
+                started: isToday ? (!playerEvents.some(e => e.type === 'sub_in') && participated) : null
               })
             }
             break // Found this team's most recent game, move to next team
