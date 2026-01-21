@@ -30,6 +30,14 @@ class ApiFootballService {
 
       const data = await response.json()
 
+      // Log API response info (errors, remaining requests, etc.)
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        console.error('API errors:', data.errors)
+      }
+      if (data.response && data.results !== undefined) {
+        console.log(`API response: ${data.results} results for ${endpoint.split('?')[0]}`)
+      }
+
       // Cache the response
       this.cache.set(endpoint, {
         data,
@@ -116,6 +124,12 @@ class ApiFootballService {
   // Clear cache (useful when forcing refresh)
   clearCache() {
     this.cache.clear()
+  }
+
+  // Check API subscription status and remaining requests
+  async getApiStatus() {
+    const endpoint = '/status'
+    return this.fetchFromApi(endpoint)
   }
 }
 

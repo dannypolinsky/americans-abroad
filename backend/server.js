@@ -350,8 +350,22 @@ app.get('/api/status', (req, res) => {
   })
 })
 
+// API-Football subscription status (for debugging rate limits)
+app.get('/api/football-status', async (req, res) => {
+  if (isDemoMode) {
+    res.json({ mode: 'demo', message: 'API not configured' })
+  } else {
+    try {
+      const status = await apiService.getApiStatus()
+      res.json(status)
+    } catch (error) {
+      res.status(500).json({ error: error.message })
+    }
+  }
+})
+
 // Start server
-const SERVER_VERSION = '1.4.0' // Skip event fetching for historical games to stay within rate limits
+const SERVER_VERSION = '1.5.0' // Added API diagnostics endpoint
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
