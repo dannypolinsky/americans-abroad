@@ -83,16 +83,18 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
         <div className="match-info">
           <div className="match-teams">
             <span className={matchData.isHome ? 'highlight' : ''}>{matchData.homeTeam}</span>
-            <span className="score">
-              {matchData.status === 'upcoming' ? 'vs' : (
-                <><span className="score-num">{matchData.homeScore}</span><span className="score-colon">:</span><span className="score-num">{matchData.awayScore}</span></>
-              )}
+            <span className="score-container">
+              {isLive && <span className="live-minute">{matchData.minute}'</span>}
+              <span className="score">
+                {matchData.status === 'upcoming' ? 'vs' : (
+                  <><span className="score-num">{matchData.homeScore}</span><span className="score-colon">:</span><span className="score-num">{matchData.awayScore}</span></>
+                )}
+              </span>
             </span>
             <span className={!matchData.isHome ? 'highlight' : ''}>{matchData.awayTeam}</span>
           </div>
 
           <div className="match-time">
-            {isLive && `${matchData.minute}'`}
             {matchData.status === 'upcoming' && formatKickoff(matchData.kickoff)}
             {matchData.status === 'finished' && 'FT'}
           </div>

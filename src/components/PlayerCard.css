@@ -157,13 +157,32 @@
   color: #1a237e;
 }
 
+.score-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 0 !important;
+}
+
+.live-minute {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: #f44336;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 .score {
   background: #1a237e;
   color: white;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-weight: bold;
-  flex: 0 !important;
   display: inline-flex;
   align-items: center;
   gap: 0.1rem;
