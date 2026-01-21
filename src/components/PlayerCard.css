@@ -164,6 +164,21 @@
   border-radius: 4px;
   font-weight: bold;
   flex: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.score-num {
+  font-size: 1rem;
+  min-width: 1rem;
+  text-align: center;
+}
+
+.score-colon {
+  font-size: 1.3rem;
+  font-weight: bold;
+  line-height: 1;
 }
 
 .match-time {

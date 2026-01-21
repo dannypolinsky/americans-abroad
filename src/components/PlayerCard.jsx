@@ -84,7 +84,9 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
           <div className="match-teams">
             <span className={matchData.isHome ? 'highlight' : ''}>{matchData.homeTeam}</span>
             <span className="score">
-              {matchData.status === 'upcoming' ? 'vs' : `${matchData.homeScore} - ${matchData.awayScore}`}
+              {matchData.status === 'upcoming' ? 'vs' : (
+                <><span className="score-num">{matchData.homeScore}</span><span className="score-colon">:</span><span className="score-num">{matchData.awayScore}</span></>
+              )}
             </span>
             <span className={!matchData.isHome ? 'highlight' : ''}>{matchData.awayTeam}</span>
           </div>
@@ -140,7 +142,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               </div>
               <div className="match-teams">
                 <span className={lastGame.isHome ? 'highlight' : ''}>{lastGame.homeTeam}</span>
-                <span className="score">{lastGame.homeScore} - {lastGame.awayScore}</span>
+                <span className="score"><span className="score-num">{lastGame.homeScore}</span><span className="score-colon">:</span><span className="score-num">{lastGame.awayScore}</span></span>
                 <span className={!lastGame.isHome ? 'highlight' : ''}>{lastGame.awayTeam}</span>
               </div>
 
