@@ -323,10 +323,11 @@ app.post('/api/matches/refresh', async (req, res) => {
     try {
       await matchTracker.updateMatchData()
       await matchTracker.updateLastGameData()
+      await matchTracker.updateNextGameData()
       res.json({
         mode: 'live',
         success: true,
-        message: 'Match data and last game data refreshed'
+        message: 'Match data, last game data, and next game data refreshed'
       })
     } catch (error) {
       res.status(500).json({
@@ -376,7 +377,7 @@ app.get('/api/football-status', async (req, res) => {
 })
 
 // Start server
-const SERVER_VERSION = '1.6.0' // Fall back to sample data when API unavailable
+const SERVER_VERSION = '1.7.0' // Added cached next game data
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗

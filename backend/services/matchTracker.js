@@ -1,7 +1,7 @@
 // Match Tracker Service
 // Handles tracking matches for American players
 
-import { readFileSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
@@ -14,8 +14,11 @@ class MatchTracker {
     this.players = this.loadPlayers()
     this.matchData = new Map() // playerId -> today's match data
     this.lastGameData = new Map() // playerId -> last game data
+    this.nextGameData = new Map() // playerId -> next upcoming game (cached)
     this.isPolling = false
     this.pollInterval = null
+    this.cacheFile = join(__dirname, '../data/nextGamesCache.json')
+    this.loadNextGamesCache()
   }
 
   loadPlayers() {
@@ -27,6 +30,47 @@ class MatchTracker {
       console.error('Error loading players:', error)
       return []
     }
+  }
+
+  // Load cached next games from file
+  loadNextGamesCache() {
+    try {
+      if (existsSync(this.cacheFile)) {
+        const data = JSON.parse(readFileSync(this.cacheFile, 'utf-8'))
+        const now = new Date()
+        // Only load entries where the game date hasn't passed
+        for (const [playerId, gameData] of Object.entries(data)) {
+          if (new Date(gameData.kickoff) > now) {
+            this.nextGameData.set(parseInt(playerId), gameData)
+          }
+        }
+        console.log(`Loaded ${this.nextGameData.size} cached next games`)
+      }
+    } catch (error) {
+      console.error('Error loading next games cache:', error)
+    }
+  }
+
+  // Save next games cache to file
+  saveNextGamesCache() {
+    try {
+      const data = Object.fromEntries(this.nextGameData)
+      writeFileSync(this.cacheFile, JSON.stringify(data, null, 2))
+    } catch (error) {
+      console.error('Error saving next games cache:', error)
+    }
+  }
+
+  // Check if we need to refresh next game for a team
+  needsNextGameRefresh(teamName) {
+    const players = this.players.filter(p => p.team === teamName)
+    for (const player of players) {
+      const cached = this.nextGameData.get(player.id)
+      if (!cached) return true
+      // If cached game date has passed, need refresh
+      if (new Date(cached.kickoff) <= new Date()) return true
+    }
+    return false
   }
 
   // Get all players grouped by team
@@ -326,6 +370,91 @@ class MatchTracker {
     }
   }
 
+  // Get date N days in future in YYYY-MM-DD format
+  getDateDaysAhead(daysAhead) {
+    const date = new Date()
+    date.setDate(date.getDate() + daysAhead)
+    return date.toISOString().split('T')[0]
+  }
+
+  // Update next game data for teams that need refresh
+  async updateNextGameData() {
+    try {
+      const playersByTeam = this.getPlayersByTeam()
+      const teamsNeedingRefresh = Object.keys(playersByTeam).filter(team =>
+        this.needsNextGameRefresh(team)
+      )
+
+      if (teamsNeedingRefresh.length === 0) {
+        console.log('All next game data is cached and valid')
+        return true
+      }
+
+      console.log(`Fetching next games for ${teamsNeedingRefresh.length} teams`)
+
+      // Fetch fixtures for next 14 days (single API call)
+      const fromDate = this.getTodayDate()
+      const toDate = this.getDateDaysAhead(14)
+      const leagues = this.getUniqueLeagues()
+      const trackedLeagueIds = new Set(leagues.map(l => l.apiId).filter(Boolean))
+
+      const response = await this.api.getUpcomingFixtures(fromDate, toDate)
+
+      if (!response.response) {
+        console.log('No upcoming fixtures found')
+        return false
+      }
+
+      // Filter to tracked leagues
+      const fixtures = response.response.filter(f => trackedLeagueIds.has(f.league.id))
+      console.log(`Found ${fixtures.length} upcoming fixtures in tracked leagues`)
+
+      // Sort by date (earliest first)
+      fixtures.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date))
+
+      // Find next game for each team that needs refresh
+      for (const teamName of teamsNeedingRefresh) {
+        const players = playersByTeam[teamName]
+
+        for (const fixture of fixtures) {
+          const homeTeam = fixture.teams.home.name
+          const awayTeam = fixture.teams.away.name
+          let isHome = null
+
+          if (this.teamMatches(homeTeam, teamName)) {
+            isHome = true
+          } else if (this.teamMatches(awayTeam, teamName)) {
+            isHome = false
+          }
+
+          if (isHome !== null) {
+            // Found the next game for this team
+            for (const player of players) {
+              this.nextGameData.set(player.id, {
+                fixtureId: fixture.fixture.id,
+                kickoff: fixture.fixture.date,
+                homeTeam: fixture.teams.home.name,
+                awayTeam: fixture.teams.away.name,
+                isHome,
+                venue: fixture.fixture.venue?.name || '',
+                competition: fixture.league.name
+              })
+            }
+            break // Found next game for this team, move to next team
+          }
+        }
+      }
+
+      // Save cache to file
+      this.saveNextGamesCache()
+      console.log(`Updated next game data for ${this.nextGameData.size} players`)
+      return true
+    } catch (error) {
+      console.error('Error updating next game data:', error)
+      return false
+    }
+  }
+
   // Get unique leagues from players
   getUniqueLeagues() {
     const data = JSON.parse(readFileSync(join(__dirname, '../data/players.json'), 'utf-8'))
@@ -404,17 +533,20 @@ class MatchTracker {
     for (const player of this.players) {
       const todayMatch = this.matchData.get(player.id)
       const lastGame = this.lastGameData.get(player.id)
+      const nextGame = this.nextGameData.get(player.id)
 
       if (todayMatch) {
         data[player.id] = {
           ...todayMatch,
-          lastGame: lastGame || null
+          lastGame: lastGame || null,
+          nextGame: nextGame || null
         }
-      } else if (lastGame) {
-        // No match today but we have last game data
+      } else if (lastGame || nextGame) {
+        // No match today but we have last game or next game data
         data[player.id] = {
           status: 'no_match_today',
-          lastGame
+          lastGame: lastGame || null,
+          nextGame: nextGame || null
         }
       }
     }
@@ -446,9 +578,10 @@ class MatchTracker {
     this.isPolling = true
     console.log(`Starting match polling every ${intervalMs / 1000} seconds`)
 
-    // Initial update - fetch today's matches and recent history
+    // Initial update - fetch today's matches, recent history, and upcoming games
     await this.updateMatchData()
     await this.updateLastGameData()
+    await this.updateNextGameData()
 
     // Set up interval
     this.pollInterval = setInterval(async () => {

@@ -212,11 +212,33 @@
   margin: 0;
 }
 
+.game-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.next-game-info {
+  background: #e3f2fd;
+  border-radius: 8px;
+  padding: 0.75rem;
+  border: 1px solid #90caf9;
+}
+
+.next-game-header {
+  font-size: 0.75rem;
+  color: #1565c0;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
 .last-game-info {
   background: #fafafa;
   border-radius: 8px;
   padding: 0.75rem;
-  margin-top: 0.5rem;
   border: 1px dashed #ddd;
 }
 

@@ -64,6 +64,12 @@ class ApiFootballService {
     return this.fetchFromApi(endpoint)
   }
 
+  // Get upcoming fixtures for next N days
+  async getUpcomingFixtures(fromDate, toDate) {
+    const endpoint = `/fixtures?from=${fromDate}&to=${toDate}`
+    return this.fetchFromApi(endpoint)
+  }
+
   // Calculate the current football season (e.g., 2025 for 2025-2026 season)
   getCurrentSeason() {
     const now = new Date()
