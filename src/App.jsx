@@ -354,23 +354,38 @@ function App() {
       players = players.filter(p => matchData[p.id] && matchData[p.id].status !== 'no_match_today')
     }
 
-    // Sort players by most recent game
+    // Sort players: 1) Completed today, 2) Upcoming, 3) Past games
     players = [...players].sort((a, b) => {
+      const dataA = matchData[a.id]
+      const dataB = matchData[b.id]
+
+      // Get sort priority: 0 = live, 1 = finished today, 2 = upcoming, 3 = past/no match
+      const getSortPriority = (data) => {
+        if (!data) return 4
+        if (data.status === 'live') return 0
+        if (data.status === 'finished') return 1
+        if (data.status === 'upcoming') return 2
+        return 3 // no_match_today
+      }
+
+      const priorityA = getSortPriority(dataA)
+      const priorityB = getSortPriority(dataB)
+
+      // Sort by priority first
+      if (priorityA !== priorityB) return priorityA - priorityB
+
+      // Within same priority, sort by date
       const dateA = getMostRecentGameDate(a.id)
       const dateB = getMostRecentGameDate(b.id)
 
-      // For "today" filter, prioritize players who played or have upcoming games
-      if (filter === 'today') {
-        const aPlayedOrUpcoming = hasPlayedOrUpcoming(a.id)
-        const bPlayedOrUpcoming = hasPlayedOrUpcoming(b.id)
-        if (aPlayedOrUpcoming && !bPlayedOrUpcoming) return -1
-        if (!aPlayedOrUpcoming && bPlayedOrUpcoming) return 1
-      }
-
-      // Then sort by most recent game date
       if (!dateA && !dateB) return 0
       if (!dateA) return 1
       if (!dateB) return -1
+
+      // For upcoming, sort by earliest first
+      if (priorityA === 2) return new Date(dateA) - new Date(dateB)
+
+      // For others, sort by most recent first
       return new Date(dateB) - new Date(dateA)
     })
 
