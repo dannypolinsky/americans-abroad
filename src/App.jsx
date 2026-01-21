@@ -234,6 +234,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [matchData, setMatchData] = useState({})
   const [apiMode, setApiMode] = useState(API_BASE ? 'loading' : 'demo')
+  const [apiStatus, setApiStatus] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isApiLoading, setIsApiLoading] = useState(!!API_BASE)
@@ -253,9 +254,9 @@ function App() {
       const response = await fetch(`${API_BASE}/matches`)
       if (!response.ok) throw new Error('API error')
       const data = await response.json()
-      // Use the API data (even if empty) - this is accurate
       setMatchData(data.data || {})
       setApiMode(data.mode || 'live')
+      setApiStatus(data.apiStatus || null)
       setLastUpdate(new Date())
       setIsApiLoading(false)
     } catch (err) {
@@ -420,7 +421,12 @@ function App() {
       <main className="main-content">
         <div className="player-count">
           Showing {filteredPlayers.length} players
-          {lastUpdate && (
+          {apiStatus === 'unavailable' && (
+            <span className="api-unavailable">
+              (Showing sample data - live API temporarily unavailable)
+            </span>
+          )}
+          {lastUpdate && apiStatus !== 'unavailable' && (
             <span className="last-update">
               Last updated: {formatLastUpdate()}
             </span>

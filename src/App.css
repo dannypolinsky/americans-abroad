@@ -55,6 +55,12 @@
   color: #999;
 }
 
+.api-unavailable {
+  font-size: 0.8rem;
+  color: #f57c00;
+  font-style: italic;
+}
+
 .error-banner {
   background: #ffebee;
   color: #c62828;
