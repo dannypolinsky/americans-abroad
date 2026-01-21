@@ -61,6 +61,47 @@
   font-style: italic;
 }
 
+.players-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-header {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 1rem 0 0.5rem 0;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: #f5f5f5;
+}
+
+.section-header.live-header {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.section-header.finished-header {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.section-header.upcoming-header {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.section-header.recent-header {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.section-header.older-header {
+  background: #f5f5f5;
+  color: #757575;
+}
+
 .error-banner {
   background: #ffebee;
   color: #c62828;

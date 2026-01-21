@@ -392,6 +392,43 @@ function App() {
     return players
   }, [uniquePlayers, filter, selectedLeague, searchTerm, matchData])
 
+  // Group players by category for section headers (only for "all" filter)
+  const groupedPlayers = useMemo(() => {
+    if (filter !== 'all') return null
+
+    const groups = {
+      live: [],
+      finished: [],
+      upcoming: [],
+      recent: [],
+      older: []
+    }
+
+    for (const player of filteredPlayers) {
+      const data = matchData[player.id]
+      if (!data) {
+        groups.older.push(player)
+      } else if (data.status === 'live') {
+        groups.live.push(player)
+      } else if (data.status === 'finished') {
+        groups.finished.push(player)
+      } else if (data.status === 'upcoming') {
+        groups.upcoming.push(player)
+      } else if (data.status === 'no_match_today') {
+        // Check if last game has event data (meaning it was recent enough to fetch)
+        if (data.lastGame?.events?.length > 0 || data.lastGame?.minutesPlayed !== null) {
+          groups.recent.push(player)
+        } else {
+          groups.older.push(player)
+        }
+      } else {
+        groups.older.push(player)
+      }
+    }
+
+    return groups
+  }, [filteredPlayers, matchData, filter])
+
   // Count live matches
   const liveCount = useMemo(() => {
     return uniquePlayers.filter(p => matchData[p.id]?.status === 'live').length
@@ -452,6 +489,59 @@ function App() {
           <div className="loading">
             <div className="loading-spinner"></div>
             <p>Loading match data...</p>
+          </div>
+        ) : filter === 'all' && groupedPlayers ? (
+          <div className="players-sections">
+            {groupedPlayers.live.length > 0 && (
+              <>
+                <h2 className="section-header live-header">Live Now</h2>
+                <div className="players-grid">
+                  {groupedPlayers.live.map(player => (
+                    <PlayerCard key={player.id} player={player} matchData={matchData[player.id] || null} showLastGame={true} />
+                  ))}
+                </div>
+              </>
+            )}
+            {groupedPlayers.finished.length > 0 && (
+              <>
+                <h2 className="section-header finished-header">Finished Today</h2>
+                <div className="players-grid">
+                  {groupedPlayers.finished.map(player => (
+                    <PlayerCard key={player.id} player={player} matchData={matchData[player.id] || null} showLastGame={true} />
+                  ))}
+                </div>
+              </>
+            )}
+            {groupedPlayers.upcoming.length > 0 && (
+              <>
+                <h2 className="section-header upcoming-header">Upcoming Games</h2>
+                <div className="players-grid">
+                  {groupedPlayers.upcoming.map(player => (
+                    <PlayerCard key={player.id} player={player} matchData={matchData[player.id] || null} showLastGame={true} />
+                  ))}
+                </div>
+              </>
+            )}
+            {groupedPlayers.recent.length > 0 && (
+              <>
+                <h2 className="section-header recent-header">Recently Played</h2>
+                <div className="players-grid">
+                  {groupedPlayers.recent.map(player => (
+                    <PlayerCard key={player.id} player={player} matchData={matchData[player.id] || null} showLastGame={true} />
+                  ))}
+                </div>
+              </>
+            )}
+            {groupedPlayers.older.length > 0 && (
+              <>
+                <h2 className="section-header older-header">Older Than API Supports</h2>
+                <div className="players-grid">
+                  {groupedPlayers.older.map(player => (
+                    <PlayerCard key={player.id} player={player} matchData={matchData[player.id] || null} showLastGame={true} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <div className="players-grid">
