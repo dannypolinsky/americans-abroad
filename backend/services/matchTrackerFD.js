@@ -100,6 +100,76 @@ class MatchTrackerFD {
     return api.includes(our) || our.includes(api) || api === our
   }
 
+  // Parse player events from match details
+  parsePlayerEvents(matchDetails, playerName, isHome) {
+    const events = []
+    const teamSide = isHome ? 'HOME_TEAM' : 'AWAY_TEAM'
+    const playerLastName = playerName.split(' ').pop().toLowerCase()
+
+    // Parse goals
+    if (matchDetails.goals) {
+      for (const goal of matchDetails.goals) {
+        const scorerName = goal.scorer?.name?.toLowerCase() || ''
+        const assistName = goal.assist?.name?.toLowerCase() || ''
+
+        if (scorerName.includes(playerLastName)) {
+          events.push({ type: 'goal', minute: goal.minute })
+        }
+        if (assistName.includes(playerLastName)) {
+          events.push({ type: 'assist', minute: goal.minute })
+        }
+      }
+    }
+
+    // Parse substitutions
+    if (matchDetails.substitutions) {
+      for (const sub of matchDetails.substitutions) {
+        const playerOutName = sub.playerOut?.name?.toLowerCase() || ''
+        const playerInName = sub.playerIn?.name?.toLowerCase() || ''
+
+        if (playerOutName.includes(playerLastName)) {
+          events.push({ type: 'sub_out', minute: sub.minute })
+        }
+        if (playerInName.includes(playerLastName)) {
+          events.push({ type: 'sub_in', minute: sub.minute })
+        }
+      }
+    }
+
+    // Parse bookings (cards)
+    if (matchDetails.bookings) {
+      for (const booking of matchDetails.bookings) {
+        const bookedPlayerName = booking.player?.name?.toLowerCase() || ''
+        if (bookedPlayerName.includes(playerLastName)) {
+          const cardType = booking.card === 'YELLOW_CARD' ? 'yellow' : 'red'
+          events.push({ type: cardType, minute: booking.minute })
+        }
+      }
+    }
+
+    return events
+  }
+
+  // Calculate minutes played from events
+  calculateMinutesPlayed(events, matchMinute = 90) {
+    const subIn = events.find(e => e.type === 'sub_in')
+    const subOut = events.find(e => e.type === 'sub_out')
+
+    if (subIn && subOut) {
+      return subOut.minute - subIn.minute
+    } else if (subIn) {
+      return matchMinute - subIn.minute
+    } else if (subOut) {
+      return subOut.minute
+    }
+    // No sub events - either played full match or didn't play
+    // If they have other events, assume they played
+    if (events.length > 0) {
+      return matchMinute
+    }
+    return matchMinute // Default to full match
+  }
+
   // Get match status from Football-Data.org status
   getMatchStatus(match) {
     const status = match.status
@@ -226,6 +296,7 @@ class MatchTrackerFD {
       matches.sort((a, b) => new Date(b.utcDate) - new Date(a.utcDate))
 
       const playersByTeam = this.getPlayersByTeam()
+      const matchDetailsCache = new Map() // Cache match details to avoid duplicate fetches
 
       for (const match of matches) {
         const status = this.getMatchStatus(match)
@@ -233,6 +304,12 @@ class MatchTrackerFD {
 
         const homeTeam = match.homeTeam?.name || match.homeTeam?.shortName
         const awayTeam = match.awayTeam?.name || match.awayTeam?.shortName
+
+        // Check if game was within last 24 hours - if so, fetch detailed events
+        const gameTime = new Date(match.utcDate)
+        const now = new Date()
+        const hoursSinceGame = (now - gameTime) / (1000 * 60 * 60)
+        const isRecent = hoursSinceGame < 48 // Fetch details for games in last 48 hours
 
         for (const [teamName, players] of Object.entries(playersByTeam)) {
           let isHome = null
@@ -244,9 +321,41 @@ class MatchTrackerFD {
           }
 
           if (isHome !== null) {
+            // Fetch match details if recent and not already cached
+            let matchDetails = null
+            if (isRecent) {
+              if (matchDetailsCache.has(match.id)) {
+                matchDetails = matchDetailsCache.get(match.id)
+              } else {
+                try {
+                  console.log(`Fetching details for match ${match.id}`)
+                  matchDetails = await this.api.getMatchDetails(match.id)
+                  matchDetailsCache.set(match.id, matchDetails)
+                } catch (error) {
+                  console.error(`Error fetching match details for ${match.id}:`, error.message)
+                }
+              }
+            }
+
             for (const player of players) {
               // Skip if we already have data for this player
               if (this.lastGameData.has(player.id)) continue
+
+              // Parse player events if we have match details
+              let playerEvents = []
+              let minutesPlayed = 90
+              let started = true
+              let participated = true
+
+              if (matchDetails) {
+                playerEvents = this.parsePlayerEvents(matchDetails, player.name, isHome)
+                const hasSubIn = playerEvents.some(e => e.type === 'sub_in')
+                const hasSubOut = playerEvents.some(e => e.type === 'sub_out')
+                started = !hasSubIn && (hasSubOut || playerEvents.length > 0)
+                minutesPlayed = this.calculateMinutesPlayed(playerEvents, 90)
+                // If no events, assume they played (we can't know for sure without lineup data)
+                participated = true
+              }
 
               this.lastGameData.set(player.id, {
                 fixtureId: match.id,
@@ -256,10 +365,10 @@ class MatchTrackerFD {
                 homeScore: match.score?.fullTime?.home ?? 0,
                 awayScore: match.score?.fullTime?.away ?? 0,
                 isHome,
-                events: [],
-                participated: true,
-                minutesPlayed: 90, // Assume full match
-                started: true,
+                events: playerEvents,
+                participated,
+                minutesPlayed: playerEvents.length > 0 ? minutesPlayed : null,
+                started: playerEvents.length > 0 ? started : null,
                 competition: match.competition?.name
               })
             }

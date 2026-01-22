@@ -74,9 +74,15 @@ class FootballDataService {
     return this.fetchFromApi(endpoint)
   }
 
-  // Get a specific match by ID
+  // Get a specific match by ID (includes goals, subs, bookings details)
   async getMatch(matchId) {
     return this.fetchFromApi(`/matches/${matchId}`)
+  }
+
+  // Get match with full details including player events
+  async getMatchDetails(matchId) {
+    const data = await this.fetchFromApi(`/matches/${matchId}`)
+    return data
   }
 
   // Get all available competitions

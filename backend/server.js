@@ -378,7 +378,7 @@ app.get('/api/football-status', async (req, res) => {
 })
 
 // Start server
-const SERVER_VERSION = '2.0.0' // Switched to Football-Data.org API
+const SERVER_VERSION = '2.1.0' // Added player event details (goals, assists, subs)
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
