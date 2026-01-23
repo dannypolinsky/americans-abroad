@@ -173,7 +173,9 @@ class MatchTrackerFD {
     if (!apiTeamName || !ourTeamName) return false
 
     const normalize = (name) => name.toLowerCase()
-      .replace(/fc|cf|ac|as|afc|sc|sv|bv|ssc|1\./gi, '')
+      // Remove common suffixes/prefixes - use word boundaries to avoid matching inside names
+      .replace(/\b(fc|cf|ac|as|afc|sc|sv|bv|ssc)\b/gi, '')
+      .replace(/1\./g, '')  // For German clubs like 1. FC Köln
       .replace(/[^a-z]/g, '')
       .trim()
 
