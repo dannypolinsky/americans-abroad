@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { LEAGUE_CODES } from './footballData.js'
+import { LEAGUE_CODES, EUROPEAN_COMPETITIONS } from './footballData.js'
 import FBrefScraper from './fbrefScraper.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -278,12 +278,22 @@ class MatchTrackerFD {
   }
 
   // Get supported league codes as comma-separated string
+  // Includes domestic leagues and European competitions (Champions League, Europa League)
   getSupportedLeagueCodes() {
     const codes = new Set()
+
+    // Add domestic league codes for players
     for (const player of this.players) {
       const code = LEAGUE_CODES[player.league]
       if (code) codes.add(code)
     }
+
+    // Add European competitions (Champions League, Europa League)
+    // These apply to players in top European leagues
+    for (const [, code] of Object.entries(EUROPEAN_COMPETITIONS)) {
+      codes.add(code)
+    }
+
     return Array.from(codes).join(',')
   }
 

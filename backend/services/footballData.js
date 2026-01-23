@@ -137,5 +137,11 @@ const LEAGUE_CODES = {
   'MLS': null // Not available
 }
 
-export { FootballDataService, LEAGUE_CODES }
+// European competition codes
+const EUROPEAN_COMPETITIONS = {
+  'Champions League': 'CL',
+  'Europa League': 'EL'
+}
+
+export { FootballDataService, LEAGUE_CODES, EUROPEAN_COMPETITIONS }
 export default FootballDataService
