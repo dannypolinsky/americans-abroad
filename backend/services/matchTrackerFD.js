@@ -1,10 +1,12 @@
 // Match Tracker Service for Football-Data.org API
 // Handles tracking matches for American players
+// Integrates with FBref scraper for player-level statistics
 
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { LEAGUE_CODES } from './footballData.js'
+import FBrefScraper from './fbrefScraper.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -12,14 +14,21 @@ const __dirname = dirname(__filename)
 class MatchTrackerFD {
   constructor(apiService) {
     this.api = apiService
+    this.fbref = new FBrefScraper()
     this.players = this.loadPlayers()
     this.matchData = new Map() // playerId -> today's match data
     this.lastGameData = new Map() // playerId -> last game data
     this.nextGameData = new Map() // playerId -> next upcoming game (cached)
+    this.fbrefData = new Map() // playerId -> FBref match data (cached)
+    this.manualStats = new Map() // playerId -> manually entered stats
     this.isPolling = false
     this.pollInterval = null
     this.cacheFile = join(__dirname, '../data/nextGamesCache.json')
+    this.fbrefCacheFile = join(__dirname, '../data/fbrefCache.json')
+    this.manualStatsFile = join(__dirname, '../data/playerStats.json')
     this.loadNextGamesCache()
+    this.loadFBrefCache()
+    this.loadManualStats()
   }
 
   loadPlayers() {
@@ -59,6 +68,80 @@ class MatchTrackerFD {
     } catch (error) {
       console.error('Error saving next games cache:', error)
     }
+  }
+
+  // Load FBref cache from file
+  loadFBrefCache() {
+    try {
+      if (existsSync(this.fbrefCacheFile)) {
+        const data = JSON.parse(readFileSync(this.fbrefCacheFile, 'utf-8'))
+        const now = new Date()
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+
+        for (const [playerId, cacheEntry] of Object.entries(data)) {
+          // Only load cache entries that are less than 1 hour old
+          if (new Date(cacheEntry.timestamp) > oneHourAgo) {
+            this.fbrefData.set(parseInt(playerId), cacheEntry)
+          }
+        }
+        console.log(`Loaded ${this.fbrefData.size} cached FBref entries`)
+      }
+    } catch (error) {
+      console.error('Error loading FBref cache:', error)
+    }
+  }
+
+  // Save FBref cache to file
+  saveFBrefCache() {
+    try {
+      const data = Object.fromEntries(this.fbrefData)
+      writeFileSync(this.fbrefCacheFile, JSON.stringify(data, null, 2))
+    } catch (error) {
+      console.error('Error saving FBref cache:', error)
+    }
+  }
+
+  // Load manual player stats from file
+  loadManualStats() {
+    try {
+      if (existsSync(this.manualStatsFile)) {
+        const data = JSON.parse(readFileSync(this.manualStatsFile, 'utf-8'))
+        if (data.players) {
+          for (const [playerId, playerData] of Object.entries(data.players)) {
+            this.manualStats.set(parseInt(playerId), playerData)
+          }
+          console.log(`Loaded manual stats for ${this.manualStats.size} players`)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading manual stats:', error)
+    }
+  }
+
+  // Get manual stats for a specific date and player
+  findManualMatchForDate(playerId, matchDate) {
+    const playerStats = this.manualStats.get(playerId)
+    if (!playerStats || !playerStats.recentMatches) return null
+
+    const targetDate = new Date(matchDate).toISOString().split('T')[0]
+
+    for (const match of playerStats.recentMatches) {
+      if (match.date === targetDate) {
+        return {
+          opponent: match.opponent,
+          isHome: match.isHome,
+          homeScore: match.homeScore,
+          awayScore: match.awayScore,
+          result: match.result,
+          minutesPlayed: match.minutesPlayed,
+          started: match.started,
+          participated: match.minutesPlayed > 0,
+          events: match.events || []
+        }
+      }
+    }
+
+    return null
   }
 
   // Get all players grouped by team
@@ -357,6 +440,29 @@ class MatchTrackerFD {
                 participated = true
               }
 
+              // Try to get additional data from FBref or manual stats
+              let statsSource = 'api'
+              const fbrefMatch = this.findFBrefMatchForDate(player.id, match.utcDate)
+              const manualMatch = this.findManualMatchForDate(player.id, match.utcDate)
+
+              if (fbrefMatch) {
+                // Use FBref data for player stats
+                playerEvents = fbrefMatch.events || []
+                minutesPlayed = fbrefMatch.minutesPlayed || 0
+                started = fbrefMatch.started
+                participated = fbrefMatch.participated
+                statsSource = 'fbref'
+                console.log(`Using FBref data for ${player.name}: ${minutesPlayed}min, ${playerEvents.filter(e => e.type === 'goal').length} goals`)
+              } else if (manualMatch) {
+                // Use manual stats as fallback
+                playerEvents = manualMatch.events || []
+                minutesPlayed = manualMatch.minutesPlayed || 0
+                started = manualMatch.started
+                participated = manualMatch.participated
+                statsSource = 'manual'
+                console.log(`Using manual stats for ${player.name}: ${minutesPlayed}min, ${playerEvents.filter(e => e.type === 'goal').length} goals`)
+              }
+
               this.lastGameData.set(player.id, {
                 fixtureId: match.id,
                 date: match.utcDate,
@@ -367,9 +473,10 @@ class MatchTrackerFD {
                 isHome,
                 events: playerEvents,
                 participated,
-                minutesPlayed: playerEvents.length > 0 ? minutesPlayed : null,
-                started: playerEvents.length > 0 ? started : null,
-                competition: match.competition?.name
+                minutesPlayed: minutesPlayed > 0 ? minutesPlayed : (playerEvents.length > 0 ? minutesPlayed : null),
+                started: started !== undefined ? started : (playerEvents.length > 0 ? started : null),
+                competition: match.competition?.name,
+                source: statsSource
               })
             }
           }
@@ -382,6 +489,88 @@ class MatchTrackerFD {
       console.error('Error updating last game data:', error)
       return false
     }
+  }
+
+  // Update FBref player statistics
+  // Note: FBref uses Cloudflare protection, so scraping may fail
+  // This method will silently fail and continue with Football-Data.org data only
+  async updateFBrefData() {
+    try {
+      const playersWithFBref = this.players.filter(p => p.fbrefId && p.fbrefSlug)
+
+      if (playersWithFBref.length === 0) {
+        console.log('No players configured with FBref IDs')
+        return true
+      }
+
+      console.log(`Attempting to update FBref data for ${playersWithFBref.length} players`)
+      console.log('Note: FBref has Cloudflare protection which may block requests')
+
+      let updated = 0
+      let failed = 0
+
+      for (const player of playersWithFBref) {
+        // Check if we need to refresh this player's data
+        const cached = this.fbrefData.get(player.id)
+        const now = new Date()
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+
+        if (cached && new Date(cached.timestamp) > oneHourAgo) {
+          continue // Skip if cached data is fresh
+        }
+
+        try {
+          const lastMatch = await this.fbref.getLastMatch(player.fbrefId, player.fbrefSlug)
+
+          if (lastMatch) {
+            this.fbrefData.set(player.id, {
+              timestamp: now.toISOString(),
+              lastMatch
+            })
+            updated++
+            console.log(`FBref: Updated ${player.name}`)
+          }
+        } catch (error) {
+          failed++
+          // Silently fail for individual players - Cloudflare protection is expected
+          if (failed === 1) {
+            console.log('FBref: Cloudflare protection detected, scraping unavailable')
+          }
+        }
+
+        // Stop trying after 3 consecutive failures (Cloudflare blocking)
+        if (failed >= 3 && updated === 0) {
+          console.log('FBref: Stopped after multiple failures - using Football-Data.org only')
+          break
+        }
+      }
+
+      if (updated > 0) {
+        this.saveFBrefCache()
+        console.log(`FBref: Updated data for ${updated} players`)
+      }
+
+      return true
+    } catch (error) {
+      console.error('Error in FBref update:', error.message)
+      return true // Don't fail the whole process
+    }
+  }
+
+  // Get FBref match data for a specific date and player
+  findFBrefMatchForDate(playerId, matchDate) {
+    const cached = this.fbrefData.get(playerId)
+    if (!cached || !cached.lastMatch) return null
+
+    const fbrefDate = new Date(cached.lastMatch.date)
+    const targetDate = new Date(matchDate)
+
+    // Check if dates match (same day)
+    if (fbrefDate.toISOString().split('T')[0] === targetDate.toISOString().split('T')[0]) {
+      return cached.lastMatch
+    }
+
+    return null
   }
 
   // Update next game data
@@ -498,6 +687,10 @@ class MatchTrackerFD {
 
     // Initial update
     await this.updateMatchData()
+
+    // Update FBref data first (slower, but needed for player stats)
+    await this.updateFBrefData()
+
     await this.updateLastGameData()
     await this.updateNextGameData()
 

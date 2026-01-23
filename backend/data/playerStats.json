@@ -1,0 +1,40 @@
+{
+  "lastUpdated": "2026-01-23T00:00:00Z",
+  "note": "This file contains manually updated player statistics. Update this file with data from FBref or other sources when automatic scraping is unavailable.",
+  "players": {
+    "1": {
+      "name": "Christian Pulisic",
+      "recentMatches": [
+        {
+          "date": "2026-01-19",
+          "opponent": "Juventus",
+          "isHome": true,
+          "result": "W",
+          "homeScore": 2,
+          "awayScore": 0,
+          "minutesPlayed": 77,
+          "started": true,
+          "events": [
+            { "type": "goal", "minute": 45 }
+          ]
+        }
+      ]
+    },
+    "2": {
+      "name": "Weston McKennie",
+      "recentMatches": [
+        {
+          "date": "2026-01-19",
+          "opponent": "AC Milan",
+          "isHome": false,
+          "result": "L",
+          "homeScore": 2,
+          "awayScore": 0,
+          "minutesPlayed": 90,
+          "started": true,
+          "events": []
+        }
+      ]
+    }
+  }
+}

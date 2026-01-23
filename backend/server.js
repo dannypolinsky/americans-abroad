@@ -322,12 +322,13 @@ app.post('/api/matches/refresh', async (req, res) => {
   } else {
     try {
       await matchTracker.updateMatchData()
+      await matchTracker.updateFBrefData()
       await matchTracker.updateLastGameData()
       await matchTracker.updateNextGameData()
       res.json({
         mode: 'live',
         success: true,
-        message: 'Match data, last game data, and next game data refreshed'
+        message: 'Match data, FBref data, last game data, and next game data refreshed'
       })
     } catch (error) {
       res.status(500).json({
@@ -335,6 +336,47 @@ app.post('/api/matches/refresh', async (req, res) => {
         error: error.message
       })
     }
+  }
+})
+
+// Force refresh FBref data only
+app.post('/api/fbref/refresh', async (req, res) => {
+  if (isDemoMode) {
+    res.json({
+      mode: 'demo',
+      message: 'Demo mode - no FBref data'
+    })
+  } else {
+    try {
+      await matchTracker.updateFBrefData()
+      res.json({
+        mode: 'live',
+        success: true,
+        message: 'FBref player data refreshed'
+      })
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+})
+
+// Reload manual player stats from file
+app.post('/api/stats/reload', async (req, res) => {
+  try {
+    matchTracker.loadManualStats()
+    res.json({
+      success: true,
+      message: 'Manual player stats reloaded',
+      count: matchTracker.manualStats.size
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
   }
 })
 
