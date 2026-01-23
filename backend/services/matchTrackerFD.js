@@ -362,9 +362,9 @@ class MatchTrackerFD {
                 events: [], // Football-Data.org doesn't provide detailed events in match list
                 kickoff: match.utcDate,
                 venue: match.venue || '',
-                participated: true, // Assume participation
-                minutesPlayed: status === 'finished' ? 90 : (match.minute || 0),
-                started: true,
+                participated: null, // Unknown without lineup data
+                minutesPlayed: null, // Unknown without lineup data
+                started: null, // Unknown without lineup data
                 competition: match.competition?.name
               })
             }
@@ -438,18 +438,20 @@ class MatchTrackerFD {
 
               // Parse player events if we have match details
               let playerEvents = []
-              let minutesPlayed = 90
-              let started = true
-              let participated = true
+              let minutesPlayed = null // Unknown without detailed data
+              let started = null // Unknown without detailed data
+              let participated = null // Unknown without detailed data
 
               if (matchDetails) {
                 playerEvents = this.parsePlayerEvents(matchDetails, player.name, isHome)
-                const hasSubIn = playerEvents.some(e => e.type === 'sub_in')
-                const hasSubOut = playerEvents.some(e => e.type === 'sub_out')
-                started = !hasSubIn && (hasSubOut || playerEvents.length > 0)
-                minutesPlayed = this.calculateMinutesPlayed(playerEvents, 90)
-                // If no events, assume they played (we can't know for sure without lineup data)
-                participated = true
+                if (playerEvents.length > 0) {
+                  const hasSubIn = playerEvents.some(e => e.type === 'sub_in')
+                  const hasSubOut = playerEvents.some(e => e.type === 'sub_out')
+                  started = !hasSubIn
+                  minutesPlayed = this.calculateMinutesPlayed(playerEvents, 90)
+                  participated = true
+                }
+                // If no events found for player, leave as null (unknown)
               }
 
               // Try to get additional data from FBref or manual stats
@@ -485,8 +487,8 @@ class MatchTrackerFD {
                 isHome,
                 events: playerEvents,
                 participated,
-                minutesPlayed: minutesPlayed > 0 ? minutesPlayed : (playerEvents.length > 0 ? minutesPlayed : null),
-                started: started !== undefined ? started : (playerEvents.length > 0 ? started : null),
+                minutesPlayed,
+                started,
                 competition: match.competition?.name,
                 source: statsSource
               })
