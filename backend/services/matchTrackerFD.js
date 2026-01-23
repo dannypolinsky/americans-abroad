@@ -382,8 +382,8 @@ class MatchTrackerFD {
   async updateLastGameData() {
     try {
       const today = this.getTodayDate()
-      const threeDaysAgo = this.getDateOffset(-3)
-      const matches = await this.fetchMatches(threeDaysAgo, today)
+      const tenDaysAgo = this.getDateOffset(-10)
+      const matches = await this.fetchMatches(tenDaysAgo, today)
 
       // Sort by date descending (most recent first)
       matches.sort((a, b) => new Date(b.utcDate) - new Date(a.utcDate))
