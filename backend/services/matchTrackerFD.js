@@ -172,17 +172,44 @@ class MatchTrackerFD {
   teamMatches(apiTeamName, ourTeamName) {
     if (!apiTeamName || !ourTeamName) return false
 
-    const normalize = (name) => name.toLowerCase()
-      // Remove common suffixes/prefixes - use word boundaries to avoid matching inside names
+    // Normalize but keep spaces for word boundary checking
+    const normalizeWithSpaces = (name) => name.toLowerCase()
       .replace(/\b(fc|cf|ac|as|afc|sc|sv|bv|ssc)\b/gi, '')
-      .replace(/1\./g, '')  // For German clubs like 1. FC Köln
-      .replace(/[^a-z]/g, '')
+      .replace(/1\./g, '')
+      .replace(/[^a-z\s]/g, '')
+      .replace(/\s+/g, ' ')
       .trim()
 
+    // Fully normalize (no spaces) for exact comparisons
+    const normalize = (name) => normalizeWithSpaces(name).replace(/\s/g, '')
+
+    const apiWithSpaces = normalizeWithSpaces(apiTeamName)
+    const ourWithSpaces = normalizeWithSpaces(ourTeamName)
     const api = normalize(apiTeamName)
     const our = normalize(ourTeamName)
 
-    return api.includes(our) || our.includes(api) || api === our
+    // Exact match (normalized)
+    if (api === our) return true
+
+    // Get significant words (length > 3 to avoid short words)
+    const apiWords = apiWithSpaces.split(' ').filter(w => w.length > 3)
+    const ourWords = ourWithSpaces.split(' ').filter(w => w.length > 3)
+
+    // For single-word team names like "Milan", "Juventus", "Arsenal"
+    // Require exact word match in the other name's words
+    if (ourWords.length === 1) {
+      const ourWord = ourWords[0]
+      // Check for exact word match only (not substring)
+      return apiWords.some(apiWord => apiWord === ourWord)
+    }
+
+    // For multi-word team names, check if key words match exactly
+    // At least one significant word must match exactly
+    const hasExactWordMatch = ourWords.some(ourWord =>
+      apiWords.some(apiWord => apiWord === ourWord)
+    )
+
+    return hasExactWordMatch
   }
 
   // Parse player events from match details

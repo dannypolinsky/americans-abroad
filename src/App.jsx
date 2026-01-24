@@ -304,8 +304,12 @@ function App() {
     const data = matchData[playerId]
     if (!data) return null
 
-    // If player has a match today, use today's date (prioritize these)
+    // If player has a match today, use kickoff time if available
     if (data.status && data.status !== 'no_match_today') {
+      // For upcoming games, use the kickoff time for proper sorting
+      if (data.kickoff) {
+        return data.kickoff
+      }
       return new Date().toISOString()
     }
 
@@ -448,6 +452,15 @@ function App() {
         groups.older.push(player)
       }
     }
+
+    // Sort upcoming group by kickoff time (soonest first)
+    groups.upcoming.sort((a, b) => {
+      const dataA = matchData[a.id]
+      const dataB = matchData[b.id]
+      const kickoffA = dataA?.kickoff ? new Date(dataA.kickoff) : new Date()
+      const kickoffB = dataB?.kickoff ? new Date(dataB.kickoff) : new Date()
+      return kickoffA - kickoffB
+    })
 
     // Sort recent group: players who participated first, then those who didn't play
     groups.recent.sort((a, b) => {
