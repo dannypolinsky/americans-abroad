@@ -421,11 +421,22 @@ class MatchTrackerFD {
             minute = 90
           } else if (nextMatch.status?.started || nextMatch.status?.ongoing) {
             status = 'live'
-            // Parse live time if available
-            const liveTimeStr = nextMatch.status?.liveTime?.short || nextMatch.liveTime?.short
+            // Parse live time - it's at the top level liveTime, not in status.liveTime
+            // The string has hidden Unicode chars, so strip everything non-numeric
+            const liveTimeStr = nextMatch.liveTime?.short || nextMatch.liveTime?.long
             if (liveTimeStr) {
-              const parsed = parseInt(liveTimeStr.replace(/[^0-9]/g, ''))
-              if (!isNaN(parsed)) minute = parsed
+              // Extract just the numbers (handles "50‎'‎" -> 50 or "49:18" -> 49)
+              const match = liveTimeStr.match(/(\d+)/)
+              if (match) {
+                minute = parseInt(match[1], 10)
+              }
+            }
+            // Fallback: check status.liveTime if top-level didn't work
+            if (minute === 0 && nextMatch.status?.liveTime?.short) {
+              const match = nextMatch.status.liveTime.short.match(/(\d+)/)
+              if (match) {
+                minute = parseInt(match[1], 10)
+              }
             }
           }
 
