@@ -348,11 +348,12 @@ class FotMobService {
       // Default to 90 for starters, check events for subs
       const events = match.content?.matchFacts?.events?.events || []
 
+      // FotMob swap array: swap[0] = player coming IN, swap[1] = player going OUT
       if (result.started) {
-        // Look for sub out
+        // Look for sub out - starter is in swap[1] when being replaced
         const subOut = events.find(e =>
           e.type === 'Substitution' &&
-          this.playerNameMatches(e.swap?.[0]?.name, playerName)
+          this.playerNameMatches(e.swap?.[1]?.name, playerName)
         )
         if (subOut) {
           result.minutesPlayed = subOut.time || 90
@@ -361,10 +362,10 @@ class FotMobService {
           result.minutesPlayed = 90
         }
       } else {
-        // Look for sub in
+        // Look for sub in - sub is in swap[0] when coming on
         const subIn = events.find(e =>
           e.type === 'Substitution' &&
-          this.playerNameMatches(e.swap?.[1]?.name, playerName)
+          this.playerNameMatches(e.swap?.[0]?.name, playerName)
         )
         if (subIn) {
           result.participated = true
