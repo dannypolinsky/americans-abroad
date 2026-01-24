@@ -411,83 +411,6 @@
       "caps": 10
     },
     {
-      "id": 41,
-      "name": "Erik Palmer-Brown",
-      "team": "Troyes",
-      "league": "Ligue 2",
-      "country": "France",
-      "position": "Center Back",
-      "number": 24,
-      "age": 27,
-      "caps": 5
-    },
-    {
-      "id": 42,
-      "name": "Julian Green",
-      "team": "Greuther Furth",
-      "league": "2. Bundesliga",
-      "country": "Germany",
-      "position": "Attacking Midfielder",
-      "number": 37,
-      "age": 29,
-      "caps": 20
-    },
-    {
-      "id": 43,
-      "name": "Mix Diskerud",
-      "team": "Ulsan HD",
-      "league": "K League 1",
-      "country": "South Korea",
-      "position": "Midfielder",
-      "number": 5,
-      "age": 34,
-      "caps": 40
-    },
-    {
-      "id": 44,
-      "name": "Aron Johannsson",
-      "team": "Valur",
-      "league": "Icelandic Premier League",
-      "country": "Iceland",
-      "position": "Striker",
-      "number": 9,
-      "age": 34,
-      "caps": 20
-    },
-    {
-      "id": 45,
-      "name": "Rubio Rubin",
-      "team": "Suwon FC",
-      "league": "K League 1",
-      "country": "South Korea",
-      "position": "Striker",
-      "number": 9,
-      "age": 28,
-      "caps": 10
-    },
-    {
-      "id": 46,
-      "name": "Owen Otasowie",
-      "team": "Cercle Brugge",
-      "league": "Belgian Pro League",
-      "country": "Belgium",
-      "position": "Midfielder",
-      "number": 8,
-      "age": 23,
-      "caps": 5
-    },
-    {
-      "id": 47,
-      "name": "Jonathan Gomez",
-      "team": "Albacete",
-      "league": "La Liga 2",
-      "country": "Spain",
-      "position": "Left Back",
-      "number": 15,
-      "age": 22,
-      "caps": 5
-    },
-    {
       "id": 48,
       "name": "Paxten Aaronson",
       "team": "Vitesse",
@@ -519,17 +442,6 @@
       "number": 45,
       "age": 21,
       "caps": 5
-    },
-    {
-      "id": 51,
-      "name": "Caden Clark",
-      "team": "D.C. United",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Midfielder",
-      "number": 32,
-      "age": 21,
-      "caps": 2
     },
     {
       "id": 52,
@@ -568,17 +480,6 @@
       "fbrefSlug": "Giovanni-Reyna"
     },
     {
-      "id": 59,
-      "name": "Keaton Parks",
-      "team": "Adana Demirspor",
-      "league": "Super Lig",
-      "country": "Turkey",
-      "position": "Midfielder",
-      "number": 8,
-      "age": 27,
-      "caps": 2
-    },
-    {
       "id": 60,
       "name": "Haji Wright",
       "team": "Coventry City",
@@ -589,17 +490,6 @@
       "age": 26,
       "caps": 10,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Haji_Wright_at_Antalyaspor_vs_Trabzonspor_20211211_%282%29_%28cropped%29_%28cropped%29.jpg/330px-Haji_Wright_at_Antalyaspor_vs_Trabzonspor_20211211_%282%29_%28cropped%29_%28cropped%29.jpg"
-    },
-    {
-      "id": 61,
-      "name": "Alan Sonora",
-      "team": "Independiente",
-      "league": "Liga Profesional",
-      "country": "Argentina",
-      "position": "Attacking Midfielder",
-      "number": 10,
-      "age": 23,
-      "caps": 0
     },
     {
       "id": 62,
@@ -613,116 +503,6 @@
       "caps": 5
     },
     {
-      "id": 63,
-      "name": "Sebastian Soto",
-      "team": "Port Vale",
-      "league": "League One",
-      "country": "England",
-      "position": "Striker",
-      "number": 9,
-      "age": 24,
-      "caps": 2
-    },
-    {
-      "id": 64,
-      "name": "Indiana Vassilev",
-      "team": "St. Truiden",
-      "league": "Belgian Pro League",
-      "country": "Belgium",
-      "position": "Winger",
-      "number": 77,
-      "age": 24,
-      "caps": 2
-    },
-    {
-      "id": 65,
-      "name": "Mukwelle Akale",
-      "team": "Real Salt Lake",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Winger",
-      "number": 0,
-      "age": 26,
-      "caps": 0
-    },
-    {
-      "id": 66,
-      "name": "Joshua Perez",
-      "team": "Venezia",
-      "league": "Serie A",
-      "country": "Italy",
-      "position": "Winger",
-      "number": 7,
-      "age": 26,
-      "caps": 0
-    },
-    {
-      "id": 67,
-      "name": "Cameron Harper",
-      "team": "Barnsley",
-      "league": "League One",
-      "country": "England",
-      "position": "Winger",
-      "number": 11,
-      "age": 23,
-      "caps": 0
-    },
-    {
-      "id": 69,
-      "name": "Kristoffer Lund",
-      "team": "FC Koln",
-      "league": "Bundesliga",
-      "country": "Germany",
-      "position": "Left Back",
-      "number": 3,
-      "age": 23,
-      "caps": 5
-    },
-    {
-      "id": 70,
-      "name": "Marlon Fossey",
-      "team": "Standard Liege",
-      "league": "Belgian Pro League",
-      "country": "Belgium",
-      "position": "Right Back",
-      "number": 2,
-      "age": 25,
-      "caps": 0
-    },
-    {
-      "id": 71,
-      "name": "Justin Che",
-      "team": "FC Dallas",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Center Back",
-      "number": 32,
-      "age": 21,
-      "caps": 2
-    },
-    {
-      "id": 72,
-      "name": "Jonathan Tomkinson",
-      "team": "Real Salt Lake",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Goalkeeper",
-      "number": 1,
-      "age": 23,
-      "caps": 0
-    },
-    {
-      "id": 73,
-      "name": "Daniel Edelman",
-      "team": "New York Red Bulls",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Midfielder",
-      "number": 75,
-      "age": 20,
-      "caps": 0
-    },
-    {
       "id": 74,
       "name": "Rokas Pukstas",
       "team": "Zilina",
@@ -731,17 +511,6 @@
       "position": "Midfielder",
       "number": 10,
       "age": 21,
-      "caps": 0
-    },
-    {
-      "id": 75,
-      "name": "Johan Gomez",
-      "team": "Porto B",
-      "league": "Liga Portugal 2",
-      "country": "Portugal",
-      "position": "Striker",
-      "number": 70,
-      "age": 22,
       "caps": 0
     },
     {
@@ -757,28 +526,6 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/USAvVEN_2019-06-09_-_Weston_McKennie_%2851170534993%29_%28close-up%29.jpg/330px-USAvVEN_2019-06-09_-_Weston_McKennie_%2851170534993%29_%28close-up%29.jpg"
     },
     {
-      "id": 77,
-      "name": "Taitague Lennon",
-      "team": "Schalke 04 II",
-      "league": "Regionalliga West",
-      "country": "Germany",
-      "position": "Winger",
-      "number": 0,
-      "age": 26,
-      "caps": 0
-    },
-    {
-      "id": 78,
-      "name": "Brooks Lennon",
-      "team": "Atlanta United",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Right Back",
-      "number": 11,
-      "age": 27,
-      "caps": 5
-    },
-    {
       "id": 79,
       "name": "Djordje Mihailovic",
       "team": "Colorado Rapids",
@@ -788,29 +535,6 @@
       "number": 8,
       "age": 26,
       "caps": 10
-    },
-    {
-      "id": 80,
-      "name": "Sean Johnson",
-      "team": "Toronto FC",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Goalkeeper",
-      "number": 1,
-      "age": 35,
-      "caps": 15
-    },
-    {
-      "id": 81,
-      "name": "Walker Zimmerman",
-      "team": "Nashville SC",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Center Back",
-      "number": 25,
-      "age": 31,
-      "caps": 40,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/2022_FIFA_World_Cup_England_0-0_USA_-_Walker_Zimmerman_%28cropped%29.jpg/330px-2022_FIFA_World_Cup_England_0-0_USA_-_Walker_Zimmerman_%28cropped%29.jpg"
     },
     {
       "id": 82,
@@ -823,17 +547,6 @@
       "age": 27,
       "caps": 30,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Miles_Robinson%2C_2025_CONCACAF_Gold_Cup.jpg/330px-Miles_Robinson%2C_2025_CONCACAF_Gold_Cup.jpg"
-    },
-    {
-      "id": 83,
-      "name": "Shaq Moore",
-      "team": "Nashville SC",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Right Back",
-      "number": 27,
-      "age": 27,
-      "caps": 20
     },
     {
       "id": 84,
@@ -859,119 +572,6 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Zack-Steffen-08-2019.jpg/330px-Zack-Steffen-08-2019.jpg"
     },
     {
-      "id": 86,
-      "name": "Reggie Cannon",
-      "team": "Boavista",
-      "league": "Liga Portugal",
-      "country": "Portugal",
-      "position": "Right Back",
-      "number": 2,
-      "age": 26,
-      "caps": 25
-    },
-    {
-      "id": 88,
-      "name": "Joe Gyau",
-      "team": "Retired",
-      "league": "N/A",
-      "country": "N/A",
-      "position": "Winger",
-      "number": 0,
-      "age": 32,
-      "caps": 5
-    },
-    {
-      "id": 89,
-      "name": "DeAndre Yedlin",
-      "team": "Inter Miami",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Right Back",
-      "number": 2,
-      "age": 31,
-      "caps": 75,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/DeAndre_Yedlin_2021.jpg/330px-DeAndre_Yedlin_2021.jpg"
-    },
-    {
-      "id": 90,
-      "name": "Kellyn Acosta",
-      "team": "LAFC",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Midfielder",
-      "number": 23,
-      "age": 29,
-      "caps": 55,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Kellyn_Acosta_Philadelphia_Chicago_10.26.25-015_%28cropped%29.jpg/330px-Kellyn_Acosta_Philadelphia_Chicago_10.26.25-015_%28cropped%29.jpg"
-    },
-    {
-      "id": 91,
-      "name": "Paul Arriola",
-      "team": "FC Dallas",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Winger",
-      "number": 7,
-      "age": 29,
-      "caps": 55
-    },
-    {
-      "id": 92,
-      "name": "Jordan Morris",
-      "team": "Seattle Sounders",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Winger",
-      "number": 13,
-      "age": 29,
-      "caps": 50,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Jordan_Morris_NYCFC.Seattle.18.Oct.2025-043_%28cropped%29.jpg/330px-Jordan_Morris_NYCFC.Seattle.18.Oct.2025-043_%28cropped%29.jpg"
-    },
-    {
-      "id": 93,
-      "name": "Gyasi Zardes",
-      "team": "Austin FC",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Striker",
-      "number": 9,
-      "age": 33,
-      "caps": 70
-    },
-    {
-      "id": 94,
-      "name": "Jesus Ferreira",
-      "team": "FC Dallas",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Striker",
-      "number": 9,
-      "age": 23,
-      "caps": 20
-    },
-    {
-      "id": 95,
-      "name": "Brandon Servania",
-      "team": "Skovshoved IF",
-      "league": "Danish 2nd Division",
-      "country": "Denmark",
-      "position": "Midfielder",
-      "number": 8,
-      "age": 24,
-      "caps": 0
-    },
-    {
-      "id": 96,
-      "name": "Paxton Pomykal",
-      "team": "FC Dallas",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Midfielder",
-      "number": 19,
-      "age": 24,
-      "caps": 5
-    },
-    {
       "id": 97,
       "name": "Cade Cowell",
       "team": "Guadalajara",
@@ -981,39 +581,6 @@
       "number": 19,
       "age": 21,
       "caps": 5
-    },
-    {
-      "id": 98,
-      "name": "Jonathan Lewis",
-      "team": "Colorado Rapids",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Winger",
-      "number": 11,
-      "age": 26,
-      "caps": 10
-    },
-    {
-      "id": 99,
-      "name": "Andrija Novakovich",
-      "team": "Hansa Rostock",
-      "league": "2. Bundesliga",
-      "country": "Germany",
-      "position": "Striker",
-      "number": 9,
-      "age": 28,
-      "caps": 5
-    },
-    {
-      "id": 100,
-      "name": "Emmanuel Sabbi",
-      "team": "Hobro",
-      "league": "Danish 1st Division",
-      "country": "Denmark",
-      "position": "Striker",
-      "number": 9,
-      "age": 26,
-      "caps": 0
     },
     {
       "id": 101,
