@@ -109,6 +109,8 @@ const TEAM_IDS = {
   'West Bromwich Albion': 10217,
   'Middlesbrough': 10225,
   'Barnsley': 8656,
+  'Derby County': 10170,
+  'Derby': 10170,
   // Scottish Premiership
   'Celtic': 9950,
   'Rangers': 9816,
