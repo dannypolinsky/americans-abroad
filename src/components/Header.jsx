@@ -29,6 +29,12 @@ function Header({ filter, setFilter, liveCount }) {
         >
           Playing Today
         </button>
+        <button
+          className={`nav-btn ${filter === 'recent' ? 'active' : ''}`}
+          onClick={() => setFilter('recent')}
+        >
+          Recently Played
+        </button>
       </nav>
     </header>
   )

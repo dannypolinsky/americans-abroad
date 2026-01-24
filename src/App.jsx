@@ -327,6 +327,27 @@ function App() {
     return data.participated === true || (data.events && data.events.length > 0)
   }
 
+  // Check if a date is within the last N days
+  const isWithinDays = (dateStr, days) => {
+    if (!dateStr) return false
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now - date
+    const diffDays = diffMs / (1000 * 60 * 60 * 24)
+    return diffDays >= 0 && diffDays <= days
+  }
+
+  // Check if player has a recent game (within last 3 days)
+  const hasRecentGame = (playerId) => {
+    const data = matchData[playerId]
+    if (!data) return false
+    // Check if lastGame is within last 3 days
+    if (data.lastGame?.date && isWithinDays(data.lastGame.date, 3)) return true
+    // Also check finished games from today
+    if (data.status === 'finished') return true
+    return false
+  }
+
   // Filter players based on current filters
   const filteredPlayers = useMemo(() => {
     let players = uniquePlayers
@@ -352,6 +373,8 @@ function App() {
       players = players.filter(p => matchData[p.id]?.status === 'live')
     } else if (filter === 'today') {
       players = players.filter(p => matchData[p.id] && matchData[p.id].status !== 'no_match_today')
+    } else if (filter === 'recent') {
+      players = players.filter(p => hasRecentGame(p.id))
     }
 
     // Sort players: 1) Completed today, 2) Upcoming, 3) Past games
@@ -415,8 +438,8 @@ function App() {
       } else if (data.status === 'upcoming') {
         groups.upcoming.push(player)
       } else if (data.status === 'no_match_today') {
-        // Check if last game has event data (meaning it was recent enough to fetch)
-        if (data.lastGame?.events?.length > 0 || data.lastGame?.minutesPlayed !== null) {
+        // Check if last game is within last 3 days
+        if (data.lastGame?.date && isWithinDays(data.lastGame.date, 3)) {
           groups.recent.push(player)
         } else {
           groups.older.push(player)
@@ -562,7 +585,7 @@ function App() {
                 key={player.id}
                 player={player}
                 matchData={matchData[player.id] || null}
-                showLastGame={filter === 'all'}
+                showLastGame={filter === 'all' || filter === 'recent'}
               />
             ))}
           </div>
