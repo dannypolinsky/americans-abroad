@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { LEAGUE_CODES, EUROPEAN_COMPETITIONS } from './footballData.js'
-import FotMobService from './fotmobService.js'
+import FotMobService, { TEAM_IDS } from './fotmobService.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -372,12 +372,123 @@ class MatchTrackerFD {
         }
       }
 
-      console.log(`Updated match data for ${this.matchData.size} players`)
+      console.log(`Updated match data for ${this.matchData.size} players from Football-Data.org`)
       return true
     } catch (error) {
       console.error('Error updating match data:', error)
       return false
     }
+  }
+
+  // Update match data from FotMob for players without Football-Data.org coverage
+  async updateMatchDataFromFotMob() {
+    try {
+      const playersByTeam = this.getPlayersByTeam()
+      const today = this.getTodayDate()
+      const processedTeams = new Set()
+      let addedCount = 0
+
+      for (const [teamName, players] of Object.entries(playersByTeam)) {
+        // Skip if we already processed this team
+        if (processedTeams.has(teamName)) continue
+        processedTeams.add(teamName)
+
+        // Check if any player from this team already has match data for today
+        const hasMatchData = players.some(p => {
+          const data = this.matchData.get(p.id)
+          return data && data.status !== 'no_match_today'
+        })
+
+        if (hasMatchData) continue // Skip - Football-Data.org already has this team's match
+
+        // Query FotMob for this team's data
+        try {
+          const teamData = await this.fotmob.getTeamData(teamName)
+          if (!teamData?.overview?.nextMatch) continue
+
+          const nextMatch = teamData.overview.nextMatch
+          const matchDate = new Date(nextMatch.status?.utcTime)
+          const matchDateStr = matchDate.toISOString().split('T')[0]
+
+          // Check if the match is today
+          if (matchDateStr !== today) continue
+
+          // Determine match status
+          let status = 'upcoming'
+          let minute = 0
+          if (nextMatch.status?.finished) {
+            status = 'finished'
+            minute = 90
+          } else if (nextMatch.status?.started || nextMatch.status?.ongoing) {
+            status = 'live'
+            // Parse live time if available
+            const liveTimeStr = nextMatch.status?.liveTime?.short || nextMatch.liveTime?.short
+            if (liveTimeStr) {
+              const parsed = parseInt(liveTimeStr.replace(/[^0-9]/g, ''))
+              if (!isNaN(parsed)) minute = parsed
+            }
+          }
+
+          // Determine if player's team is home or away
+          const teamId = TEAM_IDS[teamName] || this.getTeamIdFromFotMob(teamName, teamData)
+          const isHome = nextMatch.home?.id === teamId
+
+          const homeTeam = nextMatch.home?.name || 'Unknown'
+          const awayTeam = nextMatch.away?.name || 'Unknown'
+          const homeScore = nextMatch.home?.score ?? 0
+          const awayScore = nextMatch.away?.score ?? 0
+
+          // Add match data for all players on this team
+          for (const player of players) {
+            this.matchData.set(player.id, {
+              fixtureId: nextMatch.id,
+              status,
+              homeTeam,
+              awayTeam,
+              homeScore,
+              awayScore,
+              minute,
+              isHome,
+              events: [],
+              kickoff: nextMatch.status?.utcTime,
+              venue: '',
+              participated: null,
+              minutesPlayed: null,
+              started: null,
+              competition: nextMatch.tournament?.name || 'Unknown',
+              source: 'fotmob'
+            })
+            addedCount++
+          }
+
+          console.log(`FotMob: Added ${status} match for ${teamName}: ${homeTeam} vs ${awayTeam}`)
+        } catch (error) {
+          // Silently skip teams that fail - FotMob might not have them
+          if (error.message !== 'FotMob API returned null') {
+            console.log(`FotMob: Could not get match data for ${teamName}: ${error.message}`)
+          }
+        }
+
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+
+      if (addedCount > 0) {
+        console.log(`FotMob: Added match data for ${addedCount} players`)
+      }
+      return true
+    } catch (error) {
+      console.error('Error updating match data from FotMob:', error)
+      return false
+    }
+  }
+
+  // Helper to get team ID from FotMob data
+  getTeamIdFromFotMob(teamName, teamData) {
+    // Try to extract from team data
+    if (teamData?.details?.id) return teamData.details.id
+    // Fallback to TEAM_IDS mapping (imported at top of file)
+    return TEAM_IDS[teamName] || null
   }
 
   // Update last game data
@@ -718,10 +829,13 @@ class MatchTrackerFD {
     this.isPolling = true
     console.log(`Starting match polling every ${intervalMs / 1000} seconds`)
 
-    // Initial update
+    // Initial update from Football-Data.org
     await this.updateMatchData()
 
-    // Update FotMob data first (needed for player stats)
+    // Fill in gaps with FotMob (for leagues not covered by Football-Data.org)
+    await this.updateMatchDataFromFotMob()
+
+    // Update FotMob data for player stats
     await this.updateFotMobData()
 
     await this.updateLastGameData()
@@ -732,6 +846,7 @@ class MatchTrackerFD {
       if (this.hasLiveMatches()) {
         console.log('Live matches detected, updating...')
         await this.updateMatchData()
+        await this.updateMatchDataFromFotMob()
       } else {
         console.log('No live matches, skipping update')
       }
