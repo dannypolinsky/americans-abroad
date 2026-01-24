@@ -299,17 +299,6 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Jordan_Siebatcheu_%28Juli_2018%29.jpg/330px-Jordan_Siebatcheu_%28Juli_2018%29.jpg"
     },
     {
-      "id": 28,
-      "name": "George Bello",
-      "team": "PAOK",
-      "league": "Super League Greece",
-      "country": "Greece",
-      "position": "Left Back",
-      "number": 16,
-      "age": 22,
-      "caps": 10
-    },
-    {
       "id": 29,
       "name": "Gianluca Busio",
       "team": "Venezia",
@@ -354,28 +343,6 @@
       "number": 13,
       "age": 33,
       "caps": 15
-    },
-    {
-      "id": 33,
-      "name": "Matthew Hoppe",
-      "team": "San Jose Earthquakes",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Striker",
-      "number": 0,
-      "age": 23,
-      "caps": 5
-    },
-    {
-      "id": 35,
-      "name": "Cade Cowell",
-      "team": "Guadalajara",
-      "league": "Liga MX",
-      "country": "Mexico",
-      "position": "Winger",
-      "number": 19,
-      "age": 21,
-      "caps": 5
     },
     {
       "id": 36,
@@ -570,17 +537,6 @@
       "age": 30,
       "caps": 30,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Zack-Steffen-08-2019.jpg/330px-Zack-Steffen-08-2019.jpg"
-    },
-    {
-      "id": 97,
-      "name": "Cade Cowell",
-      "team": "Guadalajara",
-      "league": "Liga MX",
-      "country": "Mexico",
-      "position": "Winger",
-      "number": 19,
-      "age": 21,
-      "caps": 5
     },
     {
       "id": 101,
