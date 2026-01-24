@@ -426,6 +426,18 @@ function App() {
       }
     }
 
+    // Sort recent group: players who participated first, then those who didn't play
+    groups.recent.sort((a, b) => {
+      const dataA = matchData[a.id]
+      const dataB = matchData[b.id]
+      const participatedA = dataA?.lastGame?.participated === true
+      const participatedB = dataB?.lastGame?.participated === true
+
+      if (participatedA && !participatedB) return -1
+      if (!participatedA && participatedB) return 1
+      return 0
+    })
+
     return groups
   }, [filteredPlayers, matchData, filter])
 
