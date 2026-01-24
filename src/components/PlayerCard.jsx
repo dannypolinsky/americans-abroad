@@ -106,7 +106,8 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               {matchData.participated ? (
                 <>
                   <span className="minutes-played">{matchData.minutesPlayed} mins</span>
-                  {!matchData.started && <span className="sub-badge">SUB</span>}
+                  {matchData.started === true && <span className="start-badge">START</span>}
+                  {matchData.started === false && <span className="sub-badge">SUB</span>}
                   {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
                     <span key={`goal-${i}`} className="stat-badge goal">⚽ {e.minute}'</span>
                   ))}
@@ -153,6 +154,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                   {lastGame.minutesPlayed !== null && (
                     <span className="minutes-played">{lastGame.minutesPlayed} mins</span>
                   )}
+                  {lastGame.started === true && <span className="start-badge">START</span>}
                   {lastGame.started === false && <span className="sub-badge">SUB</span>}
                   {renderEvents(lastGame.events)}
                 </div>
