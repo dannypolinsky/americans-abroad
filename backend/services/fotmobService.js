@@ -307,23 +307,7 @@ class FotMobService {
     if (playerData.performance) {
       result.rating = playerData.performance.rating
       result.participated = true
-
-      // Count goals and other events from performance
-      if (playerData.performance.events) {
-        for (const event of playerData.performance.events) {
-          if (event.type === 'goal') {
-            result.goals++
-            result.events.push({ type: 'goal' })
-          } else if (event.type === 'assist') {
-            result.assists++
-            result.events.push({ type: 'assist' })
-          } else if (event.type === 'yellowCard') {
-            result.events.push({ type: 'yellow' })
-          } else if (event.type === 'redCard') {
-            result.events.push({ type: 'red' })
-          }
-        }
-      }
+      // Note: Don't extract events here - we'll get them from match events with proper minutes
     }
 
     // Get detailed stats from match facts POTM section
@@ -390,31 +374,35 @@ class FotMobService {
       }
     }
 
-    // Count goals from match events if not already counted
-    if (result.goals === 0) {
-      const events = match.content?.matchFacts?.events?.events || []
-      const goalEvents = events.filter(e =>
-        e.type === 'Goal' &&
-        this.playerNameMatches(e.player?.name || e.nameStr, playerName)
-      )
-      result.goals = goalEvents.length
+    // Get goals, assists, and cards from match events (with proper minutes)
+    const matchEvents = match.content?.matchFacts?.events?.events || []
 
-      for (const goal of goalEvents) {
-        if (!result.events.some(e => e.type === 'goal')) {
-          result.events.push({ type: 'goal', minute: goal.time })
-        }
+    // Count goals
+    const goalEvents = matchEvents.filter(e =>
+      e.type === 'Goal' &&
+      this.playerNameMatches(e.player?.name || e.nameStr, playerName)
+    )
+    result.goals = goalEvents.length
+    for (const goal of goalEvents) {
+      result.events.push({ type: 'goal', minute: goal.time })
+    }
+
+    // Count assists
+    for (const event of matchEvents) {
+      if (event.type === 'Goal' && this.playerNameMatches(event.assistInput, playerName)) {
+        result.assists++
+        result.events.push({ type: 'assist', minute: event.time })
       }
     }
 
-    // Count assists from match events
-    if (result.assists === 0) {
-      const events = match.content?.matchFacts?.events?.events || []
-      for (const event of events) {
-        if (event.type === 'Goal' && this.playerNameMatches(event.assistInput, playerName)) {
-          result.assists++
-          result.events.push({ type: 'assist', minute: event.time })
-        }
-      }
+    // Get cards
+    const cardEvents = matchEvents.filter(e =>
+      (e.type === 'Card' || e.type === 'Yellow' || e.type === 'Red') &&
+      this.playerNameMatches(e.player?.name || e.nameStr, playerName)
+    )
+    for (const card of cardEvents) {
+      const cardType = card.card === 'Red' || card.type === 'Red' ? 'red' : 'yellow'
+      result.events.push({ type: cardType, minute: card.time })
     }
 
     return result

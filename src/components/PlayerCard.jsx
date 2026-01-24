@@ -105,7 +105,8 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
             <div className="player-participation">
               {matchData.participated ? (
                 <>
-                  <span className="minutes-played">{matchData.minutesPlayed} mins</span>
+                  {matchData.rating && <span className="rating-badge">{matchData.rating}</span>}
+                  <span className="minutes-badge">{matchData.minutesPlayed}'</span>
                   {matchData.started === true && <span className="start-badge">START</span>}
                   {matchData.started === false && <span className="sub-badge">SUB</span>}
                   {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
@@ -151,12 +152,18 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
 
               {lastGame.participated ? (
                 <div className="last-game-stats">
+                  {lastGame.rating && <span className="rating-badge">{lastGame.rating}</span>}
                   {lastGame.minutesPlayed !== null && (
-                    <span className="minutes-played">{lastGame.minutesPlayed} mins</span>
+                    <span className="minutes-badge">{lastGame.minutesPlayed}'</span>
                   )}
                   {lastGame.started === true && <span className="start-badge">START</span>}
                   {lastGame.started === false && <span className="sub-badge">SUB</span>}
-                  {renderEvents(lastGame.events)}
+                  {lastGame.events?.filter(e => e.type === 'goal').map((e, i) => (
+                    <span key={`goal-${i}`} className="stat-badge goal">⚽ {e.minute}'</span>
+                  ))}
+                  {lastGame.events?.filter(e => e.type === 'assist').map((e, i) => (
+                    <span key={`assist-${i}`} className="stat-badge assist">🅰️ {e.minute}'</span>
+                  ))}
                 </div>
               ) : (
                 <div className="last-game-stats">
