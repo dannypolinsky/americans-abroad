@@ -302,7 +302,7 @@
       "id": 29,
       "name": "Gianluca Busio",
       "team": "Venezia",
-      "league": "Serie A",
+      "league": "Serie B",
       "country": "Italy",
       "position": "Midfielder",
       "number": 8,
@@ -649,6 +649,18 @@
       "name": "MLS",
       "country": "USA",
       "apiId": 253
+    },
+    {
+      "id": "serie_b",
+      "name": "Serie B",
+      "country": "Italy",
+      "apiId": null
+    },
+    {
+      "id": "2_bundesliga",
+      "name": "2. Bundesliga",
+      "country": "Germany",
+      "apiId": null
     }
   ]
 }

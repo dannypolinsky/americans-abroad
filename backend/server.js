@@ -322,13 +322,13 @@ app.post('/api/matches/refresh', async (req, res) => {
   } else {
     try {
       await matchTracker.updateMatchData()
-      await matchTracker.updateFBrefData()
+      await matchTracker.updateFotMobData()
       await matchTracker.updateLastGameData()
       await matchTracker.updateNextGameData()
       res.json({
         mode: 'live',
         success: true,
-        message: 'Match data, FBref data, last game data, and next game data refreshed'
+        message: 'Match data, FotMob data, last game data, and next game data refreshed'
       })
     } catch (error) {
       res.status(500).json({
@@ -339,20 +339,20 @@ app.post('/api/matches/refresh', async (req, res) => {
   }
 })
 
-// Force refresh FBref data only
-app.post('/api/fbref/refresh', async (req, res) => {
+// Force refresh FotMob data only
+app.post('/api/fotmob/refresh', async (req, res) => {
   if (isDemoMode) {
     res.json({
       mode: 'demo',
-      message: 'Demo mode - no FBref data'
+      message: 'Demo mode - no FotMob data'
     })
   } else {
     try {
-      await matchTracker.updateFBrefData()
+      await matchTracker.updateFotMobData()
       res.json({
         mode: 'live',
         success: true,
-        message: 'FBref player data refreshed'
+        message: 'FotMob player data refreshed'
       })
     } catch (error) {
       res.status(500).json({
