@@ -1,0 +1,461 @@
+// FotMob API Service for player statistics
+// Fetches detailed player performance data from FotMob
+
+const FOTMOB_API_BASE = 'https://www.fotmob.com/api'
+
+// Team name to FotMob ID mapping
+const TEAM_IDS = {
+  // Serie A
+  'AC Milan': 8564,
+  'Milan': 8564,
+  'Juventus': 9885,
+  'Atalanta': 8524,
+  'Venezia': 7881,
+  'Roma': 8686,
+  'Napoli': 9875,
+  'Inter': 8636,
+  'Inter Milan': 8636,
+  'Lazio': 8543,
+  'Fiorentina': 8535,
+  'Bologna': 9857,
+  'Torino': 9804,
+  'Udinese': 8600,
+  'Genoa': 10233,
+  'Cagliari': 8529,
+  'Lecce': 9888,
+  'Parma': 10167,
+  // Premier League
+  'Fulham': 9879,
+  'Bournemouth': 8678,
+  'AFC Bournemouth': 8678,
+  'Crystal Palace': 9826,
+  'Chelsea': 8455,
+  'Arsenal': 9825,
+  'Liverpool': 8650,
+  'Manchester City': 8456,
+  'Manchester United': 10260,
+  'Tottenham': 8586,
+  'Tottenham Hotspur': 8586,
+  'Newcastle United': 10261,
+  'Aston Villa': 10252,
+  'Brighton': 9817,
+  'West Ham': 8654,
+  'Everton': 8668,
+  'Nottingham Forest': 10203,
+  'Brentford': 9937,
+  'Wolves': 8602,
+  'Wolverhampton': 8602,
+  'Leicester City': 8197,
+  // Bundesliga
+  'Borussia Monchengladbach': 9788,
+  'Borussia Mönchengladbach': 9788,
+  'Wolfsburg': 8721,
+  'Bayer Leverkusen': 8178,
+  'Union Berlin': 8149,
+  'Hoffenheim': 8226,
+  'Augsburg': 8406,
+  'FC Koln': 8722,
+  '1. FC Köln': 8722,
+  'Bayern Munich': 9823,
+  'Bayern München': 9823,
+  'Borussia Dortmund': 9789,
+  'Eintracht Frankfurt': 9810,
+  'RB Leipzig': 178475,
+  'Freiburg': 8358,
+  'Mainz': 8369,
+  // Ligue 1
+  'AS Monaco': 9829,
+  'Monaco': 9829,
+  'Toulouse': 9941,
+  'Lyon': 9748,
+  'Paris Saint-Germain': 9847,
+  'PSG': 9847,
+  'Marseille': 8592,
+  'Lille': 8639,
+  'Nice': 9830,
+  'Lens': 8588,
+  'Strasbourg': 9848,
+  // La Liga
+  'Celta Vigo': 9910,
+  'Real Betis': 8603,
+  'Real Madrid': 8633,
+  'Barcelona': 8634,
+  'Atletico Madrid': 9906,
+  'Villarreal': 10205,
+  'Real Sociedad': 8560,
+  'Athletic Bilbao': 8315,
+  'Sevilla': 8302,
+  'Valencia': 10267,
+  'Getafe': 9866,
+  'Osasuna': 8371,
+  // Eredivisie
+  'PSV Eindhoven': 8640,
+  'PSV': 8640,
+  'FC Utrecht': 9908,
+  'Feyenoord': 10235,
+  'Ajax': 8718,
+  'AZ Alkmaar': 8703,
+  'FC Twente': 8611,
+  'FC Groningen': 8674,
+  'Vitesse': 10239,
+  // Championship
+  'Leeds United': 8463,
+  'Norwich City': 9850,
+  'Coventry City': 8587,
+  'Cardiff City': 10222,
+  'Stoke City': 8654,
+  'Preston North End': 10211,
+  'Sheffield United': 8657,
+  'West Bromwich Albion': 10217,
+  'Middlesbrough': 10225,
+  'Barnsley': 8656,
+  // Scottish Premiership
+  'Celtic': 9950,
+  'Rangers': 9816,
+  // Belgian Pro League
+  'Club Brugge': 8342,
+  'Royal Antwerp': 8291,
+  'Anderlecht': 8316,
+  'Westerlo': 8295,
+  'Standard Liege': 8364,
+  'Cercle Brugge': 8298,
+  'St. Truiden': 8378
+}
+
+class FotMobService {
+  constructor() {
+    this.cache = new Map()
+    this.cacheExpiry = 60 * 60 * 1000 // 1 hour
+    this.teamDataCache = new Map()
+    this.playerIdCache = new Map() // playerName -> fotmobId
+  }
+
+  async fetchFromApi(endpoint) {
+    const cached = this.cache.get(endpoint)
+    if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+      return cached.data
+    }
+
+    try {
+      const response = await fetch(`${FOTMOB_API_BASE}${endpoint}`)
+
+      if (!response.ok) {
+        throw new Error(`FotMob API error ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data === null) {
+        throw new Error('FotMob API returned null')
+      }
+
+      this.cache.set(endpoint, {
+        data,
+        timestamp: Date.now()
+      })
+
+      return data
+    } catch (error) {
+      console.error(`FotMob API error for ${endpoint}:`, error.message)
+      throw error
+    }
+  }
+
+  // Get team data including squad and recent matches
+  async getTeamData(teamName) {
+    const teamId = TEAM_IDS[teamName]
+    if (!teamId) {
+      console.log(`FotMob: No team ID mapping for ${teamName}`)
+      return null
+    }
+
+    try {
+      return await this.fetchFromApi(`/teams?id=${teamId}`)
+    } catch (error) {
+      console.error(`FotMob: Error fetching team ${teamName}:`, error.message)
+      return null
+    }
+  }
+
+  // Get match details including player stats
+  async getMatchDetails(matchId) {
+    try {
+      return await this.fetchFromApi(`/matchDetails?matchId=${matchId}`)
+    } catch (error) {
+      console.error(`FotMob: Error fetching match ${matchId}:`, error.message)
+      return null
+    }
+  }
+
+  // Find a player's FotMob ID from team squad data
+  async getPlayerFotMobId(playerName, teamName) {
+    const cacheKey = `${playerName}:${teamName}`
+    if (this.playerIdCache.has(cacheKey)) {
+      return this.playerIdCache.get(cacheKey)
+    }
+
+    const teamData = await this.getTeamData(teamName)
+    if (!teamData) return null
+
+    // Search through squad sections
+    const squad = teamData.squad?.squad || teamData.squad
+    if (!squad) return null
+
+    const sections = Array.isArray(squad) ? squad : []
+    for (const section of sections) {
+      if (!section.members) continue
+
+      for (const player of section.members) {
+        if (this.playerNameMatches(player.name, playerName)) {
+          this.playerIdCache.set(cacheKey, player.id)
+          return player.id
+        }
+      }
+    }
+
+    return null
+  }
+
+  // Check if player names match (fuzzy matching)
+  playerNameMatches(fotmobName, ourName) {
+    if (!fotmobName || !ourName) return false
+
+    const normalize = (name) => name.toLowerCase()
+      .replace(/[^a-z\s]/g, '')
+      .trim()
+
+    const fotmob = normalize(fotmobName)
+    const our = normalize(ourName)
+
+    // Exact match
+    if (fotmob === our) return true
+
+    // Last name match
+    const fotmobLast = fotmob.split(' ').pop()
+    const ourLast = our.split(' ').pop()
+    if (fotmobLast === ourLast && fotmobLast.length > 3) return true
+
+    // Contains match
+    if (fotmob.includes(our) || our.includes(fotmob)) return true
+
+    return false
+  }
+
+  // Get the most recent match for a team
+  async getLastMatchId(teamName) {
+    const teamData = await this.getTeamData(teamName)
+    if (!teamData?.overview?.lastMatch) return null
+
+    return teamData.overview.lastMatch.id
+  }
+
+  // Get player stats from a match
+  async getPlayerStatsFromMatch(matchId, playerName, isHome) {
+    const match = await this.getMatchDetails(matchId)
+    if (!match) return null
+
+    // Get basic match info
+    const result = {
+      matchId,
+      homeTeam: match.header?.teams?.[0]?.name || match.general?.homeTeam?.name,
+      awayTeam: match.header?.teams?.[1]?.name || match.general?.awayTeam?.name,
+      homeScore: match.header?.teams?.[0]?.score ?? match.general?.homeTeam?.score,
+      awayScore: match.header?.teams?.[1]?.score ?? match.general?.awayTeam?.score,
+      competition: match.general?.leagueName || match.header?.tournament?.name,
+      date: match.general?.matchTimeUTCDate,
+      participated: false,
+      started: false,
+      minutesPlayed: 0,
+      rating: null,
+      goals: 0,
+      assists: 0,
+      events: []
+    }
+
+    // Search lineup for player
+    const lineup = match.content?.lineup
+    if (!lineup) return result
+
+    const teamLineup = isHome ? lineup.homeTeam : lineup.awayTeam
+    if (!teamLineup) return result
+
+    // Search starters
+    let playerData = null
+    if (teamLineup.starters) {
+      playerData = teamLineup.starters.find(p => this.playerNameMatches(p.name, playerName))
+      if (playerData) {
+        result.started = true
+        result.participated = true
+      }
+    }
+
+    // Search subs if not in starters
+    if (!playerData && teamLineup.subs) {
+      playerData = teamLineup.subs.find(p => this.playerNameMatches(p.name, playerName))
+      if (playerData) {
+        result.started = false
+        // Check if they actually came on
+        result.participated = false // Will be updated below if they have events
+      }
+    }
+
+    if (!playerData) return result
+
+    // Get player performance data
+    if (playerData.performance) {
+      result.rating = playerData.performance.rating
+      result.participated = true
+
+      // Count goals and other events from performance
+      if (playerData.performance.events) {
+        for (const event of playerData.performance.events) {
+          if (event.type === 'goal') {
+            result.goals++
+            result.events.push({ type: 'goal' })
+          } else if (event.type === 'assist') {
+            result.assists++
+            result.events.push({ type: 'assist' })
+          } else if (event.type === 'yellowCard') {
+            result.events.push({ type: 'yellow' })
+          } else if (event.type === 'redCard') {
+            result.events.push({ type: 'red' })
+          }
+        }
+      }
+    }
+
+    // Get detailed stats from match facts POTM section
+    const potm = match.content?.matchFacts?.playerOfTheMatch
+    if (potm && this.playerNameMatches(potm.name?.fullName || potm.name, playerName)) {
+      result.minutesPlayed = potm.minutesPlayed || 90
+      result.rating = potm.rating?.num || result.rating
+      result.isPotm = true
+
+      // Get detailed stats
+      if (potm.stats) {
+        const topStats = potm.stats.find(s => s.key === 'top_stats')
+        if (topStats?.stats) {
+          if (topStats.stats['Goals']?.stat?.value) {
+            result.goals = topStats.stats['Goals'].stat.value
+          }
+          if (topStats.stats['Assists']?.stat?.value) {
+            result.assists = topStats.stats['Assists'].stat.value
+          }
+          if (topStats.stats['Minutes played']?.stat?.value) {
+            result.minutesPlayed = topStats.stats['Minutes played'].stat.value
+          }
+        }
+      }
+    }
+
+    // Try to get stats from playerStats section using player's FotMob ID
+    if (playerData.id && match.content?.playerStats) {
+      const playerStats = match.content.playerStats[playerData.id]
+      if (playerStats) {
+        result.participated = true
+        // Extract additional stats if available
+      }
+    }
+
+    // Get minutes from match events if not already set
+    if (result.participated && result.minutesPlayed === 0) {
+      // Default to 90 for starters, check events for subs
+      const events = match.content?.matchFacts?.events?.events || []
+
+      if (result.started) {
+        // Look for sub out
+        const subOut = events.find(e =>
+          e.type === 'Substitution' &&
+          this.playerNameMatches(e.swap?.[0]?.name, playerName)
+        )
+        if (subOut) {
+          result.minutesPlayed = subOut.time || 90
+          result.events.push({ type: 'sub_out', minute: subOut.time })
+        } else {
+          result.minutesPlayed = 90
+        }
+      } else {
+        // Look for sub in
+        const subIn = events.find(e =>
+          e.type === 'Substitution' &&
+          this.playerNameMatches(e.swap?.[1]?.name, playerName)
+        )
+        if (subIn) {
+          result.participated = true
+          result.minutesPlayed = 90 - (subIn.time || 0)
+          result.events.push({ type: 'sub_in', minute: subIn.time })
+        }
+      }
+    }
+
+    // Count goals from match events if not already counted
+    if (result.goals === 0) {
+      const events = match.content?.matchFacts?.events?.events || []
+      const goalEvents = events.filter(e =>
+        e.type === 'Goal' &&
+        this.playerNameMatches(e.player?.name || e.nameStr, playerName)
+      )
+      result.goals = goalEvents.length
+
+      for (const goal of goalEvents) {
+        if (!result.events.some(e => e.type === 'goal')) {
+          result.events.push({ type: 'goal', minute: goal.time })
+        }
+      }
+    }
+
+    // Count assists from match events
+    if (result.assists === 0) {
+      const events = match.content?.matchFacts?.events?.events || []
+      for (const event of events) {
+        if (event.type === 'Goal' && this.playerNameMatches(event.assistInput, playerName)) {
+          result.assists++
+          result.events.push({ type: 'assist', minute: event.time })
+        }
+      }
+    }
+
+    return result
+  }
+
+  // Get last match stats for a player
+  async getPlayerLastMatchStats(playerName, teamName, isHome = null) {
+    try {
+      const matchId = await this.getLastMatchId(teamName)
+      if (!matchId) {
+        console.log(`FotMob: No last match found for ${teamName}`)
+        return null
+      }
+
+      // If isHome is not provided, determine from team data
+      if (isHome === null) {
+        const teamData = await this.getTeamData(teamName)
+        if (teamData?.overview?.lastMatch) {
+          const teamId = TEAM_IDS[teamName]
+          isHome = teamData.overview.lastMatch.home?.id === teamId
+        }
+      }
+
+      const stats = await this.getPlayerStatsFromMatch(matchId, playerName, isHome)
+
+      if (stats) {
+        console.log(`FotMob: ${playerName} - ${stats.minutesPlayed}min, ${stats.goals}g, ${stats.assists}a, rating: ${stats.rating}`)
+      }
+
+      return stats
+    } catch (error) {
+      console.error(`FotMob: Error getting stats for ${playerName}:`, error.message)
+      return null
+    }
+  }
+
+  // Clear caches
+  clearCache() {
+    this.cache.clear()
+    this.teamDataCache.clear()
+    this.playerIdCache.clear()
+  }
+}
+
+export { FotMobService, TEAM_IDS }
+export default FotMobService

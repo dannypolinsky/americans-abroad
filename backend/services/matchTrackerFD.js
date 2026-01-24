@@ -1,12 +1,12 @@
 // Match Tracker Service for Football-Data.org API
 // Handles tracking matches for American players
-// Integrates with FBref scraper for player-level statistics
+// Integrates with FotMob for player-level statistics
 
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { LEAGUE_CODES, EUROPEAN_COMPETITIONS } from './footballData.js'
-import FBrefScraper from './fbrefScraper.js'
+import FotMobService from './fotmobService.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -14,20 +14,20 @@ const __dirname = dirname(__filename)
 class MatchTrackerFD {
   constructor(apiService) {
     this.api = apiService
-    this.fbref = new FBrefScraper()
+    this.fotmob = new FotMobService()
     this.players = this.loadPlayers()
     this.matchData = new Map() // playerId -> today's match data
     this.lastGameData = new Map() // playerId -> last game data
     this.nextGameData = new Map() // playerId -> next upcoming game (cached)
-    this.fbrefData = new Map() // playerId -> FBref match data (cached)
+    this.fotmobData = new Map() // playerId -> FotMob match data (cached)
     this.manualStats = new Map() // playerId -> manually entered stats
     this.isPolling = false
     this.pollInterval = null
     this.cacheFile = join(__dirname, '../data/nextGamesCache.json')
-    this.fbrefCacheFile = join(__dirname, '../data/fbrefCache.json')
+    this.fotmobCacheFile = join(__dirname, '../data/fotmobCache.json')
     this.manualStatsFile = join(__dirname, '../data/playerStats.json')
     this.loadNextGamesCache()
-    this.loadFBrefCache()
+    this.loadFotMobCache()
     this.loadManualStats()
   }
 
@@ -70,34 +70,34 @@ class MatchTrackerFD {
     }
   }
 
-  // Load FBref cache from file
-  loadFBrefCache() {
+  // Load FotMob cache from file
+  loadFotMobCache() {
     try {
-      if (existsSync(this.fbrefCacheFile)) {
-        const data = JSON.parse(readFileSync(this.fbrefCacheFile, 'utf-8'))
+      if (existsSync(this.fotmobCacheFile)) {
+        const data = JSON.parse(readFileSync(this.fotmobCacheFile, 'utf-8'))
         const now = new Date()
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
 
         for (const [playerId, cacheEntry] of Object.entries(data)) {
           // Only load cache entries that are less than 1 hour old
           if (new Date(cacheEntry.timestamp) > oneHourAgo) {
-            this.fbrefData.set(parseInt(playerId), cacheEntry)
+            this.fotmobData.set(parseInt(playerId), cacheEntry)
           }
         }
-        console.log(`Loaded ${this.fbrefData.size} cached FBref entries`)
+        console.log(`Loaded ${this.fotmobData.size} cached FotMob entries`)
       }
     } catch (error) {
-      console.error('Error loading FBref cache:', error)
+      console.error('Error loading FotMob cache:', error)
     }
   }
 
-  // Save FBref cache to file
-  saveFBrefCache() {
+  // Save FotMob cache to file
+  saveFotMobCache() {
     try {
-      const data = Object.fromEntries(this.fbrefData)
-      writeFileSync(this.fbrefCacheFile, JSON.stringify(data, null, 2))
+      const data = Object.fromEntries(this.fotmobData)
+      writeFileSync(this.fotmobCacheFile, JSON.stringify(data, null, 2))
     } catch (error) {
-      console.error('Error saving FBref cache:', error)
+      console.error('Error saving FotMob cache:', error)
     }
   }
 
@@ -454,19 +454,25 @@ class MatchTrackerFD {
                 // If no events found for player, leave as null (unknown)
               }
 
-              // Try to get additional data from FBref or manual stats
+              // Try to get additional data from FotMob or manual stats
               let statsSource = 'api'
-              const fbrefMatch = this.findFBrefMatchForDate(player.id, match.utcDate)
+              let goals = 0
+              let assists = 0
+              let rating = null
+              const fotmobMatch = this.findFotMobMatchForDate(player.id, match.utcDate)
               const manualMatch = this.findManualMatchForDate(player.id, match.utcDate)
 
-              if (fbrefMatch) {
-                // Use FBref data for player stats
-                playerEvents = fbrefMatch.events || []
-                minutesPlayed = fbrefMatch.minutesPlayed || 0
-                started = fbrefMatch.started
-                participated = fbrefMatch.participated
-                statsSource = 'fbref'
-                console.log(`Using FBref data for ${player.name}: ${minutesPlayed}min, ${playerEvents.filter(e => e.type === 'goal').length} goals`)
+              if (fotmobMatch) {
+                // Use FotMob data for player stats
+                playerEvents = fotmobMatch.events || []
+                minutesPlayed = fotmobMatch.minutesPlayed || 0
+                started = fotmobMatch.started
+                participated = fotmobMatch.participated
+                goals = fotmobMatch.goals || 0
+                assists = fotmobMatch.assists || 0
+                rating = fotmobMatch.rating
+                statsSource = 'fotmob'
+                console.log(`Using FotMob data for ${player.name}: ${minutesPlayed}min, ${goals}g, ${assists}a, rating: ${rating}`)
               } else if (manualMatch) {
                 // Use manual stats as fallback
                 playerEvents = manualMatch.events || []
@@ -489,6 +495,9 @@ class MatchTrackerFD {
                 participated,
                 minutesPlayed,
                 started,
+                goals,
+                assists,
+                rating,
                 competition: match.competition?.name,
                 source: statsSource
               })
@@ -505,27 +514,18 @@ class MatchTrackerFD {
     }
   }
 
-  // Update FBref player statistics
-  // Note: FBref uses Cloudflare protection, so scraping may fail
-  // This method will silently fail and continue with Football-Data.org data only
-  async updateFBrefData() {
+  // Update FotMob player statistics
+  async updateFotMobData() {
     try {
-      const playersWithFBref = this.players.filter(p => p.fbrefId && p.fbrefSlug)
-
-      if (playersWithFBref.length === 0) {
-        console.log('No players configured with FBref IDs')
-        return true
-      }
-
-      console.log(`Attempting to update FBref data for ${playersWithFBref.length} players`)
-      console.log('Note: FBref has Cloudflare protection which may block requests')
+      console.log(`Fetching FotMob data for ${this.players.length} players`)
 
       let updated = 0
       let failed = 0
+      const processedTeams = new Set()
 
-      for (const player of playersWithFBref) {
+      for (const player of this.players) {
         // Check if we need to refresh this player's data
-        const cached = this.fbrefData.get(player.id)
+        const cached = this.fotmobData.get(player.id)
         const now = new Date()
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
 
@@ -534,53 +534,72 @@ class MatchTrackerFD {
         }
 
         try {
-          const lastMatch = await this.fbref.getLastMatch(player.fbrefId, player.fbrefSlug)
+          const stats = await this.fotmob.getPlayerLastMatchStats(player.name, player.team)
 
-          if (lastMatch) {
-            this.fbrefData.set(player.id, {
+          if (stats && stats.participated) {
+            this.fotmobData.set(player.id, {
               timestamp: now.toISOString(),
-              lastMatch
+              lastMatch: {
+                date: stats.date,
+                opponent: stats.homeTeam === player.team ? stats.awayTeam : stats.homeTeam,
+                isHome: stats.homeTeam === player.team,
+                homeScore: stats.homeScore,
+                awayScore: stats.awayScore,
+                minutesPlayed: stats.minutesPlayed,
+                started: stats.started,
+                participated: stats.participated,
+                goals: stats.goals,
+                assists: stats.assists,
+                rating: stats.rating,
+                competition: stats.competition,
+                events: stats.events || []
+              }
             })
             updated++
-            console.log(`FBref: Updated ${player.name}`)
+            console.log(`FotMob: Updated ${player.name} - ${stats.minutesPlayed}min, ${stats.goals}g, ${stats.assists}a`)
+          } else if (stats) {
+            // Player didn't participate but we have match data
+            this.fotmobData.set(player.id, {
+              timestamp: now.toISOString(),
+              lastMatch: {
+                date: stats.date,
+                participated: false
+              }
+            })
           }
         } catch (error) {
           failed++
-          // Silently fail for individual players - Cloudflare protection is expected
-          if (failed === 1) {
-            console.log('FBref: Cloudflare protection detected, scraping unavailable')
+          if (failed <= 3) {
+            console.log(`FotMob: Error for ${player.name}: ${error.message}`)
           }
         }
 
-        // Stop trying after 3 consecutive failures (Cloudflare blocking)
-        if (failed >= 3 && updated === 0) {
-          console.log('FBref: Stopped after multiple failures - using Football-Data.org only')
-          break
-        }
+        // Add a small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100))
       }
 
       if (updated > 0) {
-        this.saveFBrefCache()
-        console.log(`FBref: Updated data for ${updated} players`)
+        this.saveFotMobCache()
+        console.log(`FotMob: Updated data for ${updated} players`)
       }
 
       return true
     } catch (error) {
-      console.error('Error in FBref update:', error.message)
+      console.error('Error in FotMob update:', error.message)
       return true // Don't fail the whole process
     }
   }
 
-  // Get FBref match data for a specific date and player
-  findFBrefMatchForDate(playerId, matchDate) {
-    const cached = this.fbrefData.get(playerId)
+  // Get FotMob match data for a specific date and player
+  findFotMobMatchForDate(playerId, matchDate) {
+    const cached = this.fotmobData.get(playerId)
     if (!cached || !cached.lastMatch) return null
 
-    const fbrefDate = new Date(cached.lastMatch.date)
+    const fotmobDate = new Date(cached.lastMatch.date)
     const targetDate = new Date(matchDate)
 
     // Check if dates match (same day)
-    if (fbrefDate.toISOString().split('T')[0] === targetDate.toISOString().split('T')[0]) {
+    if (fotmobDate.toISOString().split('T')[0] === targetDate.toISOString().split('T')[0]) {
       return cached.lastMatch
     }
 
@@ -702,8 +721,8 @@ class MatchTrackerFD {
     // Initial update
     await this.updateMatchData()
 
-    // Update FBref data first (slower, but needed for player stats)
-    await this.updateFBrefData()
+    // Update FotMob data first (needed for player stats)
+    await this.updateFotMobData()
 
     await this.updateLastGameData()
     await this.updateNextGameData()
