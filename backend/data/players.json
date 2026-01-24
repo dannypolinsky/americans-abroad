@@ -273,17 +273,6 @@
       "caps": 10
     },
     {
-      "id": 23,
-      "name": "Konrad de la Fuente",
-      "team": "AD Ceuta",
-      "league": "La Liga 2",
-      "country": "Spain",
-      "position": "Winger",
-      "number": 11,
-      "age": 23,
-      "caps": 5
-    },
-    {
       "id": 24,
       "name": "Haji Wright",
       "team": "Coventry City",
@@ -308,29 +297,6 @@
       "age": 28,
       "caps": 15,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Jordan_Siebatcheu_%28Juli_2018%29.jpg/330px-Jordan_Siebatcheu_%28Juli_2018%29.jpg"
-    },
-    {
-      "id": 26,
-      "name": "Ethan Horvath",
-      "team": "Cardiff City",
-      "league": "Championship",
-      "country": "Wales",
-      "position": "Goalkeeper",
-      "number": 1,
-      "age": 29,
-      "caps": 10,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Ethan_Horvath_05042025_%283%29.jpg/330px-Ethan_Horvath_05042025_%283%29.jpg"
-    },
-    {
-      "id": 27,
-      "name": "Sam Vines",
-      "team": "Royal Antwerp",
-      "league": "Belgian Pro League",
-      "country": "Belgium",
-      "position": "Left Back",
-      "number": 3,
-      "age": 25,
-      "caps": 10
     },
     {
       "id": 28,
@@ -401,17 +367,6 @@
       "caps": 5
     },
     {
-      "id": 34,
-      "name": "Taylor Booth",
-      "team": "FC Utrecht",
-      "league": "Eredivisie",
-      "country": "Netherlands",
-      "position": "Midfielder",
-      "number": 6,
-      "age": 23,
-      "caps": 5
-    },
-    {
       "id": 35,
       "name": "Cade Cowell",
       "team": "Guadalajara",
@@ -454,28 +409,6 @@
       "number": 9,
       "age": 24,
       "caps": 10
-    },
-    {
-      "id": 39,
-      "name": "Lynden Gooch",
-      "team": "Stoke City",
-      "league": "Championship",
-      "country": "England",
-      "position": "Midfielder",
-      "number": 11,
-      "age": 28,
-      "caps": 5
-    },
-    {
-      "id": 40,
-      "name": "Duane Holmes",
-      "team": "Preston North End",
-      "league": "Championship",
-      "country": "England",
-      "position": "Midfielder",
-      "number": 28,
-      "age": 30,
-      "caps": 5
     },
     {
       "id": 41,
@@ -610,40 +543,6 @@
       "caps": 2
     },
     {
-      "id": 53,
-      "name": "Cole Bassett",
-      "team": "Feyenoord",
-      "league": "Eredivisie",
-      "country": "Netherlands",
-      "position": "Midfielder",
-      "number": 38,
-      "age": 23,
-      "caps": 5
-    },
-    {
-      "id": 54,
-      "name": "Caleb Wiley",
-      "team": "Chelsea",
-      "league": "Premier League",
-      "country": "England",
-      "position": "Left Back",
-      "number": 40,
-      "age": 19,
-      "caps": 5,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Wiley_asse_rcsa_2425.jpg/330px-Wiley_asse_rcsa_2425.jpg"
-    },
-    {
-      "id": 55,
-      "name": "Gabriel Slonina",
-      "team": "Chelsea",
-      "league": "Premier League",
-      "country": "England",
-      "position": "Goalkeeper",
-      "number": 18,
-      "age": 20,
-      "caps": 3
-    },
-    {
       "id": 56,
       "name": "Auston Trusty",
       "team": "Sheffield United",
@@ -667,17 +566,6 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/3/31/Giovanni_Reyna_2020.jpg",
       "fbrefId": "9da4cc3d",
       "fbrefSlug": "Giovanni-Reyna"
-    },
-    {
-      "id": 58,
-      "name": "Richy Ledezma",
-      "team": "PSV Eindhoven",
-      "league": "Eredivisie",
-      "country": "Netherlands",
-      "position": "Midfielder",
-      "number": 23,
-      "age": 24,
-      "caps": 3
     },
     {
       "id": 59,
@@ -777,17 +665,6 @@
       "position": "Winger",
       "number": 11,
       "age": 23,
-      "caps": 0
-    },
-    {
-      "id": 68,
-      "name": "Nico Carrera",
-      "team": "Hamburger SV",
-      "league": "2. Bundesliga",
-      "country": "Germany",
-      "position": "Center Back",
-      "number": 4,
-      "age": 21,
       "caps": 0
     },
     {
@@ -993,17 +870,6 @@
       "caps": 25
     },
     {
-      "id": 87,
-      "name": "John Anthony Brooks",
-      "team": "Hoffenheim",
-      "league": "Bundesliga",
-      "country": "Germany",
-      "position": "Center Back",
-      "number": 25,
-      "age": 31,
-      "caps": 50
-    },
-    {
       "id": 88,
       "name": "Joe Gyau",
       "team": "Retired",
@@ -1159,17 +1025,6 @@
       "number": 14,
       "age": 23,
       "caps": 2
-    },
-    {
-      "id": 102,
-      "name": "Matthew Olosunde",
-      "team": "Preston North End",
-      "league": "Championship",
-      "country": "England",
-      "position": "Right Back",
-      "number": 22,
-      "age": 26,
-      "caps": 0
     },
     {
       "id": 103,
