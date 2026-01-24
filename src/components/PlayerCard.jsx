@@ -99,7 +99,30 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
             {matchData.status === 'finished' && 'FT'}
           </div>
 
-          {renderEvents(matchData.events)}
+          {matchData.status === 'live' && (
+            <div className="player-participation">
+              {matchData.participated !== false ? (
+                <>
+                  {matchData.rating && <span className="rating-badge">{matchData.rating}</span>}
+                  {matchData.started === true && <span className="start-badge">START</span>}
+                  {matchData.started === false && matchData.events?.some(e => e.type === 'sub_in') && (
+                    <span className="sub-badge">SUB {matchData.events.find(e => e.type === 'sub_in')?.minute}'</span>
+                  )}
+                  {matchData.started === false && !matchData.events?.some(e => e.type === 'sub_in') && (
+                    <span className="bench-badge">BENCH</span>
+                  )}
+                  {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
+                    <span key={`goal-${i}`} className="stat-badge goal">⚽ {e.minute}'</span>
+                  ))}
+                  {matchData.events?.filter(e => e.type === 'assist').map((e, i) => (
+                    <span key={`assist-${i}`} className="stat-badge assist">🅰️ {e.minute}'</span>
+                  ))}
+                </>
+              ) : (
+                <span className="did-not-play">Not in squad</span>
+              )}
+            </div>
+          )}
 
           {matchData.status === 'finished' && (
             <div className="player-participation">

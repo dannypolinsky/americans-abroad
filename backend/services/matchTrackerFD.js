@@ -451,6 +451,35 @@ class MatchTrackerFD {
 
           // Add match data for all players on this team
           for (const player of players) {
+            let playerStats = {
+              participated: null,
+              minutesPlayed: null,
+              started: null,
+              rating: null,
+              events: []
+            }
+
+            // For live or finished games, fetch detailed player stats
+            if (status === 'live' || status === 'finished') {
+              try {
+                const stats = await this.fotmob.getPlayerStatsFromMatch(nextMatch.id, player.name, isHome)
+                if (stats) {
+                  playerStats = {
+                    participated: stats.participated,
+                    minutesPlayed: stats.minutesPlayed,
+                    started: stats.started,
+                    rating: stats.rating,
+                    events: stats.events || []
+                  }
+                  if (stats.participated) {
+                    console.log(`FotMob: ${player.name} - ${status}, started: ${stats.started}, rating: ${stats.rating}`)
+                  }
+                }
+              } catch (err) {
+                // Continue without player stats if fetch fails
+              }
+            }
+
             this.matchData.set(player.id, {
               fixtureId: nextMatch.id,
               status,
@@ -460,12 +489,13 @@ class MatchTrackerFD {
               awayScore,
               minute,
               isHome,
-              events: [],
+              events: playerStats.events,
               kickoff: nextMatch.status?.utcTime,
               venue: '',
-              participated: null,
-              minutesPlayed: null,
-              started: null,
+              participated: playerStats.participated,
+              minutesPlayed: playerStats.minutesPlayed,
+              started: playerStats.started,
+              rating: playerStats.rating,
               competition: nextMatch.tournament?.name || 'Unknown',
               source: 'fotmob'
             })
