@@ -111,7 +111,7 @@
       "id": 10,
       "name": "Brenden Aaronson",
       "team": "Leeds United",
-      "league": "Championship",
+      "league": "Premier League",
       "country": "England",
       "position": "Attacking Midfielder",
       "number": 11,
@@ -237,7 +237,7 @@
     {
       "id": 20,
       "name": "Johnny Cardoso",
-      "team": "Real Betis",
+      "team": "Atletico Madrid",
       "league": "La Liga",
       "country": "Spain",
       "position": "Defensive Midfielder",
@@ -402,9 +402,9 @@
     {
       "id": 50,
       "name": "Jack McGlynn",
-      "team": "Club Brugge",
-      "league": "Belgian Pro League",
-      "country": "Belgium",
+      "team": "Houston Dynamo",
+      "league": "MLS",
+      "country": "USA",
       "position": "Midfielder",
       "number": 45,
       "age": 21,
@@ -445,18 +445,6 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/3/31/Giovanni_Reyna_2020.jpg",
       "fbrefId": "9da4cc3d",
       "fbrefSlug": "Giovanni-Reyna"
-    },
-    {
-      "id": 60,
-      "name": "Haji Wright",
-      "team": "Coventry City",
-      "league": "Championship",
-      "country": "England",
-      "position": "Striker",
-      "number": 9,
-      "age": 26,
-      "caps": 10,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Haji_Wright_at_Antalyaspor_vs_Trabzonspor_20211211_%282%29_%28cropped%29_%28cropped%29.jpg/330px-Haji_Wright_at_Antalyaspor_vs_Trabzonspor_20211211_%282%29_%28cropped%29_%28cropped%29.jpg"
     },
     {
       "id": 74,

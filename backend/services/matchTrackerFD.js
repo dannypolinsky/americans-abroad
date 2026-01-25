@@ -172,6 +172,13 @@ class MatchTrackerFD {
   teamMatches(apiTeamName, ourTeamName) {
     if (!apiTeamName || !ourTeamName) return false
 
+    // Generic words that shouldn't be used for matching alone
+    const genericWords = new Set([
+      'united', 'city', 'town', 'athletic', 'sporting', 'club', 'real',
+      'rovers', 'wanderers', 'albion', 'hotspur', 'villa', 'forest',
+      'county', 'palace', 'ham', 'dynamo', 'olympic', 'olympique'
+    ])
+
     // Normalize but keep spaces for word boundary checking
     const normalizeWithSpaces = (name) => name.toLowerCase()
       .replace(/\b(fc|cf|ac|as|afc|sc|sv|bv|ssc)\b/gi, '')
@@ -191,9 +198,14 @@ class MatchTrackerFD {
     // Exact match (normalized)
     if (api === our) return true
 
-    // Get significant words (length > 3 to avoid short words)
-    const apiWords = apiWithSpaces.split(' ').filter(w => w.length > 3)
-    const ourWords = ourWithSpaces.split(' ').filter(w => w.length > 3)
+    // Get significant words (length > 3, excluding generic words)
+    const apiWords = apiWithSpaces.split(' ').filter(w => w.length > 3 && !genericWords.has(w))
+    const ourWords = ourWithSpaces.split(' ').filter(w => w.length > 3 && !genericWords.has(w))
+
+    // If no significant non-generic words, fall back to full normalized match
+    if (ourWords.length === 0 || apiWords.length === 0) {
+      return api === our
+    }
 
     // For single-word team names like "Milan", "Juventus", "Arsenal"
     // Require exact word match in the other name's words
@@ -203,13 +215,11 @@ class MatchTrackerFD {
       return apiWords.some(apiWord => apiWord === ourWord)
     }
 
-    // For multi-word team names, check if key words match exactly
-    // At least one significant word must match exactly
-    const hasExactWordMatch = ourWords.some(ourWord =>
-      apiWords.some(apiWord => apiWord === ourWord)
-    )
+    // For multi-word team names, require the primary (first) word to match
+    const ourPrimaryWord = ourWords[0]
+    const hasPrimaryMatch = apiWords.some(apiWord => apiWord === ourPrimaryWord)
 
-    return hasExactWordMatch
+    return hasPrimaryMatch
   }
 
   // Parse player events from match details
