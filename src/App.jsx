@@ -442,8 +442,8 @@ function App() {
       } else if (data.status === 'upcoming') {
         groups.upcoming.push(player)
       } else if (data.status === 'no_match_today') {
-        // Check if last game is within last 3 days
-        if (data.lastGame?.date && isWithinDays(data.lastGame.date, 3)) {
+        // Any player with lastGame data goes to recent, not older
+        if (data.lastGame?.date) {
           groups.recent.push(player)
         } else {
           groups.older.push(player)
