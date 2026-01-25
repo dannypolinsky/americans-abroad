@@ -35,6 +35,18 @@
           "events": []
         }
       ]
+    },
+    "24": {
+      "name": "Haji Wright",
+      "recentMatches": [
+        {
+          "date": "2026-01-17",
+          "participated": true,
+          "events": [
+            { "type": "goal", "minute": 85 }
+          ]
+        }
+      ]
     }
   }
 }
