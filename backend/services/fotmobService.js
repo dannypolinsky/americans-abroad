@@ -121,7 +121,20 @@ const TEAM_IDS = {
   'Westerlo': 8295,
   'Standard Liege': 8364,
   'Cercle Brugge': 8298,
-  'St. Truiden': 8378
+  'St. Truiden': 8378,
+  // MLS
+  'Atlanta United': 9904,
+  'Charlotte FC': 250044,
+  'Colorado Rapids': 9923,
+  'Houston Dynamo': 9919,
+  'New England Revolution': 9916,
+  'Philadelphia Union': 9918,
+  // Liga MX
+  'Club America': 6896,
+  'Monterrey': 6904,
+  // 2. Bundesliga
+  'SV Darmstadt': 9773,
+  'Darmstadt': 9773
 }
 
 class FotMobService {
