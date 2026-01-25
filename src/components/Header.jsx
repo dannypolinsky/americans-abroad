@@ -27,7 +27,7 @@ function Header({ filter, setFilter, liveCount }) {
           className={`nav-btn ${filter === 'today' ? 'active' : ''}`}
           onClick={() => setFilter('today')}
         >
-          Playing Today
+          Today's Games
         </button>
         <button
           className={`nav-btn ${filter === 'recent' ? 'active' : ''}`}

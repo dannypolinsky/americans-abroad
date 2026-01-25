@@ -129,7 +129,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               {matchData.participated ? (
                 <>
                   {matchData.rating && <span className="rating-badge">{matchData.rating}</span>}
-                  <span className="minutes-badge">{matchData.minutesPlayed}'</span>
+                  <span className={matchData.started === false ? 'sub-minutes-badge' : 'minutes-badge'}>{matchData.minutesPlayed}'</span>
                   {matchData.started === true && <span className="start-badge">START</span>}
                   {matchData.started === false && <span className="sub-badge">SUB</span>}
                   {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
@@ -177,7 +177,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                 <div className="last-game-stats">
                   {lastGame.rating && <span className="rating-badge">{lastGame.rating}</span>}
                   {lastGame.minutesPlayed !== null && (
-                    <span className="minutes-badge">{lastGame.minutesPlayed}'</span>
+                    <span className={lastGame.started === false ? 'sub-minutes-badge' : 'minutes-badge'}>{lastGame.minutesPlayed}'</span>
                   )}
                   {lastGame.started === true && <span className="start-badge">START</span>}
                   {lastGame.started === false && <span className="sub-badge">SUB</span>}
