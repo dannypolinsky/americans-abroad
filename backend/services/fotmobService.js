@@ -202,6 +202,71 @@ class FotMobService {
     }
   }
 
+  // Get player data directly by FotMob player ID
+  async getPlayerData(fotmobPlayerId) {
+    if (!fotmobPlayerId) return null
+
+    try {
+      return await this.fetchFromApi(`/playerData?id=${fotmobPlayerId}`)
+    } catch (error) {
+      console.error(`FotMob: Error fetching player ${fotmobPlayerId}:`, error.message)
+      return null
+    }
+  }
+
+  // Get player's recent matches from their FotMob profile
+  async getPlayerRecentMatches(fotmobPlayerId) {
+    const playerData = await this.getPlayerData(fotmobPlayerId)
+    if (!playerData) return null
+
+    const recentMatches = []
+
+    // Get matches from recentMatches or fixtures
+    const matches = playerData.recentMatches || playerData.fixtures?.previousMatches || []
+
+    for (const match of matches.slice(0, 5)) { // Last 5 matches
+      const matchInfo = {
+        matchId: match.id,
+        date: match.matchDate?.utcTime || match.status?.utcTime,
+        homeTeam: match.home?.name,
+        awayTeam: match.away?.name,
+        homeScore: match.home?.score,
+        awayScore: match.away?.score,
+        competition: match.tournament?.name || match.league?.name,
+        minutesPlayed: match.minutesPlayed,
+        rating: match.rating?.num || match.playerRating,
+        started: match.started,
+        participated: match.minutesPlayed > 0 || match.started,
+        events: []
+      }
+
+      // Parse goals and assists from match
+      if (match.goals) matchInfo.goals = match.goals
+      if (match.assists) matchInfo.assists = match.assists
+
+      // Add events if available
+      if (match.events) {
+        for (const event of match.events) {
+          if (event.type === 'goal') {
+            matchInfo.events.push({ type: 'goal', minute: event.time })
+          } else if (event.type === 'assist') {
+            matchInfo.events.push({ type: 'assist', minute: event.time })
+          } else if (event.type === 'substitution') {
+            if (event.isSubOn) {
+              matchInfo.events.push({ type: 'sub_in', minute: event.time })
+            } else {
+              matchInfo.events.push({ type: 'sub_out', minute: event.time })
+            }
+          }
+        }
+      }
+
+      recentMatches.push(matchInfo)
+    }
+
+    return recentMatches
+  }
+
   // Find a player's FotMob ID from team squad data
   async getPlayerFotMobId(playerName, teamName) {
     const cacheKey = `${playerName}:${teamName}`
