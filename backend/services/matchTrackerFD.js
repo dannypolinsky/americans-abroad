@@ -871,14 +871,22 @@ class MatchTrackerFD {
     try {
       const recentMatches = await this.fotmob.getPlayerRecentMatches(player.fotmobId)
       if (recentMatches && recentMatches.length > 0) {
-        const match = recentMatches[0]
+        // Find the most recent match where the player actually participated
+        const match = recentMatches.find(m => m.participated) || recentMatches[0]
+
+        // Determine isHome by checking if player's team matches the homeTeam
+        const playerTeamNormalized = player.team.toLowerCase().replace(/fc |cf |ac /gi, '').trim()
+        const homeTeamNormalized = (match.homeTeam || '').toLowerCase().replace(/fc |cf |ac /gi, '').trim()
+        const isHome = homeTeamNormalized.includes(playerTeamNormalized.split(' ')[0]) ||
+                       playerTeamNormalized.includes(homeTeamNormalized.split(' ')[0])
+
         return {
           date: match.date,
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
           homeScore: match.homeScore,
           awayScore: match.awayScore,
-          isHome: match.homeTeam?.toLowerCase().includes(player.team.toLowerCase().split(' ')[0]),
+          isHome,
           minutesPlayed: match.minutesPlayed,
           started: match.started,
           participated: match.participated,

@@ -221,44 +221,50 @@ class FotMobService {
 
     const recentMatches = []
 
-    // Get matches from recentMatches or fixtures
-    const matches = playerData.recentMatches || playerData.fixtures?.previousMatches || []
+    // Get matches from recentMatches array
+    const matches = playerData.recentMatches || []
 
     for (const match of matches.slice(0, 5)) { // Last 5 matches
+      // Determine home/away teams based on isHomeTeam flag
+      const playerTeam = match.teamName
+      const opponentTeam = match.opponentTeamName
+      const isHome = match.isHomeTeam
+
       const matchInfo = {
         matchId: match.id,
-        date: match.matchDate?.utcTime || match.status?.utcTime,
-        homeTeam: match.home?.name,
-        awayTeam: match.away?.name,
-        homeScore: match.home?.score,
-        awayScore: match.away?.score,
-        competition: match.tournament?.name || match.league?.name,
-        minutesPlayed: match.minutesPlayed,
-        rating: match.rating?.num || match.playerRating,
-        started: match.started,
-        participated: match.minutesPlayed > 0 || match.started,
+        date: match.matchDate?.utcTime,
+        homeTeam: isHome ? playerTeam : opponentTeam,
+        awayTeam: isHome ? opponentTeam : playerTeam,
+        homeScore: match.homeScore,
+        awayScore: match.awayScore,
+        competition: match.leagueName,
+        minutesPlayed: match.minutesPlayed || 0,
+        rating: match.ratingProps?.rating ? parseFloat(match.ratingProps.rating) : null,
+        started: !match.onBench,
+        participated: match.minutesPlayed > 0,
+        goals: match.goals || 0,
+        assists: match.assists || 0,
+        yellowCards: match.yellowCards || 0,
+        redCards: match.redCards || 0,
         events: []
       }
 
-      // Parse goals and assists from match
-      if (match.goals) matchInfo.goals = match.goals
-      if (match.assists) matchInfo.assists = match.assists
+      // Add goal events
+      for (let i = 0; i < matchInfo.goals; i++) {
+        matchInfo.events.push({ type: 'goal', minute: null })
+      }
 
-      // Add events if available
-      if (match.events) {
-        for (const event of match.events) {
-          if (event.type === 'goal') {
-            matchInfo.events.push({ type: 'goal', minute: event.time })
-          } else if (event.type === 'assist') {
-            matchInfo.events.push({ type: 'assist', minute: event.time })
-          } else if (event.type === 'substitution') {
-            if (event.isSubOn) {
-              matchInfo.events.push({ type: 'sub_in', minute: event.time })
-            } else {
-              matchInfo.events.push({ type: 'sub_out', minute: event.time })
-            }
-          }
-        }
+      // Add assist events
+      for (let i = 0; i < matchInfo.assists; i++) {
+        matchInfo.events.push({ type: 'assist', minute: null })
+      }
+
+      // Add card events
+      if (matchInfo.yellowCards > 0) {
+        matchInfo.events.push({ type: 'yellow', minute: null })
+      }
+      if (matchInfo.redCards > 0) {
+        matchInfo.events.push({ type: 'red', minute: null })
       }
 
       recentMatches.push(matchInfo)
