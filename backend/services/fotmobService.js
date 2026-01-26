@@ -229,6 +229,13 @@ class FotMobService {
       const playerTeam = match.teamName
       const opponentTeam = match.opponentTeamName
       const isHome = match.isHomeTeam
+      const minutesPlayed = match.minutesPlayed || 0
+
+      // Determine if player started based on minutes played
+      // onBench only tells us if they were an unused sub, not if they started
+      // Heuristic: if they played 60+ minutes, they likely started
+      // If they played < 60 minutes, they likely came on as a sub
+      const started = minutesPlayed >= 60
 
       const matchInfo = {
         matchId: match.id,
@@ -238,10 +245,10 @@ class FotMobService {
         homeScore: match.homeScore,
         awayScore: match.awayScore,
         competition: match.leagueName,
-        minutesPlayed: match.minutesPlayed || 0,
+        minutesPlayed,
         rating: match.ratingProps?.rating ? parseFloat(match.ratingProps.rating) : null,
-        started: !match.onBench,
-        participated: match.minutesPlayed > 0,
+        started,
+        participated: minutesPlayed > 0,
         goals: match.goals || 0,
         assists: match.assists || 0,
         yellowCards: match.yellowCards || 0,
