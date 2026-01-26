@@ -581,7 +581,7 @@ class MatchTrackerFD {
         if (player.fotmobId && !this.lastGameData.has(player.id)) {
           const fotmobMatch = await this.getPlayerRecentMatchFromFotMob(player)
           if (fotmobMatch && fotmobMatch.date) {
-            this.lastGameData.set(player.id, {
+            const lastGameEntry = {
               fixtureId: null,
               date: fotmobMatch.date,
               homeTeam: fotmobMatch.homeTeam,
@@ -598,9 +598,17 @@ class MatchTrackerFD {
               rating: fotmobMatch.rating,
               competition: fotmobMatch.competition,
               source: 'fotmob_player_api'
-            })
+            }
+
+            // Include missed game if player's team played more recently without them
+            if (fotmobMatch.missedGame) {
+              lastGameEntry.missedGame = fotmobMatch.missedGame
+              console.log(`FotMob Player API: ${player.name} - missed game on ${new Date(fotmobMatch.missedGame.date).toLocaleDateString()}`)
+            }
+
+            this.lastGameData.set(player.id, lastGameEntry)
             fotmobPlayerApiCount++
-            console.log(`FotMob Player API: ${player.name} - last game ${new Date(fotmobMatch.date).toLocaleDateString()}`)
+            console.log(`FotMob Player API: ${player.name} - last played ${new Date(fotmobMatch.date).toLocaleDateString()}`)
           }
           // Small delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 50))
@@ -865,6 +873,7 @@ class MatchTrackerFD {
   }
 
   // Get most recent FotMob data for a player (using direct player API if fotmobId exists)
+  // Returns both the last game they played in and any more recent games they missed
   async getPlayerRecentMatchFromFotMob(player) {
     if (!player.fotmobId) return null
 
@@ -872,31 +881,70 @@ class MatchTrackerFD {
       const recentMatches = await this.fotmob.getPlayerRecentMatches(player.fotmobId)
       if (recentMatches && recentMatches.length > 0) {
         // Find the most recent match where the player actually participated
-        const match = recentMatches.find(m => m.participated) || recentMatches[0]
+        const participatedMatch = recentMatches.find(m => m.participated)
+        // Get the most recent match overall (whether they played or not)
+        const mostRecentMatch = recentMatches[0]
 
-        // Determine isHome by checking if player's team matches the homeTeam
-        const playerTeamNormalized = player.team.toLowerCase().replace(/fc |cf |ac /gi, '').trim()
-        const homeTeamNormalized = (match.homeTeam || '').toLowerCase().replace(/fc |cf |ac /gi, '').trim()
-        const isHome = homeTeamNormalized.includes(playerTeamNormalized.split(' ')[0]) ||
-                       playerTeamNormalized.includes(homeTeamNormalized.split(' ')[0])
+        // Helper to determine isHome
+        const getIsHome = (match) => {
+          const playerTeamNormalized = player.team.toLowerCase().replace(/fc |cf |ac /gi, '').trim()
+          const homeTeamNormalized = (match.homeTeam || '').toLowerCase().replace(/fc |cf |ac /gi, '').trim()
+          return homeTeamNormalized.includes(playerTeamNormalized.split(' ')[0]) ||
+                 playerTeamNormalized.includes(homeTeamNormalized.split(' ')[0])
+        }
 
-        return {
-          date: match.date,
-          homeTeam: match.homeTeam,
-          awayTeam: match.awayTeam,
-          homeScore: match.homeScore,
-          awayScore: match.awayScore,
-          isHome,
-          minutesPlayed: match.minutesPlayed,
-          started: match.started,
-          participated: match.participated,
-          goals: match.goals || 0,
-          assists: match.assists || 0,
-          rating: match.rating,
-          competition: match.competition,
-          events: match.events || [],
+        const result = {
           source: 'fotmob_player_api'
         }
+
+        // If most recent match is one they didn't play in, include it as missedGame
+        if (mostRecentMatch && !mostRecentMatch.participated && participatedMatch) {
+          result.missedGame = {
+            date: mostRecentMatch.date,
+            homeTeam: mostRecentMatch.homeTeam,
+            awayTeam: mostRecentMatch.awayTeam,
+            homeScore: mostRecentMatch.homeScore,
+            awayScore: mostRecentMatch.awayScore,
+            isHome: getIsHome(mostRecentMatch),
+            competition: mostRecentMatch.competition
+          }
+        }
+
+        // Include the last game they actually played in
+        if (participatedMatch) {
+          result.date = participatedMatch.date
+          result.homeTeam = participatedMatch.homeTeam
+          result.awayTeam = participatedMatch.awayTeam
+          result.homeScore = participatedMatch.homeScore
+          result.awayScore = participatedMatch.awayScore
+          result.isHome = getIsHome(participatedMatch)
+          result.minutesPlayed = participatedMatch.minutesPlayed
+          result.started = participatedMatch.started
+          result.participated = participatedMatch.participated
+          result.goals = participatedMatch.goals || 0
+          result.assists = participatedMatch.assists || 0
+          result.rating = participatedMatch.rating
+          result.competition = participatedMatch.competition
+          result.events = participatedMatch.events || []
+        } else if (mostRecentMatch) {
+          // If they haven't played in any recent matches, still include the most recent
+          result.date = mostRecentMatch.date
+          result.homeTeam = mostRecentMatch.homeTeam
+          result.awayTeam = mostRecentMatch.awayTeam
+          result.homeScore = mostRecentMatch.homeScore
+          result.awayScore = mostRecentMatch.awayScore
+          result.isHome = getIsHome(mostRecentMatch)
+          result.minutesPlayed = 0
+          result.started = false
+          result.participated = false
+          result.goals = 0
+          result.assists = 0
+          result.rating = null
+          result.competition = mostRecentMatch.competition
+          result.events = []
+        }
+
+        return result
       }
     } catch (error) {
       console.log(`FotMob Player API error for ${player.name}: ${error.message}`)

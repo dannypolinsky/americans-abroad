@@ -301,6 +301,23 @@
   font-weight: 600;
 }
 
+.missed-game-info {
+  background: #fff8e1;
+  border-radius: 8px;
+  padding: 0.75rem;
+  border: 1px dashed #ffb74d;
+  margin-bottom: 0.5rem;
+}
+
+.missed-game-header {
+  font-size: 0.75rem;
+  color: #f57c00;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
 .last-game-info {
   background: #fafafa;
   border-radius: 8px;

@@ -427,29 +427,23 @@ function App() {
       live: [],
       finished: [],
       upcoming: [],
-      recent: [],
-      older: []
+      recent: []
     }
 
     for (const player of filteredPlayers) {
       const data = matchData[player.id]
       if (!data) {
-        groups.older.push(player)
+        // All players go to recent since we have FotMob data for everyone
+        groups.recent.push(player)
       } else if (data.status === 'live') {
         groups.live.push(player)
       } else if (data.status === 'finished') {
         groups.finished.push(player)
       } else if (data.status === 'upcoming') {
         groups.upcoming.push(player)
-      } else if (data.status === 'no_match_today') {
-        // Any player with lastGame data goes to recent, not older
-        if (data.lastGame?.date) {
-          groups.recent.push(player)
-        } else {
-          groups.older.push(player)
-        }
       } else {
-        groups.older.push(player)
+        // All other players go to recent (no_match_today, etc.)
+        groups.recent.push(player)
       }
     }
 
@@ -575,16 +569,6 @@ function App() {
                 <h2 className="section-header recent-header">Recently Played</h2>
                 <div className="players-grid">
                   {groupedPlayers.recent.map(player => (
-                    <PlayerCard key={player.id} player={player} matchData={matchData[player.id] || null} showLastGame={true} />
-                  ))}
-                </div>
-              </>
-            )}
-            {groupedPlayers.older.length > 0 && (
-              <>
-                <h2 className="section-header older-header">Older Than API Supports</h2>
-                <div className="players-grid">
-                  {groupedPlayers.older.map(player => (
                     <PlayerCard key={player.id} player={player} matchData={matchData[player.id] || null} showLastGame={true} />
                   ))}
                 </div>

@@ -133,10 +133,10 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                   {matchData.started === true && <span className="start-badge">START</span>}
                   {matchData.started === false && <span className="sub-badge">SUB</span>}
                   {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
-                    <span key={`goal-${i}`} className="stat-badge goal">⚽ {e.minute}'</span>
+                    <span key={`goal-${i}`} className="stat-badge goal">⚽{e.minute ? ` ${e.minute}'` : ''}</span>
                   ))}
                   {matchData.events?.filter(e => e.type === 'assist').map((e, i) => (
-                    <span key={`assist-${i}`} className="stat-badge assist">🅰️ {e.minute}'</span>
+                    <span key={`assist-${i}`} className="stat-badge assist">🅰️{e.minute ? ` ${e.minute}'` : ''}</span>
                   ))}
                 </>
               ) : (
@@ -162,10 +162,26 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
             </div>
           )}
 
+          {lastGame?.missedGame && (
+            <div className="missed-game-info">
+              <div className="missed-game-header">
+                Missed: {formatDate(lastGame.missedGame.date)}
+              </div>
+              <div className="match-teams">
+                <span className={lastGame.missedGame.isHome ? 'highlight' : ''}>{lastGame.missedGame.homeTeam}</span>
+                <span className="score"><span className="score-num">{lastGame.missedGame.homeScore}</span><span className="score-colon">:</span><span className="score-num">{lastGame.missedGame.awayScore}</span></span>
+                <span className={!lastGame.missedGame.isHome ? 'highlight' : ''}>{lastGame.missedGame.awayTeam}</span>
+              </div>
+              <div className="last-game-stats">
+                <span className="did-not-play">Did not play</span>
+              </div>
+            </div>
+          )}
+
           {lastGame && (
             <div className="last-game-info">
               <div className="last-game-header">
-                Last Game: {formatDate(lastGame.date)}
+                {lastGame.missedGame ? 'Last Played' : 'Last Game'}: {formatDate(lastGame.date)}
               </div>
               <div className="match-teams">
                 <span className={lastGame.isHome ? 'highlight' : ''}>{lastGame.homeTeam}</span>
@@ -182,10 +198,10 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                   {lastGame.started === true && <span className="start-badge">START</span>}
                   {lastGame.started === false && <span className="sub-badge">SUB</span>}
                   {lastGame.events?.filter(e => e.type === 'goal').map((e, i) => (
-                    <span key={`goal-${i}`} className="stat-badge goal">⚽ {e.minute}'</span>
+                    <span key={`goal-${i}`} className="stat-badge goal">⚽{e.minute ? ` ${e.minute}'` : ''}</span>
                   ))}
                   {lastGame.events?.filter(e => e.type === 'assist').map((e, i) => (
-                    <span key={`assist-${i}`} className="stat-badge assist">🅰️ {e.minute}'</span>
+                    <span key={`assist-${i}`} className="stat-badge assist">🅰️{e.minute ? ` ${e.minute}'` : ''}</span>
                   ))}
                 </div>
               ) : (
