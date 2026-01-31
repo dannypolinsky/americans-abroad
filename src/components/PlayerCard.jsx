@@ -6,10 +6,14 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
   const lastGame = matchData?.lastGame
   const nextGame = matchData?.nextGame
 
-  // Format date for display
+  // Format date for display - shows "Today" if date is today
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
     const date = new Date(dateStr)
+    const now = new Date()
+    if (date.toDateString() === now.toDateString()) {
+      return 'Today'
+    }
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 

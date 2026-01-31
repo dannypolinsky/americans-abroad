@@ -443,6 +443,14 @@ class MatchTrackerFD {
           const teamData = await this.fotmob.getTeamData(teamName)
           if (!teamData?.overview?.nextMatch) continue
 
+          // CRITICAL: Verify FotMob returned data for the correct team
+          // This catches wrong team ID mappings in TEAM_IDS
+          const fotmobTeamName = teamData.details?.name || teamData.details?.shortName
+          if (fotmobTeamName && !this.teamMatches(fotmobTeamName, teamName)) {
+            console.log(`FotMob: Team ID mismatch for ${teamName} - FotMob returned "${fotmobTeamName}"`)
+            continue
+          }
+
           const nextMatch = teamData.overview.nextMatch
           const matchDate = new Date(nextMatch.status?.utcTime)
           const matchDateStr = matchDate.toISOString().split('T')[0]
