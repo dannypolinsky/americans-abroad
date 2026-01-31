@@ -419,8 +419,63 @@ app.get('/api/football-status', async (req, res) => {
   }
 })
 
+// Keep-alive mechanism for Render free tier
+// Pings the server every 10 minutes during active hours (9am - 3pm ET)
+const KEEP_ALIVE_URL = process.env.RENDER_EXTERNAL_URL || process.env.KEEP_ALIVE_URL
+const KEEP_ALIVE_INTERVAL = 10 * 60 * 1000 // 10 minutes
+
+function isActiveHours() {
+  const now = new Date()
+  // Convert to ET (UTC-5 or UTC-4 during DST)
+  // Using America/New_York timezone
+  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const hour = etTime.getHours()
+  // Active from 9am (9) to 3pm (15) ET
+  return hour >= 9 && hour < 15
+}
+
+let keepAliveInterval = null
+
+function startKeepAlive() {
+  if (!KEEP_ALIVE_URL) {
+    console.log('Keep-alive: No URL configured (set RENDER_EXTERNAL_URL or KEEP_ALIVE_URL)')
+    return
+  }
+
+  console.log(`Keep-alive: Configured for ${KEEP_ALIVE_URL}`)
+  console.log('Keep-alive: Active hours 9am - 3pm ET, pinging every 10 minutes')
+
+  // Initial check
+  pingIfActive()
+
+  // Set up interval
+  keepAliveInterval = setInterval(pingIfActive, KEEP_ALIVE_INTERVAL)
+}
+
+async function pingIfActive() {
+  if (!isActiveHours()) {
+    return
+  }
+
+  try {
+    const response = await fetch(`${KEEP_ALIVE_URL}/api/health`)
+    if (response.ok) {
+      console.log(`Keep-alive: Pinged at ${new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York' })} ET`)
+    }
+  } catch (error) {
+    console.log(`Keep-alive: Ping failed - ${error.message}`)
+  }
+}
+
+function stopKeepAlive() {
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval)
+    keepAliveInterval = null
+  }
+}
+
 // Start server
-const SERVER_VERSION = '2.1.0' // Added player event details (goals, assists, subs)
+const SERVER_VERSION = '2.2.0' // Added match validation fix and keep-alive
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
@@ -443,11 +498,15 @@ app.listen(PORT, () => {
     // Start polling for live matches (every 5 minutes)
     matchTracker.startPolling(5 * 60 * 1000)
   }
+
+  // Start keep-alive for Render free tier
+  startKeepAlive()
 })
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('Shutting down...')
   matchTracker.stopPolling()
+  stopKeepAlive()
   process.exit(0)
 })

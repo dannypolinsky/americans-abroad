@@ -479,12 +479,28 @@ class MatchTrackerFD {
 
           // Determine if player's team is home or away
           const teamId = TEAM_IDS[teamName] || this.getTeamIdFromFotMob(teamName, teamData)
-          const isHome = nextMatch.home?.id === teamId
 
           const homeTeam = nextMatch.home?.name || 'Unknown'
           const awayTeam = nextMatch.away?.name || 'Unknown'
           const homeScore = nextMatch.home?.score ?? 0
           const awayScore = nextMatch.away?.score ?? 0
+
+          // VALIDATION: Verify that the player's team is actually in this match
+          // Check by both team ID and team name matching to catch API errors or ID mismatches
+          const teamIdMatches = teamId && (nextMatch.home?.id === teamId || nextMatch.away?.id === teamId)
+          const teamNameMatches = this.teamMatches(homeTeam, teamName) || this.teamMatches(awayTeam, teamName)
+
+          if (!teamIdMatches && !teamNameMatches) {
+            console.log(`FotMob: Skipping match for ${teamName} - team not found in match (${homeTeam} vs ${awayTeam})`)
+            continue
+          }
+
+          // Determine if home based on ID match first, fallback to name match
+          const isHome = teamId && nextMatch.home?.id === teamId
+            ? true
+            : teamId && nextMatch.away?.id === teamId
+              ? false
+              : this.teamMatches(homeTeam, teamName)
 
           // Add match data for all players on this team
           for (const player of players) {
@@ -802,12 +818,14 @@ class MatchTrackerFD {
           }
 
           if (stats && stats.participated) {
+            // Use teamMatches for consistent fuzzy matching instead of exact comparison
+            const isHomeMatch = this.teamMatches(stats.homeTeam, player.team)
             this.fotmobData.set(player.id, {
               timestamp: now.toISOString(),
               lastMatch: {
                 date: stats.date,
-                opponent: stats.homeTeam === player.team ? stats.awayTeam : stats.homeTeam,
-                isHome: stats.homeTeam === player.team,
+                opponent: isHomeMatch ? stats.awayTeam : stats.homeTeam,
+                isHome: isHomeMatch,
                 homeTeam: stats.homeTeam,
                 awayTeam: stats.awayTeam,
                 homeScore: stats.homeScore,
@@ -885,12 +903,9 @@ class MatchTrackerFD {
         // Get the most recent match overall (whether they played or not)
         const mostRecentMatch = recentMatches[0]
 
-        // Helper to determine isHome
+        // Helper to determine isHome - use consistent teamMatches function
         const getIsHome = (match) => {
-          const playerTeamNormalized = player.team.toLowerCase().replace(/fc |cf |ac /gi, '').trim()
-          const homeTeamNormalized = (match.homeTeam || '').toLowerCase().replace(/fc |cf |ac /gi, '').trim()
-          return homeTeamNormalized.includes(playerTeamNormalized.split(' ')[0]) ||
-                 playerTeamNormalized.includes(homeTeamNormalized.split(' ')[0])
+          return this.teamMatches(match.homeTeam, player.team)
         }
 
         const result = {

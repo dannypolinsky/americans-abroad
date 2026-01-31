@@ -124,11 +124,14 @@ const TEAM_IDS = {
   'St. Truiden': 8378,
   // MLS
   'Atlanta United': 9904,
+  'Austin FC': 250067,
   'Charlotte FC': 250044,
   'Colorado Rapids': 9923,
+  'FC Cincinnati': 226626,
   'Houston Dynamo': 9919,
   'New England Revolution': 9916,
   'Philadelphia Union': 9918,
+  'San Diego FC': 296519,
   // Liga MX
   'Club America': 6896,
   'Monterrey': 6904,
