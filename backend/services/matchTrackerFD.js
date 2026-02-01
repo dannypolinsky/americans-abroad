@@ -430,18 +430,19 @@ class MatchTrackerFD {
         if (processedTeams.has(teamName)) continue
         processedTeams.add(teamName)
 
-        // Check if any player from this team already has match data for today
-        const hasMatchData = players.some(p => {
+        // Check if any player from this team already has match data from Football-Data.org
+        // (We still want to update FotMob-sourced matches to catch status changes)
+        const hasFootballDataMatch = players.some(p => {
           const data = this.matchData.get(p.id)
-          return data && data.status !== 'no_match_today'
+          return data && data.status !== 'no_match_today' && data.source !== 'fotmob'
         })
 
-        if (hasMatchData) continue // Skip - Football-Data.org already has this team's match
+        if (hasFootballDataMatch) continue // Skip - Football-Data.org already has this team's match
 
         // Query FotMob for this team's data
         try {
           const teamData = await this.fotmob.getTeamData(teamName, forLiveData)
-          if (!teamData?.overview?.nextMatch) continue
+          if (!teamData?.overview) continue
 
           // CRITICAL: Verify FotMob returned data for the correct team
           // This catches wrong team ID mappings in TEAM_IDS
@@ -451,29 +452,46 @@ class MatchTrackerFD {
             continue
           }
 
+          // Check both nextMatch (live/upcoming) and lastMatch (recently finished)
+          // When a match finishes, FotMob moves it from nextMatch to lastMatch
+          let matchToUse = null
           const nextMatch = teamData.overview.nextMatch
-          const matchDate = new Date(nextMatch.status?.utcTime)
-          const matchDateStr = matchDate.toISOString().split('T')[0]
+          const lastMatch = teamData.overview.lastMatch
 
-          // Check if the match is today
-          if (matchDateStr !== today) continue
+          // First check if nextMatch is today (live or upcoming)
+          if (nextMatch?.status?.utcTime) {
+            const nextMatchDate = new Date(nextMatch.status.utcTime).toISOString().split('T')[0]
+            if (nextMatchDate === today) {
+              matchToUse = nextMatch
+            }
+          }
+
+          // If no nextMatch today, check if lastMatch is today (just finished)
+          if (!matchToUse && lastMatch?.status?.utcTime) {
+            const lastMatchDate = new Date(lastMatch.status.utcTime).toISOString().split('T')[0]
+            if (lastMatchDate === today && lastMatch.status?.finished) {
+              matchToUse = lastMatch
+            }
+          }
+
+          if (!matchToUse) continue
 
           // Determine match status
           let status = 'upcoming'
           let minute = 0
-          if (nextMatch.status?.finished) {
+          if (matchToUse.status?.finished) {
             status = 'finished'
             minute = 90
-          } else if (nextMatch.status?.started || nextMatch.status?.ongoing) {
+          } else if (matchToUse.status?.started || matchToUse.status?.ongoing) {
             status = 'live'
             // Try multiple locations for live time (FotMob API structure varies)
             const liveTimeSources = [
-              nextMatch.liveTime?.short,
-              nextMatch.liveTime?.long,
-              nextMatch.status?.liveTime?.short,
-              nextMatch.status?.liveTime?.long,
-              nextMatch.timeStr,
-              nextMatch.status?.reason?.short, // Sometimes shows "45+2" etc
+              matchToUse.liveTime?.short,
+              matchToUse.liveTime?.long,
+              matchToUse.status?.liveTime?.short,
+              matchToUse.status?.liveTime?.long,
+              matchToUse.timeStr,
+              matchToUse.status?.reason?.short, // Sometimes shows "45+2" etc
             ]
 
             for (const liveTimeStr of liveTimeSources) {
@@ -488,21 +506,21 @@ class MatchTrackerFD {
 
             // Log for debugging
             if (minute === 0) {
-              console.log(`FotMob: Could not parse minute for ${teamName} match. nextMatch keys:`, Object.keys(nextMatch || {}))
+              console.log(`FotMob: Could not parse minute for ${teamName} match. matchToUse keys:`, Object.keys(matchToUse || {}))
             }
           }
 
           // Determine if player's team is home or away
           const teamId = TEAM_IDS[teamName] || this.getTeamIdFromFotMob(teamName, teamData)
 
-          const homeTeam = nextMatch.home?.name || 'Unknown'
-          const awayTeam = nextMatch.away?.name || 'Unknown'
-          const homeScore = nextMatch.home?.score ?? 0
-          const awayScore = nextMatch.away?.score ?? 0
+          const homeTeam = matchToUse.home?.name || 'Unknown'
+          const awayTeam = matchToUse.away?.name || 'Unknown'
+          const homeScore = matchToUse.home?.score ?? 0
+          const awayScore = matchToUse.away?.score ?? 0
 
           // VALIDATION: Verify that the player's team is actually in this match
           // Check by both team ID and team name matching to catch API errors or ID mismatches
-          const teamIdMatches = teamId && (nextMatch.home?.id === teamId || nextMatch.away?.id === teamId)
+          const teamIdMatches = teamId && (matchToUse.home?.id === teamId || matchToUse.away?.id === teamId)
           const teamNameMatches = this.teamMatches(homeTeam, teamName) || this.teamMatches(awayTeam, teamName)
 
           if (!teamIdMatches && !teamNameMatches) {
@@ -511,9 +529,9 @@ class MatchTrackerFD {
           }
 
           // Determine if home based on ID match first, fallback to name match
-          const isHome = teamId && nextMatch.home?.id === teamId
+          const isHome = teamId && matchToUse.home?.id === teamId
             ? true
-            : teamId && nextMatch.away?.id === teamId
+            : teamId && matchToUse.away?.id === teamId
               ? false
               : this.teamMatches(homeTeam, teamName)
 
@@ -530,7 +548,7 @@ class MatchTrackerFD {
             // For live or finished games, fetch detailed player stats
             if (status === 'live' || status === 'finished') {
               try {
-                const stats = await this.fotmob.getPlayerStatsFromMatch(nextMatch.id, player.name, isHome, forLiveData)
+                const stats = await this.fotmob.getPlayerStatsFromMatch(matchToUse.id, player.name, isHome, forLiveData)
                 if (stats) {
                   playerStats = {
                     participated: stats.participated,
@@ -553,7 +571,7 @@ class MatchTrackerFD {
             }
 
             this.matchData.set(player.id, {
-              fixtureId: nextMatch.id,
+              fixtureId: matchToUse.id,
               status,
               homeTeam,
               awayTeam,
@@ -562,13 +580,13 @@ class MatchTrackerFD {
               minute,
               isHome,
               events: playerStats.events,
-              kickoff: nextMatch.status?.utcTime,
+              kickoff: matchToUse.status?.utcTime,
               venue: '',
               participated: playerStats.participated,
               minutesPlayed: playerStats.minutesPlayed,
               started: playerStats.started,
               rating: playerStats.rating,
-              competition: nextMatch.tournament?.name || 'Unknown',
+              competition: matchToUse.tournament?.name || 'Unknown',
               source: 'fotmob'
             })
             addedCount++
