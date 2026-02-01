@@ -280,7 +280,7 @@ function App() {
     const liveRefreshInterval = setInterval(() => {
       console.log('Live match refresh...')
       loadMatchData()
-    }, 90 * 1000) // 90 seconds
+    }, 60 * 1000) // 60 seconds
 
     return () => clearInterval(liveRefreshInterval)
   }, [matchData, loadMatchData])

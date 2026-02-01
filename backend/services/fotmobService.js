@@ -144,7 +144,7 @@ class FotMobService {
   constructor() {
     this.cache = new Map()
     this.cacheExpiry = 60 * 60 * 1000 // 1 hour for general data
-    this.liveCacheExpiry = 2 * 60 * 1000 // 2 minutes for live match data
+    this.liveCacheExpiry = 45 * 1000 // 45 seconds for live match data
     this.teamDataCache = new Map()
     this.playerIdCache = new Map() // playerName -> fotmobId
   }
@@ -348,9 +348,22 @@ class FotMobService {
   }
 
   // Get player stats from a match
-  async getPlayerStatsFromMatch(matchId, playerName, isHome) {
-    const match = await this.getMatchDetails(matchId)
+  async getPlayerStatsFromMatch(matchId, playerName, isHome, forLiveData = false) {
+    const match = await this.getMatchDetails(matchId, forLiveData)
     if (!match) return null
+
+    // Parse live minute from various possible locations in the response
+    let liveMinute = 0
+    const liveTimeStr = match.header?.status?.liveTime?.short ||
+                        match.header?.status?.liveTime?.long ||
+                        match.general?.matchStatus?.liveTime?.short ||
+                        match.general?.matchStatus?.liveTime?.long
+    if (liveTimeStr) {
+      const minuteMatch = liveTimeStr.match(/(\d+)/)
+      if (minuteMatch) {
+        liveMinute = parseInt(minuteMatch[1], 10)
+      }
+    }
 
     // Get basic match info
     const result = {
@@ -361,6 +374,7 @@ class FotMobService {
       awayScore: match.header?.teams?.[1]?.score ?? match.general?.awayTeam?.score,
       competition: match.general?.leagueName || match.header?.tournament?.name,
       date: match.general?.matchTimeUTCDate,
+      liveMinute, // Include the current minute for live matches
       participated: false,
       started: false,
       minutesPlayed: 0,

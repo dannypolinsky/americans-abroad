@@ -466,22 +466,29 @@ class MatchTrackerFD {
             minute = 90
           } else if (nextMatch.status?.started || nextMatch.status?.ongoing) {
             status = 'live'
-            // Parse live time - it's at the top level liveTime, not in status.liveTime
-            // The string has hidden Unicode chars, so strip everything non-numeric
-            const liveTimeStr = nextMatch.liveTime?.short || nextMatch.liveTime?.long
-            if (liveTimeStr) {
-              // Extract just the numbers (handles "50‎'‎" -> 50 or "49:18" -> 49)
-              const match = liveTimeStr.match(/(\d+)/)
-              if (match) {
-                minute = parseInt(match[1], 10)
+            // Try multiple locations for live time (FotMob API structure varies)
+            const liveTimeSources = [
+              nextMatch.liveTime?.short,
+              nextMatch.liveTime?.long,
+              nextMatch.status?.liveTime?.short,
+              nextMatch.status?.liveTime?.long,
+              nextMatch.timeStr,
+              nextMatch.status?.reason?.short, // Sometimes shows "45+2" etc
+            ]
+
+            for (const liveTimeStr of liveTimeSources) {
+              if (liveTimeStr && minute === 0) {
+                // Extract just the numbers (handles "50‎'‎" -> 50 or "49:18" -> 49 or "HT" etc)
+                const timeMatch = liveTimeStr.match(/(\d+)/)
+                if (timeMatch) {
+                  minute = parseInt(timeMatch[1], 10)
+                }
               }
             }
-            // Fallback: check status.liveTime if top-level didn't work
-            if (minute === 0 && nextMatch.status?.liveTime?.short) {
-              const match = nextMatch.status.liveTime.short.match(/(\d+)/)
-              if (match) {
-                minute = parseInt(match[1], 10)
-              }
+
+            // Log for debugging
+            if (minute === 0) {
+              console.log(`FotMob: Could not parse minute for ${teamName} match. nextMatch keys:`, Object.keys(nextMatch || {}))
             }
           }
 
@@ -523,7 +530,7 @@ class MatchTrackerFD {
             // For live or finished games, fetch detailed player stats
             if (status === 'live' || status === 'finished') {
               try {
-                const stats = await this.fotmob.getPlayerStatsFromMatch(nextMatch.id, player.name, isHome)
+                const stats = await this.fotmob.getPlayerStatsFromMatch(nextMatch.id, player.name, isHome, forLiveData)
                 if (stats) {
                   playerStats = {
                     participated: stats.participated,
@@ -532,8 +539,12 @@ class MatchTrackerFD {
                     rating: stats.rating,
                     events: stats.events || []
                   }
+                  // Update minute from match details if we didn't get it from team data
+                  if (minute === 0 && stats.liveMinute > 0) {
+                    minute = stats.liveMinute
+                  }
                   if (stats.participated) {
-                    console.log(`FotMob: ${player.name} - ${status}, started: ${stats.started}, rating: ${stats.rating}`)
+                    console.log(`FotMob: ${player.name} - ${status}, ${minute}', started: ${stats.started}, rating: ${stats.rating}`)
                   }
                 }
               } catch (err) {
@@ -1100,7 +1111,7 @@ class MatchTrackerFD {
     await this.updateNextGameData()
 
     // Polling intervals
-    const liveIntervalMs = 90 * 1000 // 90 seconds when live matches
+    const liveIntervalMs = 60 * 1000 // 60 seconds when live matches
     const normalIntervalMs = intervalMs // 5 minutes otherwise
     let currentInterval = normalIntervalMs
     let isLive = this.hasLiveMatches()

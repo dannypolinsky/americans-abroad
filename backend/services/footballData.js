@@ -8,7 +8,7 @@ class FootballDataService {
     this.apiKey = apiKey
     this.cache = new Map()
     this.cacheExpiry = 5 * 60 * 1000 // 5 minutes for general data
-    this.liveCacheExpiry = 60 * 1000 // 1 minute for live match data
+    this.liveCacheExpiry = 30 * 1000 // 30 seconds for live match data
   }
 
   async fetchFromApi(endpoint, forLiveData = false) {
