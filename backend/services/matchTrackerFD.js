@@ -1119,17 +1119,24 @@ class MatchTrackerFD {
     // Polling function that adjusts interval based on live status
     const pollForUpdates = async () => {
       const wasLive = isLive
+
+      // Always update with fresh data first to detect newly live matches
+      // Then check live status to determine cache strategy for detailed updates
+      await this.updateMatchData(true) // Always use live cache to detect status changes quickly
+      await this.updateMatchDataFromFotMob(wasLive) // Use live cache if we were already tracking live matches
+
+      // Check live status AFTER update to catch newly live matches
       isLive = this.hasLiveMatches()
 
       if (isLive) {
-        console.log('Live matches detected, updating with fresh data...')
-        await this.updateMatchData(true) // forLiveData = true
-        await this.updateMatchDataFromFotMob(true) // forLiveData = true
+        console.log('Live matches detected')
+        // If we just detected a newly live match, do another update with live cache
+        if (!wasLive) {
+          console.log('Newly live match detected, refreshing FotMob data...')
+          await this.updateMatchDataFromFotMob(true)
+        }
       } else {
-        // Periodic refresh even without live matches
-        console.log('No live matches, checking for updates...')
-        await this.updateMatchData()
-        await this.updateMatchDataFromFotMob()
+        console.log('No live matches')
       }
 
       // Adjust polling interval if live status changed
