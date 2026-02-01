@@ -348,12 +348,12 @@ class MatchTrackerFD {
   }
 
   // Fetch and process matches for a date range
-  async fetchMatches(dateFrom, dateTo) {
+  async fetchMatches(dateFrom, dateTo, forLiveData = false) {
     const leagueCodes = this.getSupportedLeagueCodes()
-    console.log(`Fetching matches from ${dateFrom} to ${dateTo} for leagues: ${leagueCodes}`)
+    console.log(`Fetching matches from ${dateFrom} to ${dateTo} for leagues: ${leagueCodes}${forLiveData ? ' (live refresh)' : ''}`)
 
     try {
-      const response = await this.api.getMatchesByDateRange(dateFrom, dateTo, leagueCodes)
+      const response = await this.api.getMatchesByDateRange(dateFrom, dateTo, leagueCodes, forLiveData)
       return response.matches || []
     } catch (error) {
       console.error('Error fetching matches:', error.message)
@@ -362,10 +362,10 @@ class MatchTrackerFD {
   }
 
   // Update match data for today
-  async updateMatchData() {
+  async updateMatchData(forLiveData = false) {
     try {
       const today = this.getTodayDate()
-      const matches = await this.fetchMatches(today, today)
+      const matches = await this.fetchMatches(today, today, forLiveData)
       console.log(`Found ${matches.length} matches today`)
 
       const playersByTeam = this.getPlayersByTeam()
@@ -418,7 +418,7 @@ class MatchTrackerFD {
   }
 
   // Update match data from FotMob for players without Football-Data.org coverage
-  async updateMatchDataFromFotMob() {
+  async updateMatchDataFromFotMob(forLiveData = false) {
     try {
       const playersByTeam = this.getPlayersByTeam()
       const today = this.getTodayDate()
@@ -440,7 +440,7 @@ class MatchTrackerFD {
 
         // Query FotMob for this team's data
         try {
-          const teamData = await this.fotmob.getTeamData(teamName)
+          const teamData = await this.fotmob.getTeamData(teamName, forLiveData)
           if (!teamData?.overview?.nextMatch) continue
 
           // CRITICAL: Verify FotMob returned data for the correct team
@@ -1099,16 +1099,42 @@ class MatchTrackerFD {
     await this.updateLastGameData()
     await this.updateNextGameData()
 
-    // Set up interval
-    this.pollInterval = setInterval(async () => {
-      if (this.hasLiveMatches()) {
-        console.log('Live matches detected, updating...')
+    // Polling intervals
+    const liveIntervalMs = 90 * 1000 // 90 seconds when live matches
+    const normalIntervalMs = intervalMs // 5 minutes otherwise
+    let currentInterval = normalIntervalMs
+    let isLive = this.hasLiveMatches()
+
+    // Polling function that adjusts interval based on live status
+    const pollForUpdates = async () => {
+      const wasLive = isLive
+      isLive = this.hasLiveMatches()
+
+      if (isLive) {
+        console.log('Live matches detected, updating with fresh data...')
+        await this.updateMatchData(true) // forLiveData = true
+        await this.updateMatchDataFromFotMob(true) // forLiveData = true
+      } else {
+        // Periodic refresh even without live matches
+        console.log('No live matches, checking for updates...')
         await this.updateMatchData()
         await this.updateMatchDataFromFotMob()
-      } else {
-        console.log('No live matches, skipping update')
       }
-    }, intervalMs)
+
+      // Adjust polling interval if live status changed
+      const newInterval = isLive ? liveIntervalMs : normalIntervalMs
+      if (newInterval !== currentInterval) {
+        currentInterval = newInterval
+        clearInterval(this.pollInterval)
+        this.pollInterval = setInterval(pollForUpdates, currentInterval)
+        console.log(`Polling interval changed to ${currentInterval / 1000} seconds`)
+      }
+    }
+
+    // Set up initial interval
+    currentInterval = isLive ? liveIntervalMs : normalIntervalMs
+    console.log(`Initial polling interval: ${currentInterval / 1000} seconds`)
+    this.pollInterval = setInterval(pollForUpdates, currentInterval)
   }
 
   // Stop polling

@@ -143,14 +143,16 @@ const TEAM_IDS = {
 class FotMobService {
   constructor() {
     this.cache = new Map()
-    this.cacheExpiry = 60 * 60 * 1000 // 1 hour
+    this.cacheExpiry = 60 * 60 * 1000 // 1 hour for general data
+    this.liveCacheExpiry = 2 * 60 * 1000 // 2 minutes for live match data
     this.teamDataCache = new Map()
     this.playerIdCache = new Map() // playerName -> fotmobId
   }
 
-  async fetchFromApi(endpoint) {
+  async fetchFromApi(endpoint, bypassCache = false) {
     const cached = this.cache.get(endpoint)
-    if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+    const cacheExpiry = bypassCache ? this.liveCacheExpiry : this.cacheExpiry
+    if (!bypassCache && cached && Date.now() - cached.timestamp < cacheExpiry) {
       return cached.data
     }
 
@@ -180,7 +182,7 @@ class FotMobService {
   }
 
   // Get team data including squad and recent matches
-  async getTeamData(teamName) {
+  async getTeamData(teamName, forLiveData = false) {
     const teamId = TEAM_IDS[teamName]
     if (!teamId) {
       console.log(`FotMob: No team ID mapping for ${teamName}`)
@@ -188,7 +190,7 @@ class FotMobService {
     }
 
     try {
-      return await this.fetchFromApi(`/teams?id=${teamId}`)
+      return await this.fetchFromApi(`/teams?id=${teamId}`, forLiveData)
     } catch (error) {
       console.error(`FotMob: Error fetching team ${teamName}:`, error.message)
       return null
@@ -196,9 +198,9 @@ class FotMobService {
   }
 
   // Get match details including player stats
-  async getMatchDetails(matchId) {
+  async getMatchDetails(matchId, forLiveData = false) {
     try {
-      return await this.fetchFromApi(`/matchDetails?matchId=${matchId}`)
+      return await this.fetchFromApi(`/matchDetails?matchId=${matchId}`, forLiveData)
     } catch (error) {
       console.error(`FotMob: Error fetching match ${matchId}:`, error.message)
       return null

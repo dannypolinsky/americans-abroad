@@ -7,13 +7,15 @@ class FootballDataService {
   constructor(apiKey) {
     this.apiKey = apiKey
     this.cache = new Map()
-    this.cacheExpiry = 5 * 60 * 1000 // 5 minutes
+    this.cacheExpiry = 5 * 60 * 1000 // 5 minutes for general data
+    this.liveCacheExpiry = 60 * 1000 // 1 minute for live match data
   }
 
-  async fetchFromApi(endpoint) {
-    // Check cache first
+  async fetchFromApi(endpoint, forLiveData = false) {
+    // Check cache first - use shorter expiry for live data
     const cached = this.cache.get(endpoint)
-    if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+    const cacheExpiry = forLiveData ? this.liveCacheExpiry : this.cacheExpiry
+    if (cached && Date.now() - cached.timestamp < cacheExpiry) {
       return cached.data
     }
 
@@ -48,18 +50,18 @@ class FootballDataService {
   }
 
   // Get matches for a specific date range
-  async getMatchesByDateRange(dateFrom, dateTo, competitions = null) {
+  async getMatchesByDateRange(dateFrom, dateTo, competitions = null, forLiveData = false) {
     let endpoint = `/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`
     if (competitions) {
       endpoint += `&competitions=${competitions}`
     }
-    return this.fetchFromApi(endpoint)
+    return this.fetchFromApi(endpoint, forLiveData)
   }
 
-  // Get matches for today
-  async getTodaysMatches(competitions = null) {
+  // Get matches for today (uses shorter cache for live data)
+  async getTodaysMatches(competitions = null, forLiveData = false) {
     const today = new Date().toISOString().split('T')[0]
-    return this.getMatchesByDateRange(today, today, competitions)
+    return this.getMatchesByDateRange(today, today, competitions, forLiveData)
   }
 
   // Get matches for a specific competition

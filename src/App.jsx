@@ -271,6 +271,20 @@ function App() {
     loadMatchData()
   }, [loadMatchData])
 
+  // Auto-refresh when there are live matches (every 90 seconds)
+  useEffect(() => {
+    const hasLiveMatches = Object.values(matchData).some(m => m?.status === 'live')
+
+    if (!hasLiveMatches || !API_BASE) return
+
+    const liveRefreshInterval = setInterval(() => {
+      console.log('Live match refresh...')
+      loadMatchData()
+    }, 90 * 1000) // 90 seconds
+
+    return () => clearInterval(liveRefreshInterval)
+  }, [matchData, loadMatchData])
+
   // Persist filter to localStorage
   useEffect(() => {
     localStorage.setItem('americansAbroad_filter', filter)

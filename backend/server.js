@@ -475,7 +475,7 @@ function stopKeepAlive() {
 }
 
 // Start server
-const SERVER_VERSION = '2.2.0' // Added match validation fix and keep-alive
+const SERVER_VERSION = '2.3.0' // Improved live match refresh (shorter cache, faster polling)
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
