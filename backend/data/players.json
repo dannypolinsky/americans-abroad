@@ -482,19 +482,6 @@
       "fotmobId": 1377897
     },
     {
-      "id": 76,
-      "name": "Weston McKennie",
-      "team": "Juventus",
-      "league": "Serie A",
-      "country": "Italy",
-      "position": "Midfielder",
-      "number": 16,
-      "age": 26,
-      "caps": 55,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/USAvVEN_2019-06-09_-_Weston_McKennie_%2851170534993%29_%28close-up%29.jpg/330px-USAvVEN_2019-06-09_-_Weston_McKennie_%2851170534993%29_%28close-up%29.jpg",
-      "fotmobId": 848266
-    },
-    {
       "id": 79,
       "name": "Djordje Mihailovic",
       "team": "Colorado Rapids",
@@ -543,18 +530,6 @@
       "caps": 30,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Zack-Steffen-08-2019.jpg/330px-Zack-Steffen-08-2019.jpg",
       "fotmobId": 533127
-    },
-    {
-      "id": 101,
-      "name": "Bryan Reynolds",
-      "team": "Westerlo",
-      "league": "Belgian Pro League",
-      "country": "Belgium",
-      "position": "Right Back",
-      "number": 14,
-      "age": 23,
-      "caps": 2,
-      "fotmobId": 924446
     },
     {
       "id": 103,
