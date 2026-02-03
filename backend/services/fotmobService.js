@@ -229,6 +229,7 @@ class FotMobService {
     if (!playerData) return null
 
     const recentMatches = []
+    const playerName = playerData.name
 
     // Get matches from recentMatches array
     const matches = playerData.recentMatches || []
@@ -240,11 +241,64 @@ class FotMobService {
       const isHome = match.isHomeTeam
       const minutesPlayed = match.minutesPlayed || 0
 
-      // Determine if player started based on minutes played
-      // onBench only tells us if they were an unused sub, not if they started
-      // Heuristic: if they played 60+ minutes, they likely started
-      // If they played < 60 minutes, they likely came on as a sub
-      const started = minutesPlayed >= 60
+      // Default values - will be updated from match details if available
+      let started = null
+      let actualMinutesPlayed = minutesPlayed
+
+      // Fetch match details to get accurate starter status and minutes
+      // Only do this for matches where player participated
+      if (minutesPlayed > 0 || !match.onBench) {
+        try {
+          const matchDetails = await this.getMatchDetails(match.id)
+          if (matchDetails?.content?.lineup) {
+            const teamLineup = isHome ? matchDetails.content.lineup.homeTeam : matchDetails.content.lineup.awayTeam
+            if (teamLineup) {
+              // Check if player is in starters
+              const inStarters = teamLineup.starters?.some(p => this.playerNameMatches(p.name, playerName))
+              // Check if player is in subs
+              const inSubs = teamLineup.subs?.some(p => this.playerNameMatches(p.name, playerName))
+
+              if (inStarters) {
+                started = true
+              } else if (inSubs) {
+                started = false
+              }
+
+              // Get accurate minutes from match events
+              const events = matchDetails.content?.matchFacts?.events?.events || []
+              if (started === true) {
+                // Starter - check if subbed out
+                const subOut = events.find(e =>
+                  e.type === 'Substitution' &&
+                  this.playerNameMatches(e.swap?.[1]?.name, playerName)
+                )
+                if (subOut) {
+                  actualMinutesPlayed = subOut.time || minutesPlayed
+                } else if (matchDetails.header?.status?.finished) {
+                  actualMinutesPlayed = 90
+                }
+              } else if (started === false) {
+                // Sub - check when they came on
+                const subIn = events.find(e =>
+                  e.type === 'Substitution' &&
+                  this.playerNameMatches(e.swap?.[0]?.name, playerName)
+                )
+                if (subIn) {
+                  actualMinutesPlayed = 90 - (subIn.time || 0)
+                }
+              }
+            }
+          }
+        } catch (err) {
+          // Fall back to heuristic if match details fetch fails
+          started = minutesPlayed >= 60
+        }
+      }
+
+      // Fall back to heuristic if we couldn't determine from match details
+      if (started === null) {
+        started = minutesPlayed >= 60
+      }
 
       const matchInfo = {
         matchId: match.id,
@@ -254,7 +308,7 @@ class FotMobService {
         homeScore: match.homeScore,
         awayScore: match.awayScore,
         competition: match.leagueName,
-        minutesPlayed,
+        minutesPlayed: actualMinutesPlayed,
         rating: match.ratingProps?.rating ? parseFloat(match.ratingProps.rating) : null,
         started,
         participated: minutesPlayed > 0,
@@ -284,6 +338,9 @@ class FotMobService {
       }
 
       recentMatches.push(matchInfo)
+
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 50))
     }
 
     return recentMatches
