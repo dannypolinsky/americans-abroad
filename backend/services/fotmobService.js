@@ -136,8 +136,12 @@ const TEAM_IDS = {
   'Club America': 6896,
   'Monterrey': 6904,
   // 2. Bundesliga
-  'SV Darmstadt': 9773,
-  'Darmstadt': 9773
+  'SV Darmstadt': 8262,
+  'Darmstadt': 8262,
+  // MLS NEXT Pro
+  'Crown Legacy FC': 1451868,
+  // Additional MLS
+  'Real Salt Lake': 6606
 }
 
 class FotMobService {
