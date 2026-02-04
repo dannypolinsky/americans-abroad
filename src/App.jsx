@@ -274,18 +274,26 @@ function App() {
       if (!response.ok) throw new Error('API error')
       const data = await response.json()
       const newMatchData = data.data || {}
-      setMatchData(newMatchData)
+
+      // Only update state and cache if we got actual data
+      // This prevents cold-start empty responses from wiping cached data
+      const hasNewData = Object.keys(newMatchData).length > 0
+      if (hasNewData) {
+        setMatchData(newMatchData)
+        // Cache match data to localStorage for next visit
+        localStorage.setItem('americansAbroad_matchData', JSON.stringify(newMatchData))
+        localStorage.setItem('americansAbroad_lastUpdate', new Date().toISOString())
+      }
+
       setApiMode(data.mode || 'live')
       setApiStatus(data.apiStatus || null)
       setLastUpdate(new Date())
       setIsApiLoading(false)
-      // Cache match data to localStorage for next visit
-      localStorage.setItem('americansAbroad_matchData', JSON.stringify(newMatchData))
-      localStorage.setItem('americansAbroad_lastUpdate', new Date().toISOString())
     } catch (err) {
       console.log('API unavailable, retrying in', RETRY_DELAY / 1000, 'seconds...')
-      // If we have cached data, use it while retrying
-      const hasCachedData = Object.keys(matchData).length > 0
+      // Check localStorage directly for cached data (avoid stale closure)
+      const cachedData = localStorage.getItem('americansAbroad_matchData')
+      const hasCachedData = cachedData && Object.keys(JSON.parse(cachedData)).length > 0
       if (hasCachedData) {
         setIsApiLoading(false) // Show cached data instead of loading spinner
       }
