@@ -349,7 +349,7 @@ function App() {
     }, {})
   }, [uniquePlayers])
 
-  // Get most recent game date for a player (either today's match or last game)
+  // Get most recent game date for a player (either today's match, missed game, or last game)
   const getMostRecentGameDate = (playerId) => {
     const data = matchData[playerId]
     if (!data) return null
@@ -361,6 +361,11 @@ function App() {
         return data.kickoff
       }
       return new Date().toISOString()
+    }
+
+    // Check for missed game first (more recent than last played game)
+    if (data.lastGame?.missedGame?.date) {
+      return data.lastGame.missedGame.date
     }
 
     // Otherwise use last game date
