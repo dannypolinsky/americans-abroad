@@ -232,12 +232,31 @@ function App() {
     return saved || 'all'
   })
   const [searchTerm, setSearchTerm] = useState('')
-  const [matchData, setMatchData] = useState({})
+  const [matchData, setMatchData] = useState(() => {
+    // Load cached match data from localStorage on initial render
+    const cached = localStorage.getItem('americansAbroad_matchData')
+    if (cached) {
+      try {
+        return JSON.parse(cached)
+      } catch (e) {
+        return {}
+      }
+    }
+    return {}
+  })
   const [apiMode, setApiMode] = useState(API_BASE ? 'loading' : 'demo')
   const [apiStatus, setApiStatus] = useState(null)
-  const [lastUpdate, setLastUpdate] = useState(null)
+  const [lastUpdate, setLastUpdate] = useState(() => {
+    // Load cached last update time
+    const cached = localStorage.getItem('americansAbroad_lastUpdate')
+    return cached ? new Date(cached) : null
+  })
   const [isLoading, setIsLoading] = useState(false)
-  const [isApiLoading, setIsApiLoading] = useState(!!API_BASE)
+  const [isApiLoading, setIsApiLoading] = useState(() => {
+    // If we have cached data, don't show loading state initially
+    const hasCached = !!localStorage.getItem('americansAbroad_matchData')
+    return API_BASE && !hasCached
+  })
 
   // Try to fetch from API if configured, with retry on failure
   const loadMatchData = useCallback(async (isRetry = false) => {
@@ -254,14 +273,23 @@ function App() {
       const response = await fetch(`${API_BASE}/matches`)
       if (!response.ok) throw new Error('API error')
       const data = await response.json()
-      setMatchData(data.data || {})
+      const newMatchData = data.data || {}
+      setMatchData(newMatchData)
       setApiMode(data.mode || 'live')
       setApiStatus(data.apiStatus || null)
       setLastUpdate(new Date())
       setIsApiLoading(false)
+      // Cache match data to localStorage for next visit
+      localStorage.setItem('americansAbroad_matchData', JSON.stringify(newMatchData))
+      localStorage.setItem('americansAbroad_lastUpdate', new Date().toISOString())
     } catch (err) {
       console.log('API unavailable, retrying in', RETRY_DELAY / 1000, 'seconds...')
-      // Keep the loading state and retry after delay
+      // If we have cached data, use it while retrying
+      const hasCachedData = Object.keys(matchData).length > 0
+      if (hasCachedData) {
+        setIsApiLoading(false) // Show cached data instead of loading spinner
+      }
+      // Keep retrying
       setTimeout(() => loadMatchData(true), RETRY_DELAY)
     }
   }, [])
