@@ -340,7 +340,16 @@
   text-transform: uppercase;
   letter-spacing: 0.3px;
   font-weight: 500;
+}
+
+/* Center competition for upcoming/live games */
+.match-info .competition-name {
   text-align: center;
+}
+
+/* Left align competition for last game */
+.last-game-info .competition-name {
+  text-align: left;
 }
 
 .last-game-stats {
