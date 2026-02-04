@@ -408,6 +408,30 @@ class FotMobService {
     return teamData.overview.lastMatch.id
   }
 
+  // Get the team's last match with full details (for checking missed games)
+  async getTeamLastMatch(teamName) {
+    const teamData = await this.getTeamData(teamName)
+    if (!teamData?.overview?.lastMatch) return null
+
+    const lastMatch = teamData.overview.lastMatch
+    const teamId = TEAM_IDS[teamName]
+    const isHome = lastMatch.home?.id === teamId
+
+    // Get full match details to get the date and competition
+    const matchDetails = await this.getMatchDetails(lastMatch.id)
+
+    return {
+      id: lastMatch.id,
+      homeTeam: lastMatch.home?.name,
+      awayTeam: lastMatch.away?.name,
+      homeScore: lastMatch.home?.score,
+      awayScore: lastMatch.away?.score,
+      isHome,
+      date: matchDetails?.general?.matchTimeUTCDate || null,
+      competition: matchDetails?.general?.leagueName || matchDetails?.header?.tournament?.name || null
+    }
+  }
+
   // Get player stats from a match
   async getPlayerStatsFromMatch(matchId, playerName, isHome, forLiveData = false) {
     const match = await this.getMatchDetails(matchId, forLiveData)

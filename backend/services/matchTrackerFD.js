@@ -934,22 +934,23 @@ class MatchTrackerFD {
 
     try {
       const recentMatches = await this.fotmob.getPlayerRecentMatches(player.fotmobId)
+
+      // Helper to determine isHome - use consistent teamMatches function
+      const getIsHome = (match) => {
+        return this.teamMatches(match.homeTeam, player.team)
+      }
+
+      const result = {
+        source: 'fotmob_player_api'
+      }
+
       if (recentMatches && recentMatches.length > 0) {
         // Find the most recent match where the player actually participated
         const participatedMatch = recentMatches.find(m => m.participated)
-        // Get the most recent match overall (whether they played or not)
+        // Get the most recent match overall from player API (whether they played or not)
         const mostRecentMatch = recentMatches[0]
 
-        // Helper to determine isHome - use consistent teamMatches function
-        const getIsHome = (match) => {
-          return this.teamMatches(match.homeTeam, player.team)
-        }
-
-        const result = {
-          source: 'fotmob_player_api'
-        }
-
-        // If most recent match is one they didn't play in, include it as missedGame
+        // If most recent match from player API is one they didn't play in, include it as missedGame
         if (mostRecentMatch && !mostRecentMatch.participated && participatedMatch) {
           result.missedGame = {
             date: mostRecentMatch.date,
@@ -996,7 +997,53 @@ class MatchTrackerFD {
           result.events = []
         }
 
+        // Check if team's last match is more recent than what's in player API
+        // This catches cases where player is injured/not in squad (game won't appear in their recentMatches)
+        if (!result.missedGame && participatedMatch) {
+          try {
+            const teamLastMatch = await this.fotmob.getTeamLastMatch(player.team)
+            if (teamLastMatch && teamLastMatch.date) {
+              const teamMatchDate = new Date(teamLastMatch.date)
+              const participatedDate = new Date(participatedMatch.date)
+
+              // If team's last match is more recent than player's last participation
+              if (teamMatchDate > participatedDate) {
+                result.missedGame = {
+                  date: teamLastMatch.date,
+                  homeTeam: teamLastMatch.homeTeam,
+                  awayTeam: teamLastMatch.awayTeam,
+                  homeScore: teamLastMatch.homeScore,
+                  awayScore: teamLastMatch.awayScore,
+                  isHome: teamLastMatch.isHome,
+                  competition: teamLastMatch.competition
+                }
+              }
+            }
+          } catch (teamError) {
+            console.log(`FotMob Team API error for ${player.team}: ${teamError.message}`)
+          }
+        }
+
         return result
+      }
+
+      // No recent matches from player API - check team's last match as fallback
+      try {
+        const teamLastMatch = await this.fotmob.getTeamLastMatch(player.team)
+        if (teamLastMatch && teamLastMatch.date) {
+          result.missedGame = {
+            date: teamLastMatch.date,
+            homeTeam: teamLastMatch.homeTeam,
+            awayTeam: teamLastMatch.awayTeam,
+            homeScore: teamLastMatch.homeScore,
+            awayScore: teamLastMatch.awayScore,
+            isHome: teamLastMatch.isHome,
+            competition: teamLastMatch.competition
+          }
+          return result
+        }
+      } catch (teamError) {
+        console.log(`FotMob Team API fallback error for ${player.team}: ${teamError.message}`)
       }
     } catch (error) {
       console.log(`FotMob Player API error for ${player.name}: ${error.message}`)
