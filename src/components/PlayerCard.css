@@ -328,9 +328,18 @@
 .last-game-header {
   font-size: 0.75rem;
   color: #888;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.competition-name {
+  font-size: 0.7rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: 500;
 }
 
 .last-game-stats {

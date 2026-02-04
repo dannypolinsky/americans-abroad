@@ -187,6 +187,9 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               <div className="last-game-header">
                 {lastGame.missedGame ? 'Last Played' : 'Last Game'}: {formatDate(lastGame.date)}
               </div>
+              {lastGame.competition && (
+                <div className="competition-name">{lastGame.competition}</div>
+              )}
               <div className="match-teams">
                 <span className={lastGame.isHome ? 'highlight' : ''}>{lastGame.homeTeam}</span>
                 <span className="score"><span className="score-num">{lastGame.homeScore}</span><span className="score-colon">:</span><span className="score-num">{lastGame.awayScore}</span></span>
