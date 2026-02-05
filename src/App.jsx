@@ -275,13 +275,28 @@ function App() {
       const data = await response.json()
       const newMatchData = data.data || {}
 
-      // Only update state and cache if we got actual data
-      // This prevents cold-start empty responses from wiping cached data
-      const hasNewData = Object.keys(newMatchData).length > 0
-      if (hasNewData) {
-        setMatchData(newMatchData)
-        // Cache match data to localStorage for next visit
-        localStorage.setItem('americansAbroad_matchData', JSON.stringify(newMatchData))
+      // Get cached data to preserve lastGame info during cold starts
+      const cachedStr = localStorage.getItem('americansAbroad_matchData')
+      const cachedData = cachedStr ? JSON.parse(cachedStr) : {}
+
+      // Merge new data with cached data, preserving lastGame from cache
+      // when new data doesn't have it (common during API cold start)
+      const mergedData = { ...cachedData }
+      for (const [playerId, playerData] of Object.entries(newMatchData)) {
+        if (playerData) {
+          mergedData[playerId] = {
+            ...playerData,
+            // Preserve cached lastGame if new data doesn't have it
+            lastGame: playerData.lastGame || cachedData[playerId]?.lastGame
+          }
+        }
+      }
+
+      const hasData = Object.keys(mergedData).length > 0
+      if (hasData) {
+        setMatchData(mergedData)
+        // Cache merged data to localStorage
+        localStorage.setItem('americansAbroad_matchData', JSON.stringify(mergedData))
         localStorage.setItem('americansAbroad_lastUpdate', new Date().toISOString())
       }
 
