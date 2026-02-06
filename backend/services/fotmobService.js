@@ -140,10 +140,15 @@ const TEAM_IDS = {
   'Darmstadt': 8262,
   // MLS NEXT Pro
   'Crown Legacy FC': 1451868,
+  'Chicago Fire FC II': 1348118,
   // Additional MLS
   'Real Salt Lake': 6606,
+  'Columbus Crew': 6001,
+  'New York Red Bulls': 6514,
+  'San Jose Earthquakes': 6603,
   // Youth Teams
-  'Borussia Dortmund U19': 394130
+  'Borussia Dortmund U19': 394130,
+  'FC København U19': 2049
 }
 
 class FotMobService {
