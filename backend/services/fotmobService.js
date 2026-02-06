@@ -141,7 +141,9 @@ const TEAM_IDS = {
   // MLS NEXT Pro
   'Crown Legacy FC': 1451868,
   // Additional MLS
-  'Real Salt Lake': 6606
+  'Real Salt Lake': 6606,
+  // Youth Teams
+  'Borussia Dortmund U19': 394130
 }
 
 class FotMobService {
