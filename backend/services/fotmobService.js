@@ -101,7 +101,7 @@ const TEAM_IDS = {
   // Championship
   'Leeds United': 8463,
   'Norwich City': 9850,
-  'Coventry City': 8587,
+  'Coventry City': 8669,
   'Cardiff City': 10222,
   'Stoke City': 8654,
   'Preston North End': 10211,
@@ -118,7 +118,7 @@ const TEAM_IDS = {
   'Club Brugge': 8342,
   'Royal Antwerp': 8291,
   'Anderlecht': 8316,
-  'Westerlo': 8295,
+  'Westerlo': 10001,
   'Standard Liege': 8364,
   'Cercle Brugge': 8298,
   'St. Truiden': 8378,
