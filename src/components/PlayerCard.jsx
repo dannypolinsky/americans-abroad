@@ -175,6 +175,9 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               <div className="missed-game-header">
                 Missed: {formatDate(lastGame.missedGame.date)}
               </div>
+              {lastGame.missedGame.competition && (
+                <div className="competition-name">{lastGame.missedGame.competition}</div>
+              )}
               <div className="match-teams">
                 <span className={lastGame.missedGame.isHome ? 'highlight' : ''}>{lastGame.missedGame.homeTeam}</span>
                 <span className="score"><span className="score-num">{lastGame.missedGame.homeScore}</span><span className="score-colon">:</span><span className="score-num">{lastGame.missedGame.awayScore}</span></span>
