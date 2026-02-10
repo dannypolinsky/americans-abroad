@@ -498,7 +498,7 @@ class MatchTrackerFD {
               if (liveTimeStr && minute === 0) {
                 // Handle halftime indicator
                 if (liveTimeStr.toUpperCase() === 'HT') {
-                  minute = 45
+                  minute = 'HT'
                   break
                 }
                 // Extract just the numbers (handles "50‎'‎" -> 50 or "49:18" -> 49)

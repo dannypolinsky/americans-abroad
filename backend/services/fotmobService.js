@@ -468,7 +468,7 @@ class FotMobService {
                         match.general?.matchStatus?.liveTime?.long
     if (liveTimeStr) {
       if (liveTimeStr.toUpperCase() === 'HT') {
-        liveMinute = 45
+        liveMinute = 'HT'
       } else {
         const minuteMatch = liveTimeStr.match(/(\d+)/)
         if (minuteMatch) {

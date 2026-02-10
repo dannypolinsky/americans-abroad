@@ -88,7 +88,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
           <div className="match-teams">
             <span className={matchData.isHome ? 'highlight' : ''}>{matchData.homeTeam}</span>
             <span className="score-container">
-              {isLive && <span className="live-minute">{matchData.minute}'</span>}
+              {isLive && <span className="live-minute">{matchData.minute === 'HT' ? 'HT' : `${matchData.minute}'`}</span>}
               <span className="score">
                 {matchData.status === 'upcoming' ? 'vs' : (
                   <><span className="score-num">{matchData.homeScore}</span><span className="score-colon">:</span><span className="score-num">{matchData.awayScore}</span></>
