@@ -496,7 +496,12 @@ class MatchTrackerFD {
 
             for (const liveTimeStr of liveTimeSources) {
               if (liveTimeStr && minute === 0) {
-                // Extract just the numbers (handles "50‎'‎" -> 50 or "49:18" -> 49 or "HT" etc)
+                // Handle halftime indicator
+                if (liveTimeStr.toUpperCase() === 'HT') {
+                  minute = 45
+                  break
+                }
+                // Extract just the numbers (handles "50‎'‎" -> 50 or "49:18" -> 49)
                 const timeMatch = liveTimeStr.match(/(\d+)/)
                 if (timeMatch) {
                   minute = parseInt(timeMatch[1], 10)
