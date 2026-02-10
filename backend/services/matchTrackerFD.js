@@ -827,7 +827,7 @@ class MatchTrackerFD {
 
           // PREFER direct player API if fotmobId is available
           if (player.fotmobId) {
-            const recentMatches = await this.fotmob.getPlayerRecentMatches(player.fotmobId)
+            const recentMatches = await this.fotmob.getPlayerRecentMatches(player.fotmobId, player.team)
             if (recentMatches && recentMatches.length > 0) {
               const lastMatch = recentMatches[0]
               stats = {
@@ -933,7 +933,7 @@ class MatchTrackerFD {
     if (!player.fotmobId) return null
 
     try {
-      const recentMatches = await this.fotmob.getPlayerRecentMatches(player.fotmobId)
+      const recentMatches = await this.fotmob.getPlayerRecentMatches(player.fotmobId, player.team)
 
       // Helper to determine isHome - use consistent teamMatches function
       const getIsHome = (match) => {

@@ -230,8 +230,19 @@ class FotMobService {
     }
   }
 
+  // Check if two team names refer to the same team
+  teamNamesMatch(name1, name2) {
+    if (!name1 || !name2) return false
+    const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+    const n1 = normalize(name1)
+    const n2 = normalize(name2)
+    // Check if one contains the other or they're equal
+    return n1 === n2 || n1.includes(n2) || n2.includes(n1)
+  }
+
   // Get player's recent matches from their FotMob profile
-  async getPlayerRecentMatches(fotmobPlayerId) {
+  // If currentTeam is provided, only returns matches for that team
+  async getPlayerRecentMatches(fotmobPlayerId, currentTeam = null) {
     const playerData = await this.getPlayerData(fotmobPlayerId)
     if (!playerData) return null
 
@@ -239,7 +250,12 @@ class FotMobService {
     const playerName = playerData.name
 
     // Get matches from recentMatches array
-    const matches = playerData.recentMatches || []
+    let matches = playerData.recentMatches || []
+
+    // Filter to only include matches for the current team if specified
+    if (currentTeam) {
+      matches = matches.filter(m => this.teamNamesMatch(m.teamName, currentTeam))
+    }
 
     for (const match of matches.slice(0, 5)) { // Last 5 matches
       // Determine home/away teams based on isHomeTeam flag
