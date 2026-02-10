@@ -107,6 +107,20 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
             <div className="competition-name">{matchData.competition}</div>
           )}
 
+          {matchData.status === 'upcoming' && matchData.lineupStatus && (
+            <div className="player-participation">
+              {matchData.lineupStatus === 'starting' && (
+                <span className="start-badge">STARTING</span>
+              )}
+              {matchData.lineupStatus === 'bench' && (
+                <span className="bench-badge">ON BENCH</span>
+              )}
+              {matchData.lineupStatus === 'not_in_squad' && (
+                <span className="did-not-play">Not in squad</span>
+              )}
+            </div>
+          )}
+
           {matchData.status === 'live' && (
             <div className="player-participation">
               {matchData.participated !== false ? (

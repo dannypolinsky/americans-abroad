@@ -535,6 +535,12 @@ class MatchTrackerFD {
               ? false
               : this.teamMatches(homeTeam, teamName)
 
+          // Check if upcoming game is within 45 minutes of kickoff (lineups usually available)
+          const kickoffTime = matchToUse.status?.utcTime ? new Date(matchToUse.status.utcTime) : null
+          const now = new Date()
+          const minutesUntilKickoff = kickoffTime ? (kickoffTime - now) / (1000 * 60) : null
+          const isLineupWindow = status === 'upcoming' && minutesUntilKickoff !== null && minutesUntilKickoff <= 45 && minutesUntilKickoff > -15
+
           // Add match data for all players on this team
           for (const player of players) {
             let playerStats = {
@@ -542,7 +548,8 @@ class MatchTrackerFD {
               minutesPlayed: null,
               started: null,
               rating: null,
-              events: []
+              events: [],
+              lineupStatus: null // 'starting', 'bench', 'not_in_squad', or null if unknown
             }
 
             // For live or finished games, fetch detailed player stats
@@ -555,7 +562,8 @@ class MatchTrackerFD {
                     minutesPlayed: stats.minutesPlayed,
                     started: stats.started,
                     rating: stats.rating,
-                    events: stats.events || []
+                    events: stats.events || [],
+                    lineupStatus: null
                   }
                   // Update minute from match details if we didn't get it from team data
                   if (minute === 0 && stats.liveMinute > 0) {
@@ -567,6 +575,19 @@ class MatchTrackerFD {
                 }
               } catch (err) {
                 // Continue without player stats if fetch fails
+              }
+            }
+
+            // For upcoming games within 45 minutes, check lineup
+            if (isLineupWindow) {
+              try {
+                const lineupInfo = await this.fotmob.getPlayerLineupStatus(matchToUse.id, player.name, isHome)
+                if (lineupInfo) {
+                  playerStats.lineupStatus = lineupInfo.status // 'starting', 'bench', or 'not_in_squad'
+                  console.log(`FotMob: ${player.name} lineup status: ${lineupInfo.status} (${Math.round(minutesUntilKickoff)} min to kickoff)`)
+                }
+              } catch (err) {
+                // Continue without lineup status if fetch fails
               }
             }
 
@@ -586,6 +607,7 @@ class MatchTrackerFD {
               minutesPlayed: playerStats.minutesPlayed,
               started: playerStats.started,
               rating: playerStats.rating,
+              lineupStatus: playerStats.lineupStatus,
               competition: matchToUse.tournament?.name || 'Unknown',
               source: 'fotmob'
             })

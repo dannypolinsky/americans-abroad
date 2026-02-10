@@ -627,6 +627,46 @@ class FotMobService {
     return result
   }
 
+  // Get player's lineup status for an upcoming match (within ~45 min of kickoff)
+  // Returns { status: 'starting' | 'bench' | 'not_in_squad' } or null if lineup not available
+  async getPlayerLineupStatus(matchId, playerName, isHome) {
+    try {
+      const match = await this.getMatchDetails(matchId, true) // Always fetch fresh for lineup
+      if (!match) return null
+
+      const lineup = match.content?.lineup
+      if (!lineup) {
+        // Lineup not yet available
+        return null
+      }
+
+      const teamLineup = isHome ? lineup.homeTeam : lineup.awayTeam
+      if (!teamLineup) return null
+
+      // Check if player is in starters
+      if (teamLineup.starters) {
+        const inStarters = teamLineup.starters.some(p => this.playerNameMatches(p.name, playerName))
+        if (inStarters) {
+          return { status: 'starting' }
+        }
+      }
+
+      // Check if player is on bench
+      if (teamLineup.subs) {
+        const onBench = teamLineup.subs.some(p => this.playerNameMatches(p.name, playerName))
+        if (onBench) {
+          return { status: 'bench' }
+        }
+      }
+
+      // Player not found in lineup - not in squad
+      return { status: 'not_in_squad' }
+    } catch (error) {
+      console.error(`FotMob: Error getting lineup status for ${playerName}:`, error.message)
+      return null
+    }
+  }
+
   // Get last match stats for a player
   async getPlayerLastMatchStats(playerName, teamName, isHome = null) {
     try {
