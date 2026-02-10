@@ -103,7 +103,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
             {matchData.status === 'finished' && 'FT'}
           </div>
 
-          {matchData.status === 'upcoming' && matchData.competition && (
+          {(matchData.status === 'upcoming' || matchData.status === 'live') && matchData.competition && (
             <div className="competition-name">{matchData.competition}</div>
           )}
 
