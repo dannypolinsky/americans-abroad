@@ -184,19 +184,6 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
 
       {!hasTodayMatch && showLastGame && (lastGame || nextGame) && (
         <div className="game-info-section">
-          {nextGame && (
-            <div className="next-game-info">
-              <div className="next-game-header">
-                Next Game: {formatKickoff(nextGame.kickoff)}
-              </div>
-              <div className="match-teams">
-                <span className={nextGame.isHome ? 'highlight' : ''}>{nextGame.homeTeam}</span>
-                <span className="score">vs</span>
-                <span className={!nextGame.isHome ? 'highlight' : ''}>{nextGame.awayTeam}</span>
-              </div>
-            </div>
-          )}
-
           {lastGame?.missedGame && (
             <div className={lastGame.missedGame.onBench ? 'bench-game-info' : 'missed-game-info'}>
               <div className={lastGame.missedGame.onBench ? 'bench-game-header' : 'missed-game-header'}>
@@ -250,6 +237,12 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                   <span className="did-not-play">Did not play</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {nextGame && (
+            <div className="next-game-line">
+              <span className="next-game-label">Next:</span> {nextGame.homeTeam} vs {nextGame.awayTeam} - {formatKickoff(nextGame.kickoff)}
             </div>
           )}
         </div>
