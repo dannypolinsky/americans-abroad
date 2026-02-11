@@ -566,6 +566,7 @@ class MatchTrackerFD {
                     participated: stats.participated,
                     minutesPlayed: stats.minutesPlayed,
                     started: stats.started,
+                    onBench: stats.onBench || false,
                     rating: stats.rating,
                     events: stats.events || [],
                     lineupStatus: null
@@ -611,6 +612,7 @@ class MatchTrackerFD {
               participated: playerStats.participated,
               minutesPlayed: playerStats.minutesPlayed,
               started: playerStats.started,
+              onBench: playerStats.onBench || false,
               rating: playerStats.rating,
               lineupStatus: playerStats.lineupStatus,
               competition: matchToUse.tournament?.name || 'Unknown',

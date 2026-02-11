@@ -148,7 +148,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                   ))}
                 </>
               ) : (
-                <span className="did-not-play">Not in squad</span>
+                <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
               )}
             </div>
           )}
@@ -169,7 +169,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                   ))}
                 </>
               ) : (
-                <span className="did-not-play">Did not play</span>
+                <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
               )}
             </div>
           )}

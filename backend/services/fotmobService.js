@@ -490,6 +490,7 @@ class FotMobService {
       liveMinute, // Include the current minute for live matches
       participated: false,
       started: false,
+      onBench: false,
       minutesPlayed: 0,
       rating: null,
       goals: 0,
@@ -519,6 +520,7 @@ class FotMobService {
       playerData = teamLineup.subs.find(p => this.playerNameMatches(p.name, playerName))
       if (playerData) {
         result.started = false
+        result.onBench = true
         // Check if they actually came on
         result.participated = false // Will be updated below if they have events
       }
