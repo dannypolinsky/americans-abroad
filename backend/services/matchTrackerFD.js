@@ -662,7 +662,7 @@ class MatchTrackerFD {
           const fotmobMatch = await this.getPlayerRecentMatchFromFotMob(player)
           if (fotmobMatch && fotmobMatch.date) {
             const lastGameEntry = {
-              fixtureId: null,
+              fixtureId: fotmobMatch.fixtureId || null,
               date: fotmobMatch.date,
               homeTeam: fotmobMatch.homeTeam,
               awayTeam: fotmobMatch.awayTeam,
@@ -980,6 +980,7 @@ class MatchTrackerFD {
         // If most recent match from player API is one they didn't play in, include it as missedGame
         if (mostRecentMatch && !mostRecentMatch.participated && participatedMatch) {
           result.missedGame = {
+            fixtureId: mostRecentMatch.matchId || null,
             date: mostRecentMatch.date,
             homeTeam: mostRecentMatch.homeTeam,
             awayTeam: mostRecentMatch.awayTeam,
@@ -992,6 +993,7 @@ class MatchTrackerFD {
 
         // Include the last game they actually played in
         if (participatedMatch) {
+          result.fixtureId = participatedMatch.matchId || null
           result.date = participatedMatch.date
           result.homeTeam = participatedMatch.homeTeam
           result.awayTeam = participatedMatch.awayTeam
@@ -1036,6 +1038,7 @@ class MatchTrackerFD {
               // If team's last match is more recent than player's last participation
               if (teamMatchDate > participatedDate) {
                 result.missedGame = {
+                  fixtureId: teamLastMatch.id || null,
                   date: teamLastMatch.date,
                   homeTeam: teamLastMatch.homeTeam,
                   awayTeam: teamLastMatch.awayTeam,
@@ -1059,6 +1062,7 @@ class MatchTrackerFD {
         const teamLastMatch = await this.fotmob.getTeamLastMatch(player.team)
         if (teamLastMatch && teamLastMatch.date) {
           result.missedGame = {
+            fixtureId: teamLastMatch.id || null,
             date: teamLastMatch.date,
             homeTeam: teamLastMatch.homeTeam,
             awayTeam: teamLastMatch.awayTeam,

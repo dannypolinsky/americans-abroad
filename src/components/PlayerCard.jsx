@@ -34,6 +34,15 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
     return `${formatDate(dateStr)} ${time}`
   }
 
+  // Render score with optional FotMob link
+  const renderScore = (homeScore, awayScore, fixtureId) => {
+    const scoreContent = <><span className="score-num">{homeScore}</span><span className="score-colon">:</span><span className="score-num">{awayScore}</span></>
+    if (fixtureId) {
+      return <a href={`https://www.fotmob.com/matches/${fixtureId}`} target="_blank" rel="noopener noreferrer" className="score-link">{scoreContent}</a>
+    }
+    return scoreContent
+  }
+
   // Render events with icons
   const renderEvents = (events) => {
     if (!events || events.length === 0) return null
@@ -90,9 +99,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
             <span className="score-container">
               {isLive && <span className="live-minute">{matchData.minute === 'HT' ? 'HT' : `${matchData.minute}'`}</span>}
               <span className="score">
-                {matchData.status === 'upcoming' ? 'vs' : (
-                  <><span className="score-num">{matchData.homeScore}</span><span className="score-colon">:</span><span className="score-num">{matchData.awayScore}</span></>
-                )}
+                {matchData.status === 'upcoming' ? 'vs' : renderScore(matchData.homeScore, matchData.awayScore, matchData.fixtureId)}
               </span>
             </span>
             <span className={!matchData.isHome ? 'highlight' : ''}>{matchData.awayTeam}</span>
@@ -194,7 +201,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               )}
               <div className="match-teams">
                 <span className={lastGame.missedGame.isHome ? 'highlight' : ''}>{lastGame.missedGame.homeTeam}</span>
-                <span className="score"><span className="score-num">{lastGame.missedGame.homeScore}</span><span className="score-colon">:</span><span className="score-num">{lastGame.missedGame.awayScore}</span></span>
+                <span className="score">{renderScore(lastGame.missedGame.homeScore, lastGame.missedGame.awayScore, lastGame.missedGame.fixtureId)}</span>
                 <span className={!lastGame.missedGame.isHome ? 'highlight' : ''}>{lastGame.missedGame.awayTeam}</span>
               </div>
               <div className="last-game-stats">
@@ -213,7 +220,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               )}
               <div className="match-teams">
                 <span className={lastGame.isHome ? 'highlight' : ''}>{lastGame.homeTeam}</span>
-                <span className="score"><span className="score-num">{lastGame.homeScore}</span><span className="score-colon">:</span><span className="score-num">{lastGame.awayScore}</span></span>
+                <span className="score">{renderScore(lastGame.homeScore, lastGame.awayScore, lastGame.fixtureId)}</span>
                 <span className={!lastGame.isHome ? 'highlight' : ''}>{lastGame.awayTeam}</span>
               </div>
 
