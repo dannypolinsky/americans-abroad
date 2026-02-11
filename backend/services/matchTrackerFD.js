@@ -779,6 +779,7 @@ class MatchTrackerFD {
               const fotmobMatch = this.findFotMobMatchForDate(player.id, match.utcDate)
               const manualMatch = this.findManualMatchForDate(player.id, match.utcDate)
 
+              let fotmobFixtureId = null
               if (fotmobMatch) {
                 // Use FotMob data for player stats
                 playerEvents = fotmobMatch.events || []
@@ -788,6 +789,7 @@ class MatchTrackerFD {
                 goals = fotmobMatch.goals || 0
                 assists = fotmobMatch.assists || 0
                 rating = fotmobMatch.rating
+                fotmobFixtureId = fotmobMatch.matchId || null
                 statsSource = 'fotmob'
                 console.log(`Using FotMob data for ${player.name}: ${minutesPlayed}min, ${goals}g, ${assists}a, rating: ${rating}`)
               } else if (manualMatch) {
@@ -801,7 +803,7 @@ class MatchTrackerFD {
               }
 
               this.lastGameData.set(player.id, {
-                fixtureId: match.id,
+                fixtureId: fotmobFixtureId || null,
                 date: match.utcDate,
                 homeTeam: homeTeam,
                 awayTeam: awayTeam,
@@ -858,6 +860,7 @@ class MatchTrackerFD {
             if (recentMatches && recentMatches.length > 0) {
               const lastMatch = recentMatches[0]
               stats = {
+                matchId: lastMatch.matchId || null,
                 date: lastMatch.date,
                 homeTeam: lastMatch.homeTeam,
                 awayTeam: lastMatch.awayTeam,
@@ -887,6 +890,7 @@ class MatchTrackerFD {
             this.fotmobData.set(player.id, {
               timestamp: now.toISOString(),
               lastMatch: {
+                matchId: stats.matchId || null,
                 date: stats.date,
                 opponent: isHomeMatch ? stats.awayTeam : stats.homeTeam,
                 isHome: isHomeMatch,
