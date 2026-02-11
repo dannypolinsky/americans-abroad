@@ -1148,6 +1148,47 @@ class MatchTrackerFD {
         }
       }
 
+      // FotMob fallback for teams not covered by football-data.org
+      const teamsStillNeeding = teamsNeedingRefresh.filter(team => {
+        const players = playersByTeam[team]
+        return players.some(p => !this.nextGameData.has(p.id))
+      })
+
+      if (teamsStillNeeding.length > 0) {
+        console.log(`FotMob fallback: Fetching next games for ${teamsStillNeeding.length} teams`)
+        for (const teamName of teamsStillNeeding) {
+          try {
+            const teamData = await this.fotmob.getTeamData(teamName)
+            const nextMatch = teamData?.overview?.nextMatch
+            if (nextMatch?.status?.utcTime) {
+              const kickoff = nextMatch.status.utcTime
+              if (new Date(kickoff) > new Date()) {
+                const homeTeam = nextMatch.home?.name || 'TBD'
+                const awayTeam = nextMatch.away?.name || 'TBD'
+                const teamId = TEAM_IDS[teamName]
+                const isHome = nextMatch.home?.id === teamId
+                const players = playersByTeam[teamName]
+                for (const player of players) {
+                  if (!this.nextGameData.has(player.id)) {
+                    this.nextGameData.set(player.id, {
+                      fixtureId: nextMatch.id || null,
+                      kickoff,
+                      homeTeam,
+                      awayTeam,
+                      isHome,
+                      venue: '',
+                      competition: nextMatch.tournament?.name || ''
+                    })
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            // Silently skip teams that fail
+          }
+        }
+      }
+
       this.saveNextGamesCache()
       console.log(`Updated next game data for ${this.nextGameData.size} players`)
       return true
