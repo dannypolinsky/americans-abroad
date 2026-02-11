@@ -991,7 +991,8 @@ class MatchTrackerFD {
             homeScore: mostRecentMatch.homeScore,
             awayScore: mostRecentMatch.awayScore,
             isHome: getIsHome(mostRecentMatch),
-            competition: mostRecentMatch.competition
+            competition: mostRecentMatch.competition,
+            onBench: mostRecentMatch.onBench || false
           }
         }
 

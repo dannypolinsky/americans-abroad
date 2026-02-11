@@ -463,6 +463,29 @@
   font-style: italic;
 }
 
+.bench-game-info {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 0.75rem;
+  border: 1px dashed #9ca3af;
+  margin-bottom: 0.5rem;
+}
+
+.bench-game-header {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.unused-sub {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
 @media (max-width: 480px) {
   .player-card {
     padding: 0.75rem;

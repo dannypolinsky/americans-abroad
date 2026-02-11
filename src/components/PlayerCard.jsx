@@ -192,9 +192,9 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
           )}
 
           {lastGame?.missedGame && (
-            <div className="missed-game-info">
-              <div className="missed-game-header">
-                Missed: {formatDate(lastGame.missedGame.date)}
+            <div className={lastGame.missedGame.onBench ? 'bench-game-info' : 'missed-game-info'}>
+              <div className={lastGame.missedGame.onBench ? 'bench-game-header' : 'missed-game-header'}>
+                {lastGame.missedGame.onBench ? 'Unused Sub' : 'Missed'}: {formatDate(lastGame.missedGame.date)}
               </div>
               {lastGame.missedGame.competition && (
                 <div className="competition-name">{lastGame.missedGame.competition}</div>
@@ -205,7 +205,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                 <span className={!lastGame.missedGame.isHome ? 'highlight' : ''}>{lastGame.missedGame.awayTeam}</span>
               </div>
               <div className="last-game-stats">
-                <span className="did-not-play">Did not play</span>
+                <span className={lastGame.missedGame.onBench ? 'unused-sub' : 'did-not-play'}>{lastGame.missedGame.onBench ? 'Unused sub' : 'Did not play'}</span>
               </div>
             </div>
           )}

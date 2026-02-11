@@ -335,6 +335,7 @@ class FotMobService {
         rating: match.ratingProps?.rating ? parseFloat(match.ratingProps.rating) : null,
         started,
         participated: minutesPlayed > 0,
+        onBench: !!(match.onBench && minutesPlayed === 0),
         goals: match.goals || 0,
         assists: match.assists || 0,
         yellowCards: match.yellowCards || 0,
