@@ -205,7 +205,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                 <span className={!lastGame.missedGame.isHome ? 'highlight' : ''}>{lastGame.missedGame.awayTeam}</span>
               </div>
               <div className="last-game-stats">
-                <span className={lastGame.missedGame.onBench ? 'unused-sub' : 'did-not-play'}>{lastGame.missedGame.onBench ? 'Unused sub' : 'Did not play'}</span>
+                <span className={lastGame.missedGame.onBench ? 'unused-sub' : 'did-not-play'}>{lastGame.missedGame.onBench ? 'Unused sub' : 'Not in squad'}</span>
               </div>
             </div>
           )}
