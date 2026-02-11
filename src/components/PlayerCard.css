@@ -131,6 +131,24 @@
   margin-top: 0.5rem;
 }
 
+.match-info.not-in-squad-highlight {
+  background: #fff8e1;
+  border: 1px dashed #ffb74d;
+}
+
+.match-info.unused-sub-highlight {
+  background: #f3f4f6;
+  border: 1px dashed #9ca3af;
+}
+
+.aggregate-score {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #555;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
 .match-teams {
   display: flex;
   justify-content: space-between;

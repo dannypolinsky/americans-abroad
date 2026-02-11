@@ -569,6 +569,9 @@ class MatchTrackerFD {
                     onBench: stats.onBench || false,
                     rating: stats.rating,
                     events: stats.events || [],
+                    legInfo: stats.legInfo || null,
+                    aggregateScore: stats.aggregateScore || null,
+                    aggregateWinner: stats.aggregateWinner || null,
                     lineupStatus: null
                   }
                   // Update minute from match details if we didn't get it from team data
@@ -615,6 +618,9 @@ class MatchTrackerFD {
               onBench: playerStats.onBench || false,
               rating: playerStats.rating,
               lineupStatus: playerStats.lineupStatus,
+              legInfo: playerStats.legInfo || null,
+              aggregateScore: playerStats.aggregateScore || null,
+              aggregateWinner: playerStats.aggregateWinner || null,
               competition: matchToUse.tournament?.name || 'Unknown',
               source: 'fotmob'
             })

@@ -478,6 +478,27 @@ class FotMobService {
       }
     }
 
+    // Extract leg/aggregate info for two-legged ties
+    const legInfoData = match.content?.matchFacts?.infoBox?.legInfo
+    let legInfo = null
+    let aggregateScore = null
+    let aggregateWinner = null
+    if (legInfoData) {
+      legInfo = legInfoData.localizedString?.fallback || `Leg ${legInfoData.bestOfNum}`
+      // Aggregate data is available on second legs
+      const aggStr = match.header?.status?.aggregatedStr
+      if (aggStr) {
+        aggregateScore = aggStr
+        const whoLost = match.header?.status?.whoLostOnAggregated
+        if (whoLost) {
+          // The winner is the other team
+          const homeTeam = match.header?.teams?.[0]?.name
+          const awayTeam = match.header?.teams?.[1]?.name
+          aggregateWinner = whoLost === homeTeam ? awayTeam : homeTeam
+        }
+      }
+    }
+
     // Get basic match info
     const result = {
       matchId,
@@ -488,6 +509,9 @@ class FotMobService {
       competition: match.general?.leagueName || match.header?.tournament?.name,
       date: match.general?.matchTimeUTCDate,
       liveMinute, // Include the current minute for live matches
+      legInfo,
+      aggregateScore,
+      aggregateWinner,
       participated: false,
       started: false,
       onBench: false,

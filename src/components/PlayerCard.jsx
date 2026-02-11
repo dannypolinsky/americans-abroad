@@ -93,7 +93,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
       </div>
 
       {hasTodayMatch && (
-        <div className="match-info">
+        <div className={`match-info${(matchData.status === 'finished' || matchData.status === 'live') && !matchData.participated && !matchData.onBench ? ' not-in-squad-highlight' : ''}${(matchData.status === 'finished' || matchData.status === 'live') && !matchData.participated && matchData.onBench ? ' unused-sub-highlight' : ''}`}>
           <div className="match-teams">
             <span className={matchData.isHome ? 'highlight' : ''}>{matchData.homeTeam}</span>
             <span className="score-container">
@@ -107,10 +107,16 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
 
           <div className="match-time">
             {matchData.status === 'upcoming' && formatKickoff(matchData.kickoff)}
-            {matchData.status === 'finished' && 'FT'}
+            {matchData.status === 'finished' && (matchData.legInfo ? `FT - ${matchData.legInfo}` : 'FT')}
           </div>
 
-          {(matchData.status === 'upcoming' || matchData.status === 'live') && matchData.competition && (
+          {matchData.aggregateScore && (
+            <div className="aggregate-score">
+              Agg: {matchData.aggregateScore} {matchData.aggregateWinner && `(${matchData.aggregateWinner} advance)`}
+            </div>
+          )}
+
+          {matchData.competition && (
             <div className="competition-name">{matchData.competition}</div>
           )}
 
