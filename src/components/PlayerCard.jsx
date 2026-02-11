@@ -38,7 +38,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
   const renderScore = (homeScore, awayScore, fixtureId) => {
     const scoreContent = <><span className="score-num">{homeScore}</span><span className="score-colon">:</span><span className="score-num">{awayScore}</span></>
     if (fixtureId) {
-      return <a href={`https://www.fotmob.com/matches/${fixtureId}`} target="_blank" rel="noopener noreferrer" className="score-link">{scoreContent}</a>
+      return <a href={`https://www.fotmob.com/match/${fixtureId}`} target="_blank" rel="noopener noreferrer" className="score-link">{scoreContent}</a>
     }
     return scoreContent
   }
