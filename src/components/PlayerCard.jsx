@@ -14,6 +14,11 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
     if (date.toDateString() === now.toDateString()) {
       return 'Today'
     }
+    const tomorrow = new Date(now)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    if (date.toDateString() === tomorrow.toDateString()) {
+      return 'Tomorrow'
+    }
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
@@ -242,7 +247,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
 
           {nextGame && (
             <div className="next-game-line">
-              <span className="next-game-label">Next:</span> {nextGame.homeTeam} vs {nextGame.awayTeam} - {formatKickoff(nextGame.kickoff)}
+              <span className="next-game-label">Next:</span> {nextGame.isHome ? 'vs' : 'at'} {nextGame.isHome ? nextGame.awayTeam : nextGame.homeTeam}{nextGame.competition ? ` // ${nextGame.competition}` : ''} // {formatKickoff(nextGame.kickoff)}
             </div>
           )}
         </div>
