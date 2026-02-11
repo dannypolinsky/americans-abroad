@@ -1110,81 +1110,75 @@ class MatchTrackerFD {
 
       console.log(`Fetching next games for ${teamsNeedingRefresh.length} teams`)
 
-      const today = this.getTodayDate()
-      const twoWeeksAhead = this.getDateOffset(14)
-      const matches = await this.fetchMatches(today, twoWeeksAhead)
-
-      // Sort by date ascending (earliest first)
-      matches.sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
-
+      // Use FotMob as primary source (team-ID-based, reliable)
       for (const teamName of teamsNeedingRefresh) {
-        const players = playersByTeam[teamName]
-
-        for (const match of matches) {
-          const homeTeam = match.homeTeam?.name || match.homeTeam?.shortName
-          const awayTeam = match.awayTeam?.name || match.awayTeam?.shortName
-          let isHome = null
-
-          if (this.teamMatches(homeTeam, teamName)) {
-            isHome = true
-          } else if (this.teamMatches(awayTeam, teamName)) {
-            isHome = false
-          }
-
-          if (isHome !== null) {
-            for (const player of players) {
-              this.nextGameData.set(player.id, {
-                fixtureId: match.id,
-                kickoff: match.utcDate,
-                homeTeam: homeTeam,
-                awayTeam: awayTeam,
-                isHome,
-                venue: match.venue || '',
-                competition: match.competition?.name
-              })
+        try {
+          const teamData = await this.fotmob.getTeamData(teamName)
+          const nextMatch = teamData?.overview?.nextMatch
+          if (nextMatch?.status?.utcTime) {
+            const kickoff = nextMatch.status.utcTime
+            if (new Date(kickoff) > new Date()) {
+              const homeTeam = nextMatch.home?.name || 'TBD'
+              const awayTeam = nextMatch.away?.name || 'TBD'
+              const teamId = TEAM_IDS[teamName]
+              const isHome = nextMatch.home?.id === teamId
+              const players = playersByTeam[teamName]
+              for (const player of players) {
+                this.nextGameData.set(player.id, {
+                  fixtureId: nextMatch.id || null,
+                  kickoff,
+                  homeTeam,
+                  awayTeam,
+                  isHome,
+                  venue: '',
+                  competition: nextMatch.tournament?.name || ''
+                })
+              }
             }
-            break
           }
+        } catch (err) {
+          // Will try football-data.org fallback below
         }
       }
 
-      // FotMob fallback for teams not covered by football-data.org
+      // Football-data.org fallback for teams without FotMob data
       const teamsStillNeeding = teamsNeedingRefresh.filter(team => {
         const players = playersByTeam[team]
         return players.some(p => !this.nextGameData.has(p.id))
       })
 
       if (teamsStillNeeding.length > 0) {
-        console.log(`FotMob fallback: Fetching next games for ${teamsStillNeeding.length} teams`)
+        console.log(`Football-data.org fallback: Fetching next games for ${teamsStillNeeding.length} teams`)
+        const today = this.getTodayDate()
+        const twoWeeksAhead = this.getDateOffset(14)
+        const matches = await this.fetchMatches(today, twoWeeksAhead)
+        matches.sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
+
         for (const teamName of teamsStillNeeding) {
-          try {
-            const teamData = await this.fotmob.getTeamData(teamName)
-            const nextMatch = teamData?.overview?.nextMatch
-            if (nextMatch?.status?.utcTime) {
-              const kickoff = nextMatch.status.utcTime
-              if (new Date(kickoff) > new Date()) {
-                const homeTeam = nextMatch.home?.name || 'TBD'
-                const awayTeam = nextMatch.away?.name || 'TBD'
-                const teamId = TEAM_IDS[teamName]
-                const isHome = nextMatch.home?.id === teamId
-                const players = playersByTeam[teamName]
-                for (const player of players) {
-                  if (!this.nextGameData.has(player.id)) {
-                    this.nextGameData.set(player.id, {
-                      fixtureId: nextMatch.id || null,
-                      kickoff,
-                      homeTeam,
-                      awayTeam,
-                      isHome,
-                      venue: '',
-                      competition: nextMatch.tournament?.name || ''
-                    })
-                  }
-                }
-              }
+          const players = playersByTeam[teamName]
+          for (const match of matches) {
+            const homeTeam = match.homeTeam?.name || match.homeTeam?.shortName
+            const awayTeam = match.awayTeam?.name || match.awayTeam?.shortName
+            let isHome = null
+            if (this.teamMatches(homeTeam, teamName)) {
+              isHome = true
+            } else if (this.teamMatches(awayTeam, teamName)) {
+              isHome = false
             }
-          } catch (err) {
-            // Silently skip teams that fail
+            if (isHome !== null) {
+              for (const player of players) {
+                this.nextGameData.set(player.id, {
+                  fixtureId: match.id,
+                  kickoff: match.utcDate,
+                  homeTeam,
+                  awayTeam,
+                  isHome,
+                  venue: match.venue || '',
+                  competition: match.competition?.name
+                })
+              }
+              break
+            }
           }
         }
       }
