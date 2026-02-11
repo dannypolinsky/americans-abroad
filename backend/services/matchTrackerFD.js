@@ -181,6 +181,7 @@ class MatchTrackerFD {
 
     // Normalize but keep spaces for word boundary checking
     const normalizeWithSpaces = (name) => name.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents/umlauts
       .replace(/\b(fc|cf|ac|as|afc|sc|sv|bv|ssc)\b/gi, '')
       .replace(/1\./g, '')
       .replace(/[^a-z\s]/g, '')

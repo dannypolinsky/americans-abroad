@@ -148,7 +148,9 @@ const TEAM_IDS = {
   'San Jose Earthquakes': 6603,
   // Youth Teams
   'Borussia Dortmund U19': 394130,
-  'FC København U19': 2049
+  'FC København U19': 2049,
+  // Croatian First League
+  'Hajduk Split': 10154
 }
 
 class FotMobService {
