@@ -98,93 +98,101 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
       </div>
 
       {hasTodayMatch && (
-        <div className={`match-info${(matchData.status === 'finished' || matchData.status === 'live') && !matchData.participated && !matchData.onBench ? ' not-in-squad-highlight' : ''}${(matchData.status === 'finished' || matchData.status === 'live') && !matchData.participated && matchData.onBench ? ' unused-sub-highlight' : ''}`}>
-          <div className="match-teams">
-            <span className={matchData.isHome ? 'highlight' : ''}>{matchData.homeTeam}</span>
-            <span className="score-container">
-              {isLive && <span className="live-minute">{matchData.minute === 'HT' ? 'HT' : `${matchData.minute}'`}</span>}
-              <span className="score">
-                {matchData.status === 'upcoming' ? 'vs' : renderScore(matchData.homeScore, matchData.awayScore, matchData.fixtureId)}
+        <>
+          <div className={`match-info${(matchData.status === 'finished' || matchData.status === 'live') && !matchData.participated && !matchData.onBench ? ' not-in-squad-highlight' : ''}${(matchData.status === 'finished' || matchData.status === 'live') && !matchData.participated && matchData.onBench ? ' unused-sub-highlight' : ''}`}>
+            <div className="match-teams">
+              <span className={matchData.isHome ? 'highlight' : ''}>{matchData.homeTeam}</span>
+              <span className="score-container">
+                {isLive && <span className="live-minute">{matchData.minute === 'HT' ? 'HT' : `${matchData.minute}'`}</span>}
+                <span className="score">
+                  {matchData.status === 'upcoming' ? 'vs' : renderScore(matchData.homeScore, matchData.awayScore, matchData.fixtureId)}
+                </span>
               </span>
-            </span>
-            <span className={!matchData.isHome ? 'highlight' : ''}>{matchData.awayTeam}</span>
+              <span className={!matchData.isHome ? 'highlight' : ''}>{matchData.awayTeam}</span>
+            </div>
+
+            <div className="match-time">
+              {matchData.status === 'upcoming' && formatKickoff(matchData.kickoff)}
+              {matchData.status === 'finished' && (matchData.legInfo ? `FT - ${matchData.legInfo}` : 'FT')}
+            </div>
+
+            {matchData.aggregateScore && (
+              <div className="aggregate-score">
+                Agg: {matchData.aggregateScore} {matchData.aggregateWinner && `(${matchData.aggregateWinner} advance)`}
+              </div>
+            )}
+
+            {matchData.competition && (
+              <div className="competition-name">{matchData.competition}</div>
+            )}
+
+            {matchData.status === 'upcoming' && matchData.lineupStatus && (
+              <div className="player-participation">
+                {matchData.lineupStatus === 'starting' && (
+                  <span className="start-badge">STARTING</span>
+                )}
+                {matchData.lineupStatus === 'bench' && (
+                  <span className="bench-badge">ON BENCH</span>
+                )}
+                {matchData.lineupStatus === 'not_in_squad' && (
+                  <span className="did-not-play">Not in squad</span>
+                )}
+              </div>
+            )}
+
+            {matchData.status === 'live' && (
+              <div className="player-participation">
+                {matchData.participated !== false ? (
+                  <>
+                    {matchData.rating && <span className="rating-badge">{matchData.rating}</span>}
+                    {matchData.started === true && <span className="start-badge">START</span>}
+                    {matchData.started === false && matchData.events?.some(e => e.type === 'sub_in') && (
+                      <span className="sub-badge">SUB {matchData.events.find(e => e.type === 'sub_in')?.minute}'</span>
+                    )}
+                    {matchData.started === false && !matchData.events?.some(e => e.type === 'sub_in') && (
+                      <span className="bench-badge">BENCH</span>
+                    )}
+                    {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
+                      <span key={`goal-${i}`} className="stat-badge goal">⚽ {e.minute}'</span>
+                    ))}
+                    {matchData.events?.filter(e => e.type === 'assist').map((e, i) => (
+                      <span key={`assist-${i}`} className="stat-badge assist">🅰️ {e.minute}'</span>
+                    ))}
+                  </>
+                ) : (
+                  <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
+                )}
+              </div>
+            )}
+
+            {matchData.status === 'finished' && (
+              <div className="player-participation">
+                {matchData.participated ? (
+                  <>
+                    {matchData.rating && <span className="rating-badge">{matchData.rating}</span>}
+                    <span className={matchData.started === false ? 'sub-minutes-badge' : 'minutes-badge'}>{matchData.minutesPlayed}'</span>
+                    {matchData.started === true && <span className="start-badge">START</span>}
+                    {matchData.started === false && <span className="sub-badge">SUB</span>}
+                    {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
+                      <span key={`goal-${i}`} className="stat-badge goal">⚽{e.minute ? ` ${e.minute}'` : ''}</span>
+                    ))}
+                    {matchData.events?.filter(e => e.type === 'assist').map((e, i) => (
+                      <span key={`assist-${i}`} className="stat-badge assist">🅰️{e.minute ? ` ${e.minute}'` : ''}</span>
+                    ))}
+                  </>
+                ) : (
+                  <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="match-time">
-            {matchData.status === 'upcoming' && formatKickoff(matchData.kickoff)}
-            {matchData.status === 'finished' && (matchData.legInfo ? `FT - ${matchData.legInfo}` : 'FT')}
-          </div>
-
-          {matchData.aggregateScore && (
-            <div className="aggregate-score">
-              Agg: {matchData.aggregateScore} {matchData.aggregateWinner && `(${matchData.aggregateWinner} advance)`}
+          {nextGame && (matchData.status === 'finished' || matchData.status === 'live') && (
+            <div className="next-game-line">
+              <span className="next-game-label">Next:</span> {nextGame.isHome ? 'vs' : 'at'} {nextGame.isHome ? nextGame.awayTeam : nextGame.homeTeam}{nextGame.competition ? ` // ${nextGame.competition}` : ''} // {formatKickoff(nextGame.kickoff)}
             </div>
           )}
-
-          {matchData.competition && (
-            <div className="competition-name">{matchData.competition}</div>
-          )}
-
-          {matchData.status === 'upcoming' && matchData.lineupStatus && (
-            <div className="player-participation">
-              {matchData.lineupStatus === 'starting' && (
-                <span className="start-badge">STARTING</span>
-              )}
-              {matchData.lineupStatus === 'bench' && (
-                <span className="bench-badge">ON BENCH</span>
-              )}
-              {matchData.lineupStatus === 'not_in_squad' && (
-                <span className="did-not-play">Not in squad</span>
-              )}
-            </div>
-          )}
-
-          {matchData.status === 'live' && (
-            <div className="player-participation">
-              {matchData.participated !== false ? (
-                <>
-                  {matchData.rating && <span className="rating-badge">{matchData.rating}</span>}
-                  {matchData.started === true && <span className="start-badge">START</span>}
-                  {matchData.started === false && matchData.events?.some(e => e.type === 'sub_in') && (
-                    <span className="sub-badge">SUB {matchData.events.find(e => e.type === 'sub_in')?.minute}'</span>
-                  )}
-                  {matchData.started === false && !matchData.events?.some(e => e.type === 'sub_in') && (
-                    <span className="bench-badge">BENCH</span>
-                  )}
-                  {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
-                    <span key={`goal-${i}`} className="stat-badge goal">⚽ {e.minute}'</span>
-                  ))}
-                  {matchData.events?.filter(e => e.type === 'assist').map((e, i) => (
-                    <span key={`assist-${i}`} className="stat-badge assist">🅰️ {e.minute}'</span>
-                  ))}
-                </>
-              ) : (
-                <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
-              )}
-            </div>
-          )}
-
-          {matchData.status === 'finished' && (
-            <div className="player-participation">
-              {matchData.participated ? (
-                <>
-                  {matchData.rating && <span className="rating-badge">{matchData.rating}</span>}
-                  <span className={matchData.started === false ? 'sub-minutes-badge' : 'minutes-badge'}>{matchData.minutesPlayed}'</span>
-                  {matchData.started === true && <span className="start-badge">START</span>}
-                  {matchData.started === false && <span className="sub-badge">SUB</span>}
-                  {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
-                    <span key={`goal-${i}`} className="stat-badge goal">⚽{e.minute ? ` ${e.minute}'` : ''}</span>
-                  ))}
-                  {matchData.events?.filter(e => e.type === 'assist').map((e, i) => (
-                    <span key={`assist-${i}`} className="stat-badge assist">🅰️{e.minute ? ` ${e.minute}'` : ''}</span>
-                  ))}
-                </>
-              ) : (
-                <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
-              )}
-            </div>
-          )}
-        </div>
+        </>
       )}
 
       {!hasTodayMatch && showLastGame && (lastGame || nextGame) && (

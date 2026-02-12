@@ -5,220 +5,6 @@ import LeagueFilter from './components/LeagueFilter'
 import playersData from './data/players.json'
 import './App.css'
 
-// Helper to generate dates for demo data
-const daysAgo = (days) => {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  return d.toISOString()
-}
-
-// Demo match data (used when no backend available)
-const DEMO_MATCH_DATA = {
-  1: { // Christian Pulisic - live match
-    status: 'live',
-    homeTeam: 'AC Milan',
-    awayTeam: 'Inter',
-    homeScore: 2,
-    awayScore: 1,
-    minute: 67,
-    isHome: true,
-    participated: true,
-    minutesPlayed: 67,
-    started: true,
-    events: [
-      { type: 'goal', minute: 23 },
-      { type: 'assist', minute: 55 }
-    ],
-    lastGame: {
-      date: daysAgo(7),
-      homeTeam: 'Roma',
-      awayTeam: 'AC Milan',
-      homeScore: 1,
-      awayScore: 2,
-      isHome: false,
-      participated: true,
-      minutesPlayed: 90,
-      started: true,
-      events: [{ type: 'goal', minute: 78 }]
-    }
-  },
-  2: { // Weston McKennie - live match
-    status: 'live',
-    homeTeam: 'Juventus',
-    awayTeam: 'Napoli',
-    homeScore: 1,
-    awayScore: 0,
-    minute: 34,
-    isHome: true,
-    participated: true,
-    minutesPlayed: 34,
-    started: true,
-    events: [
-      { type: 'yellow', minute: 28 }
-    ],
-    lastGame: {
-      date: daysAgo(5),
-      homeTeam: 'Juventus',
-      awayTeam: 'Torino',
-      homeScore: 2,
-      awayScore: 0,
-      isHome: true,
-      participated: true,
-      minutesPlayed: 85,
-      started: true,
-      events: [{ type: 'assist', minute: 44 }, { type: 'sub_out', minute: 85 }]
-    }
-  },
-  6: { // Antonee Robinson - live match
-    status: 'live',
-    homeTeam: 'Fulham',
-    awayTeam: 'Chelsea',
-    homeScore: 1,
-    awayScore: 1,
-    minute: 82,
-    isHome: true,
-    participated: true,
-    minutesPlayed: 82,
-    started: true,
-    events: [],
-    lastGame: {
-      date: daysAgo(4),
-      homeTeam: 'Fulham',
-      awayTeam: 'Arsenal',
-      homeScore: 0,
-      awayScore: 3,
-      isHome: true,
-      participated: true,
-      minutesPlayed: 90,
-      started: true,
-      events: []
-    }
-  },
-  5: { // Giovanni Reyna - finished match
-    status: 'finished',
-    homeTeam: 'Borussia Monchengladbach',
-    awayTeam: 'Bayern Munich',
-    homeScore: 0,
-    awayScore: 2,
-    minute: 90,
-    isHome: true,
-    participated: true,
-    minutesPlayed: 25,
-    started: false,
-    events: [
-      { type: 'sub_in', minute: 65 }
-    ],
-    lastGame: {
-      date: daysAgo(6),
-      homeTeam: 'Wolfsburg',
-      awayTeam: 'Borussia Monchengladbach',
-      homeScore: 1,
-      awayScore: 1,
-      isHome: false,
-      participated: true,
-      minutesPlayed: 70,
-      started: true,
-      events: [{ type: 'sub_out', minute: 70 }]
-    }
-  },
-  16: { // Ricardo Pepi - upcoming match
-    status: 'upcoming',
-    homeTeam: 'PSV',
-    awayTeam: 'Ajax',
-    homeScore: 0,
-    awayScore: 0,
-    minute: 0,
-    isHome: true,
-    participated: false,
-    minutesPlayed: 0,
-    started: false,
-    events: [],
-    lastGame: {
-      date: daysAgo(3),
-      homeTeam: 'PSV',
-      awayTeam: 'Feyenoord',
-      homeScore: 2,
-      awayScore: 0,
-      isHome: true,
-      participated: true,
-      minutesPlayed: 90,
-      started: true,
-      events: [{ type: 'goal', minute: 34 }, { type: 'goal', minute: 67 }]
-    }
-  },
-  12: { // Folarin Balogun - upcoming match
-    status: 'upcoming',
-    homeTeam: 'AS Monaco',
-    awayTeam: 'PSG',
-    homeScore: 0,
-    awayScore: 0,
-    minute: 0,
-    isHome: true,
-    participated: false,
-    minutesPlayed: 0,
-    started: false,
-    events: [],
-    lastGame: {
-      date: daysAgo(8),
-      homeTeam: 'Lyon',
-      awayTeam: 'AS Monaco',
-      homeScore: 1,
-      awayScore: 3,
-      isHome: false,
-      participated: true,
-      minutesPlayed: 72,
-      started: true,
-      events: [{ type: 'goal', minute: 23 }, { type: 'sub_out', minute: 72 }]
-    }
-  },
-  // Players with no match today but have last game data
-  7: { // Tyler Adams
-    status: 'no_match_today',
-    lastGame: {
-      date: daysAgo(2),
-      homeTeam: 'Bournemouth',
-      awayTeam: 'Liverpool',
-      homeScore: 0,
-      awayScore: 4,
-      isHome: true,
-      participated: true,
-      minutesPlayed: 90,
-      started: true,
-      events: [{ type: 'yellow', minute: 56 }]
-    }
-  },
-  3: { // Yunus Musah
-    status: 'no_match_today',
-    lastGame: {
-      date: daysAgo(10),
-      homeTeam: 'Atalanta',
-      awayTeam: 'Udinese',
-      homeScore: 3,
-      awayScore: 1,
-      isHome: true,
-      participated: true,
-      minutesPlayed: 15,
-      started: false,
-      events: [{ type: 'sub_in', minute: 75 }]
-    }
-  },
-  4: { // Timothy Weah - didn't play last game
-    status: 'no_match_today',
-    lastGame: {
-      date: daysAgo(5),
-      homeTeam: 'Juventus',
-      awayTeam: 'Torino',
-      homeScore: 2,
-      awayScore: 0,
-      isHome: true,
-      participated: false,
-      minutesPlayed: 0,
-      started: false,
-      events: []
-    }
-  }
-}
-
 const API_BASE = import.meta.env.VITE_API_URL || null
 const RETRY_DELAY = 5000 // 5 seconds between retries
 
@@ -244,7 +30,7 @@ function App() {
     }
     return {}
   })
-  const [apiMode, setApiMode] = useState(API_BASE ? 'loading' : 'demo')
+  const [apiMode, setApiMode] = useState('loading')
   const [apiStatus, setApiStatus] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(() => {
     // Load cached last update time
@@ -255,16 +41,14 @@ function App() {
   const [isApiLoading, setIsApiLoading] = useState(() => {
     // If we have cached data, don't show loading state initially
     const hasCached = !!localStorage.getItem('americansAbroad_matchData')
-    return API_BASE && !hasCached
+    return !hasCached
   })
 
-  // Try to fetch from API if configured, with retry on failure
+  // Try to fetch from API, with retry on failure
   const loadMatchData = useCallback(async (isRetry = false) => {
     if (!API_BASE) {
-      // No API configured, use demo data
-      setMatchData(DEMO_MATCH_DATA)
-      setApiMode('demo')
-      setLastUpdate(new Date())
+      // No API configured, show cached data as-is
+      setApiMode('cached')
       setIsApiLoading(false)
       return
     }
@@ -326,7 +110,7 @@ function App() {
   useEffect(() => {
     const hasLiveMatches = Object.values(matchData).some(m => m?.status === 'live')
 
-    if (!hasLiveMatches || !API_BASE) return
+    if (!hasLiveMatches) return
 
     const liveRefreshInterval = setInterval(() => {
       console.log('Live match refresh...')
@@ -546,10 +330,14 @@ function App() {
     return uniquePlayers.filter(p => matchData[p.id]?.status === 'live').length
   }, [uniquePlayers, matchData])
 
-  // Format last update time
+  // Format last update time - include date if not today
   const formatLastUpdate = () => {
     if (!lastUpdate) return ''
-    return lastUpdate.toLocaleTimeString()
+    const now = new Date()
+    if (lastUpdate.toDateString() === now.toDateString()) {
+      return lastUpdate.toLocaleTimeString()
+    }
+    return lastUpdate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + lastUpdate.toLocaleTimeString()
   }
 
   return (
@@ -585,12 +373,7 @@ function App() {
       <main className="main-content">
         <div className="player-count">
           Showing {filteredPlayers.length} players
-          {apiStatus === 'unavailable' && (
-            <span className="api-unavailable">
-              (Showing sample data - live API temporarily unavailable)
-            </span>
-          )}
-          {lastUpdate && apiStatus !== 'unavailable' && (
+          {lastUpdate && (
             <span className="last-update">
               Last updated: {formatLastUpdate()}
             </span>
