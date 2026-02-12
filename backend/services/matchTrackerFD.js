@@ -216,11 +216,12 @@ class MatchTrackerFD {
       return apiWords.some(apiWord => apiWord === ourWord)
     }
 
-    // For multi-word team names, require the primary (first) word to match
-    const ourPrimaryWord = ourWords[0]
-    const hasPrimaryMatch = apiWords.some(apiWord => apiWord === ourPrimaryWord)
-
-    return hasPrimaryMatch
+    // For multi-word team names, require ALL significant words to match
+    // This prevents false matches like West Brom matching West Ham,
+    // or Borussia Dortmund matching Borussia Monchengladbach
+    return ourWords.every(ourWord =>
+      apiWords.some(apiWord => apiWord === ourWord || apiWord.startsWith(ourWord) || ourWord.startsWith(apiWord))
+    )
   }
 
   // Parse player events from match details
