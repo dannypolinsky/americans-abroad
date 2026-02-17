@@ -681,6 +681,25 @@ class MatchTrackerFD {
               } catch (err) {
                 // Continue without player stats if fetch fails
               }
+
+              // Fallback: if matchDetails was blocked (Turnstile), try team API's lastLineupStats
+              if (playerStats.participated === null) {
+                try {
+                  const teamLineupStats = await this.fotmob.getPlayerStatsFromTeamLineup(teamName, player.name, forLiveData)
+                  if (teamLineupStats) {
+                    playerStats.participated = teamLineupStats.participated
+                    playerStats.started = teamLineupStats.started
+                    playerStats.onBench = teamLineupStats.onBench || false
+                    playerStats.rating = teamLineupStats.rating
+                    playerStats.events = teamLineupStats.events || []
+                    if (teamLineupStats.participated) {
+                      console.log(`FotMob (team lineup fallback): ${player.name} - ${status}, started: ${teamLineupStats.started}, rating: ${teamLineupStats.rating}`)
+                    }
+                  }
+                } catch (err) {
+                  // Continue without fallback
+                }
+              }
             }
 
             // For upcoming games within 45 minutes, check lineup
@@ -801,6 +820,69 @@ class MatchTrackerFD {
 
       if (fotmobPlayerApiCount > 0) {
         console.log(`FotMob Player API: Got last game data for ${fotmobPlayerApiCount} players`)
+      }
+
+      // FALLBACK: Use team API's lastLineupStats for players still missing data
+      // This works even when player API and match details are blocked by Turnstile
+      const playersByTeamForLineup = this.getPlayersByTeam()
+      const processedTeamsForLineup = new Set()
+      let teamLineupFallbackCount = 0
+
+      for (const [teamName, players] of Object.entries(playersByTeamForLineup)) {
+        // Only process teams where players still need data
+        const playersNeedingData = players.filter(p => !this.lastGameData.has(p.id))
+        if (playersNeedingData.length === 0) continue
+        if (processedTeamsForLineup.has(teamName)) continue
+        processedTeamsForLineup.add(teamName)
+
+        try {
+          const teamData = await this.fotmob.getTeamData(teamName)
+          if (!teamData?.overview?.lastLineupStats) continue
+
+          const lineup = teamData.overview.lastLineupStats
+          const lastMatch = teamData.overview.lastMatch
+          if (!lastMatch) continue
+
+          const teamId = TEAM_IDS[teamName]
+          const isHome = lastMatch.home?.id === teamId
+          const matchDate = lastMatch.status?.utcTime || null
+
+          for (const player of playersNeedingData) {
+            const stats = await this.fotmob.getPlayerStatsFromTeamLineup(teamName, player.name)
+            if (!stats) continue
+
+            this.lastGameData.set(player.id, {
+              fixtureId: lastMatch.id || null,
+              date: matchDate,
+              homeTeam: lastMatch.home?.name || 'Unknown',
+              awayTeam: lastMatch.away?.name || 'Unknown',
+              homeScore: lastMatch.home?.score ?? 0,
+              awayScore: lastMatch.away?.score ?? 0,
+              isHome,
+              events: stats.events || [],
+              participated: stats.participated,
+              minutesPlayed: null, // Not available from team lineup
+              started: stats.started,
+              goals: stats.goals || 0,
+              assists: stats.assists || 0,
+              rating: stats.rating,
+              competition: lastMatch.tournament?.name || 'Unknown',
+              source: 'fotmob_team_lineup'
+            })
+            teamLineupFallbackCount++
+            if (stats.participated) {
+              console.log(`FotMob Team Lineup: ${player.name} - started: ${stats.started}, rating: ${stats.rating}`)
+            }
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 50))
+        } catch (err) {
+          // Continue to next team
+        }
+      }
+
+      if (teamLineupFallbackCount > 0) {
+        console.log(`FotMob Team Lineup: Got last game data for ${teamLineupFallbackCount} players`)
       }
 
       // SECOND: Fill in remaining players from Football-Data.org API
@@ -1021,6 +1103,36 @@ class MatchTrackerFD {
           // Fallback to team-based lookup if no fotmobId or no data from player API
           if (!stats) {
             stats = await this.fotmob.getPlayerLastMatchStats(player.name, player.team)
+          }
+
+          // Fallback to team API's lastLineupStats if both player API and match details are blocked
+          if (!stats) {
+            const teamLineupStats = await this.fotmob.getPlayerStatsFromTeamLineup(player.team, player.name)
+            if (teamLineupStats) {
+              const teamData = await this.fotmob.getTeamData(player.team)
+              const lastMatch = teamData?.overview?.lastMatch
+              if (lastMatch) {
+                const teamId = TEAM_IDS[player.team]
+                const isHomeMatch = lastMatch.home?.id === teamId
+                stats = {
+                  matchId: lastMatch.id || null,
+                  date: lastMatch.status?.utcTime,
+                  homeTeam: lastMatch.home?.name || 'Unknown',
+                  awayTeam: lastMatch.away?.name || 'Unknown',
+                  homeScore: lastMatch.home?.score ?? 0,
+                  awayScore: lastMatch.away?.score ?? 0,
+                  minutesPlayed: null,
+                  started: teamLineupStats.started,
+                  participated: teamLineupStats.participated,
+                  goals: teamLineupStats.goals || 0,
+                  assists: teamLineupStats.assists || 0,
+                  rating: teamLineupStats.rating,
+                  competition: lastMatch.tournament?.name,
+                  events: teamLineupStats.events || []
+                }
+                console.log(`FotMob Team Lineup fallback: ${player.name} - rating: ${stats.rating}, started: ${stats.started}`)
+              }
+            }
           }
 
           if (stats && stats.participated) {

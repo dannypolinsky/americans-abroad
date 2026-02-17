@@ -691,6 +691,74 @@ class FotMobService {
     return result
   }
 
+  // Get player stats from team API's lastLineupStats (fallback when matchDetails is blocked)
+  // Returns player stats similar to getPlayerStatsFromMatch but from team-level data
+  async getPlayerStatsFromTeamLineup(teamName, playerName, forLiveData = false) {
+    try {
+      const teamData = await this.getTeamData(teamName, forLiveData)
+      if (!teamData?.overview?.lastLineupStats) return null
+
+      const lineup = teamData.overview.lastLineupStats
+      const starters = lineup.starters || []
+      const subs = lineup.subs || []
+
+      // Search starters
+      let playerData = starters.find(p => this.playerNameMatches(p.name, playerName))
+      let started = null
+      let participated = null
+      let onBench = false
+
+      if (playerData) {
+        started = true
+        participated = true
+      } else {
+        // Search subs
+        playerData = subs.find(p => this.playerNameMatches(p.name, playerName))
+        if (playerData) {
+          started = false
+          onBench = true
+          // If sub has a rating, they came on
+          if (playerData.performance?.rating) {
+            participated = true
+            onBench = false
+          } else {
+            participated = false
+          }
+        }
+      }
+
+      if (!playerData) return null
+
+      const perf = playerData.performance || {}
+      const events = []
+
+      // Parse events from performance
+      if (perf.events) {
+        for (const evt of perf.events) {
+          if (evt.type === 'goal') events.push({ type: 'goal', minute: null })
+          if (evt.type === 'assist') events.push({ type: 'assist', minute: null })
+          if (evt.type === 'yellowCard') events.push({ type: 'yellow', minute: null })
+          if (evt.type === 'redCard' || evt.type === 'secondYellow') events.push({ type: 'red', minute: null })
+          if (evt.type === 'ownGoal') events.push({ type: 'goal', minute: null }) // still counts
+        }
+      }
+
+      return {
+        participated,
+        started,
+        onBench,
+        rating: perf.rating || null,
+        events,
+        goals: events.filter(e => e.type === 'goal').length,
+        assists: events.filter(e => e.type === 'assist').length,
+        source: 'fotmob_team_lineup'
+      }
+    } catch (error) {
+      console.error(`FotMob: Error getting team lineup stats for ${playerName}:`, error.message)
+      return null
+    }
+  }
+
   // Get player's lineup status for an upcoming match (within ~45 min of kickoff)
   // Returns { status: 'starting' | 'bench' | 'not_in_squad' } or null if lineup not available
   async getPlayerLineupStatus(matchId, playerName, isHome) {
