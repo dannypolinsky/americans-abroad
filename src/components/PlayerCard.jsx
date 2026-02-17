@@ -99,7 +99,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
 
       {hasTodayMatch && (
         <>
-          <div className={`match-info${(matchData.status === 'finished' || matchData.status === 'live') && !matchData.participated && !matchData.onBench ? ' not-in-squad-highlight' : ''}${(matchData.status === 'finished' || matchData.status === 'live') && !matchData.participated && matchData.onBench ? ' unused-sub-highlight' : ''}`}>
+          <div className={`match-info${(matchData.status === 'finished' || matchData.status === 'live') && matchData.participated === false && !matchData.onBench ? ' not-in-squad-highlight' : ''}${(matchData.status === 'finished' || matchData.status === 'live') && matchData.participated === false && matchData.onBench ? ' unused-sub-highlight' : ''}`}>
             <div className="match-teams">
               <span className={matchData.isHome ? 'highlight' : ''}>{matchData.homeTeam}</span>
               <span className="score-container">
@@ -142,7 +142,9 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
 
             {matchData.status === 'live' && (
               <div className="player-participation">
-                {matchData.participated !== false ? (
+                {matchData.participated === false ? (
+                  <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
+                ) : (
                   <>
                     {matchData.rating && <span className="rating-badge">{matchData.rating}</span>}
                     {matchData.started === true && <span className="start-badge">START</span>}
@@ -159,18 +161,18 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                       <span key={`assist-${i}`} className="stat-badge assist">🅰️ {e.minute}'</span>
                     ))}
                   </>
-                ) : (
-                  <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
                 )}
               </div>
             )}
 
             {matchData.status === 'finished' && (
               <div className="player-participation">
-                {matchData.participated ? (
+                {matchData.participated === false ? (
+                  <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
+                ) : (
                   <>
                     {matchData.rating && <span className="rating-badge">{matchData.rating}</span>}
-                    <span className={matchData.started === false ? 'sub-minutes-badge' : 'minutes-badge'}>{matchData.minutesPlayed}'</span>
+                    {matchData.minutesPlayed != null && <span className={matchData.started === false ? 'sub-minutes-badge' : 'minutes-badge'}>{matchData.minutesPlayed}'</span>}
                     {matchData.started === true && <span className="start-badge">START</span>}
                     {matchData.started === false && <span className="sub-badge">SUB</span>}
                     {matchData.events?.filter(e => e.type === 'goal').map((e, i) => (
@@ -180,8 +182,6 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                       <span key={`assist-${i}`} className="stat-badge assist">🅰️{e.minute ? ` ${e.minute}'` : ''}</span>
                     ))}
                   </>
-                ) : (
-                  <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
                 )}
               </div>
             )}
