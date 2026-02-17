@@ -693,12 +693,14 @@ class FotMobService {
 
   // Get player stats from team API's lastLineupStats (fallback when matchDetails is blocked)
   // Returns player stats similar to getPlayerStatsFromMatch but from team-level data
+  // Note: lastLineupStats is for the team's most recently COMPLETED match, not an ongoing one
   async getPlayerStatsFromTeamLineup(teamName, playerName, forLiveData = false) {
     try {
       const teamData = await this.getTeamData(teamName, forLiveData)
       if (!teamData?.overview?.lastLineupStats) return null
 
       const lineup = teamData.overview.lastLineupStats
+      const lastMatch = teamData.overview.lastMatch
       const starters = lineup.starters || []
       const subs = lineup.subs || []
 
@@ -751,6 +753,7 @@ class FotMobService {
         events,
         goals: events.filter(e => e.type === 'goal').length,
         assists: events.filter(e => e.type === 'assist').length,
+        matchId: lastMatch?.id || null, // Which match this data is from
         source: 'fotmob_team_lineup'
       }
     } catch (error) {
