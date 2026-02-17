@@ -9,6 +9,32 @@ class FootballDataService {
     this.cache = new Map()
     this.cacheExpiry = 5 * 60 * 1000 // 5 minutes for general data
     this.liveCacheExpiry = 30 * 1000 // 30 seconds for live match data
+    this.requestTimestamps = [] // Track API call timestamps for rate limiting
+    this.rateLimitMax = 9 // Max requests per rate limit window
+    this.rateLimitWindowMs = 60 * 1000 // 60-second window
+  }
+
+  // Wait if we've hit the rate limit (9 requests per 60 seconds)
+  async waitForRateLimit() {
+    const now = Date.now()
+    // Remove timestamps older than the window
+    this.requestTimestamps = this.requestTimestamps.filter(
+      ts => now - ts < this.rateLimitWindowMs
+    )
+
+    if (this.requestTimestamps.length >= this.rateLimitMax) {
+      // Wait until the oldest request in the window expires
+      const oldestInWindow = this.requestTimestamps[0]
+      const waitMs = this.rateLimitWindowMs - (now - oldestInWindow) + 100 // +100ms buffer
+      console.log(`Football-Data API: Rate limit reached (${this.requestTimestamps.length}/${this.rateLimitMax}), waiting ${Math.round(waitMs / 1000)}s`)
+      await new Promise(resolve => setTimeout(resolve, waitMs))
+      // Clean up again after waiting
+      this.requestTimestamps = this.requestTimestamps.filter(
+        ts => Date.now() - ts < this.rateLimitWindowMs
+      )
+    }
+
+    this.requestTimestamps.push(Date.now())
   }
 
   async fetchFromApi(endpoint, forLiveData = false) {
@@ -18,6 +44,9 @@ class FootballDataService {
     if (cached && Date.now() - cached.timestamp < cacheExpiry) {
       return cached.data
     }
+
+    // Enforce rate limiting before making the API call
+    await this.waitForRateLimit()
 
     try {
       const headers = {}

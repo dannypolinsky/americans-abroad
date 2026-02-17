@@ -225,6 +225,13 @@ class MatchTrackerFD {
   }
 
   // Parse player events from match details
+  // Check if match details have any event data (goals, subs, bookings)
+  hasEventData(matchDetails) {
+    return (matchDetails.goals && matchDetails.goals.length > 0) ||
+           (matchDetails.substitutions && matchDetails.substitutions.length > 0) ||
+           (matchDetails.bookings && matchDetails.bookings.length > 0)
+  }
+
   parsePlayerEvents(matchDetails, playerName, isHome) {
     const events = []
     const teamSide = isHome ? 'HOME_TEAM' : 'AWAY_TEAM'
@@ -371,6 +378,7 @@ class MatchTrackerFD {
       console.log(`Found ${matches.length} matches today`)
 
       const playersByTeam = this.getPlayersByTeam()
+      const matchDetailsCache = new Map() // Cache match details to avoid duplicate fetches
 
       for (const match of matches) {
         const homeTeam = match.homeTeam?.name || match.homeTeam?.shortName
@@ -388,7 +396,91 @@ class MatchTrackerFD {
           }
 
           if (isHome !== null) {
+            // For live or finished matches, fetch detailed match data from Football-Data.org
+            let matchDetails = null
+            if (status === 'live' || status === 'finished') {
+              if (matchDetailsCache.has(match.id)) {
+                matchDetails = matchDetailsCache.get(match.id)
+              } else {
+                try {
+                  console.log(`Fetching FD match details for ${homeTeam} vs ${awayTeam} (${status})`)
+                  matchDetails = await this.api.getMatchDetails(match.id)
+                  matchDetailsCache.set(match.id, matchDetails)
+                } catch (error) {
+                  console.error(`Error fetching match details for ${match.id}:`, error.message)
+                }
+              }
+            }
+
             for (const player of players) {
+              let participated = null
+              let minutesPlayed = null
+              let started = null
+              let playerEvents = []
+
+              // Parse player events from match details if available
+              if (matchDetails) {
+                // Log available data on first player per match to debug API response
+                if (players.indexOf(player) === 0) {
+                  const topKeys = Object.keys(matchDetails).join(', ')
+                  console.log(`FD match ${match.id} keys: ${topKeys}`)
+                  console.log(`FD match ${match.id} events - goals: ${matchDetails.goals?.length ?? 'N/A'}, subs: ${matchDetails.substitutions?.length ?? 'N/A'}, bookings: ${matchDetails.bookings?.length ?? 'N/A'}`)
+                  // Log goal scorer names for debugging name matching
+                  if (matchDetails.goals?.length > 0) {
+                    const scorerNames = matchDetails.goals.map(g => g.scorer?.name || 'unknown').join(', ')
+                    console.log(`FD match ${match.id} scorers: ${scorerNames}`)
+                  }
+                  if (matchDetails.homeTeam?.lineup) {
+                    console.log(`FD match ${match.id} has lineup data`)
+                  }
+                }
+
+                // Check if FD returned lineup data (available in higher tiers)
+                const teamLineup = isHome ? matchDetails.homeTeam?.lineup : matchDetails.awayTeam?.lineup
+                if (teamLineup && teamLineup.length > 0) {
+                  const playerLastName = player.name.split(' ').pop().toLowerCase()
+                  const inLineup = teamLineup.some(p =>
+                    (p.name || '').toLowerCase().includes(playerLastName)
+                  )
+                  if (inLineup) {
+                    participated = true
+                    started = true
+                  }
+                }
+
+                // Check bench data
+                const teamBench = isHome ? matchDetails.homeTeam?.bench : matchDetails.awayTeam?.bench
+                if (teamBench && teamBench.length > 0 && !participated) {
+                  const playerLastName = player.name.split(' ').pop().toLowerCase()
+                  const onBench = teamBench.some(p =>
+                    (p.name || '').toLowerCase().includes(playerLastName)
+                  )
+                  if (onBench) {
+                    started = false
+                  }
+                }
+
+                // Parse events (goals, subs, cards)
+                playerEvents = this.parsePlayerEvents(matchDetails, player.name, isHome)
+                if (playerEvents.length > 0) {
+                  const hasSubIn = playerEvents.some(e => e.type === 'sub_in')
+                  if (hasSubIn) started = false
+                  else if (started === null) started = true
+                  participated = true
+
+                  const currentMinute = status === 'live' ? (match.minute || 45) : 90
+                  minutesPlayed = this.calculateMinutesPlayed(playerEvents, currentMinute)
+
+                  console.log(`FD: ${player.name} - ${status}, started: ${started}, minutes: ${minutesPlayed}, events: ${playerEvents.map(e => e.type).join(', ')}`)
+                } else if (participated === true && status === 'finished') {
+                  // In lineup but no events = played full 90
+                  minutesPlayed = 90
+                }
+                // IMPORTANT: If no events found and no lineup data, leave participated as null (unknown).
+                // We cannot assume "didn't play" — FD events only cover goals/subs/cards,
+                // not all participants. A player could play 90 min with zero events.
+              }
+
               this.matchData.set(player.id, {
                 fixtureId: match.id,
                 status,
@@ -398,12 +490,14 @@ class MatchTrackerFD {
                 awayScore: match.score?.fullTime?.away ?? match.score?.halfTime?.away ?? 0,
                 minute: match.minute || 0,
                 isHome,
-                events: [], // Football-Data.org doesn't provide detailed events in match list
+                events: playerEvents,
                 kickoff: match.utcDate,
                 venue: match.venue || '',
-                participated: null, // Unknown without lineup data
-                minutesPlayed: null, // Unknown without lineup data
-                started: null, // Unknown without lineup data
+                participated,
+                minutesPlayed,
+                started,
+                goals: playerEvents.filter(e => e.type === 'goal').length,
+                assists: playerEvents.filter(e => e.type === 'assist').length,
                 competition: match.competition?.name
               })
             }
@@ -770,21 +864,56 @@ class MatchTrackerFD {
               let participated = null // Unknown without detailed data
 
               if (matchDetails) {
+                // Check lineup/bench data from FD match details
+                const playerLastName = player.name.split(' ').pop().toLowerCase()
+                const teamLineup = isHome ? matchDetails.homeTeam?.lineup : matchDetails.awayTeam?.lineup
+                const teamBench = isHome ? matchDetails.homeTeam?.bench : matchDetails.awayTeam?.bench
+
+                if (teamLineup && teamLineup.length > 0) {
+                  const inLineup = teamLineup.some(p =>
+                    (p.name || '').toLowerCase().includes(playerLastName)
+                  )
+                  if (inLineup) {
+                    participated = true
+                    started = true
+                    minutesPlayed = 90
+                  }
+                }
+
+                if (!participated && teamBench && teamBench.length > 0) {
+                  const onBench = teamBench.some(p =>
+                    (p.name || '').toLowerCase().includes(playerLastName)
+                  )
+                  if (onBench) {
+                    // On bench - will check sub events below to determine if they came on
+                    started = false
+                  }
+                }
+
+                // Parse events (goals, subs, cards)
                 playerEvents = this.parsePlayerEvents(matchDetails, player.name, isHome)
                 if (playerEvents.length > 0) {
                   const hasSubIn = playerEvents.some(e => e.type === 'sub_in')
                   const hasSubOut = playerEvents.some(e => e.type === 'sub_out')
-                  started = !hasSubIn
-                  minutesPlayed = this.calculateMinutesPlayed(playerEvents, 90)
+                  if (hasSubIn) {
+                    started = false
+                    participated = true
+                  } else if (started === null) {
+                    started = true
+                  }
                   participated = true
+                  minutesPlayed = this.calculateMinutesPlayed(playerEvents, 90)
+                } else if (started === false && !participated) {
+                  // On bench with no sub events = unused sub
+                  participated = false
+                  minutesPlayed = 0
                 }
-                // If no events found for player, leave as null (unknown)
               }
 
-              // Try to get additional data from FotMob cache or manual stats
+              // Count goals/assists from FD events
               let statsSource = 'api'
-              let goals = 0
-              let assists = 0
+              let goals = playerEvents.filter(e => e.type === 'goal').length
+              let assists = playerEvents.filter(e => e.type === 'assist').length
               let rating = null
               const fotmobMatch = this.findFotMobMatchForDate(player.id, match.utcDate)
               const manualMatch = this.findManualMatchForDate(player.id, match.utcDate)

@@ -173,7 +173,34 @@ class FotMobService {
       const response = await fetch(`${FOTMOB_API_BASE}${endpoint}`)
 
       if (!response.ok) {
+        // Detect Cloudflare Turnstile / challenge responses
+        if (response.status === 403) {
+          const body = await response.text()
+          if (body.includes('turnstile') || body.includes('challenge') || body.includes('cf-') || body.includes('Cloudflare')) {
+            console.error(`FotMob API BLOCKED by Cloudflare Turnstile for ${endpoint} - server-side requests are not supported`)
+            throw new Error('FotMob API blocked by Cloudflare Turnstile verification')
+          }
+        }
         throw new Error(`FotMob API error ${response.status}`)
+      }
+
+      // Check if response is HTML (Turnstile challenge page) instead of JSON
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        const body = await response.text()
+        if (body.includes('turnstile') || body.includes('challenge') || body.includes('<html')) {
+          console.error(`FotMob API returned Turnstile challenge page for ${endpoint} (content-type: ${contentType})`)
+          throw new Error('FotMob API blocked by Cloudflare Turnstile verification')
+        }
+        // Try to parse as JSON anyway in case content-type header is wrong
+        try {
+          const data = JSON.parse(body)
+          if (data === null) throw new Error('FotMob API returned null')
+          this.cache.set(endpoint, { data, timestamp: Date.now() })
+          return data
+        } catch {
+          throw new Error(`FotMob API returned non-JSON response (content-type: ${contentType})`)
+        }
       }
 
       const data = await response.json()
@@ -189,7 +216,11 @@ class FotMobService {
 
       return data
     } catch (error) {
-      console.error(`FotMob API error for ${endpoint}:`, error.message)
+      if (error.message.includes('Turnstile')) {
+        console.error(`FotMob BLOCKED: ${endpoint} - Cloudflare Turnstile is blocking server-side API access`)
+      } else {
+        console.error(`FotMob API error for ${endpoint}:`, error.message)
+      }
       throw error
     }
   }
