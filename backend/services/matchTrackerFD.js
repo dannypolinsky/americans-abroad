@@ -782,7 +782,10 @@ class MatchTrackerFD {
       let fotmobPlayerApiCount = 0
 
       for (const player of this.players) {
-        if (player.fotmobId && !this.lastGameData.has(player.id)) {
+        // Fetch from FotMob if: no data yet, OR existing data has no rating (incomplete)
+        const existingLastGame = this.lastGameData.get(player.id)
+        const needsFotMobData = !existingLastGame || (existingLastGame.rating === null && existingLastGame.source !== 'fotmob_player_api')
+        if (player.fotmobId && needsFotMobData) {
           const fotmobMatch = await this.getPlayerRecentMatchFromFotMob(player)
           if (fotmobMatch && fotmobMatch.date) {
             const lastGameEntry = {
