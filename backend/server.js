@@ -475,7 +475,7 @@ function stopKeepAlive() {
 }
 
 // Start server
-const SERVER_VERSION = '2.3.0' // Improved live match refresh (shorter cache, faster polling)
+const SERVER_VERSION = '2.4.0' // HTML scrape fallback for Turnstile-blocked FotMob endpoints
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
