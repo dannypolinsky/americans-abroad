@@ -209,6 +209,12 @@ class FotMobService {
         throw new Error('FotMob API returned null')
       }
 
+      // Detect Turnstile block returned as JSON (200 OK with error body)
+      if (data.code === 'TURNSTILE_REQUIRED' || data.error === 'Verification required') {
+        console.error(`FotMob API BLOCKED by Turnstile for ${endpoint} (returned as JSON)`)
+        throw new Error('FotMob API blocked by Cloudflare Turnstile verification')
+      }
+
       this.cache.set(endpoint, {
         data,
         timestamp: Date.now()
