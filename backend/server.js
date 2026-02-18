@@ -524,7 +524,7 @@ function stopKeepAlive() {
 }
 
 // Start server
-const SERVER_VERSION = '2.5.0' // Fix Turnstile detection for 200 OK JSON responses
+const SERVER_VERSION = '2.5.1' // Fix 403 Turnstile detection + HTML scrape fallback
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
