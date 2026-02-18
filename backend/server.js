@@ -390,55 +390,6 @@ app.get('/api/health', (req, res) => {
   })
 })
 
-// Debug: test FotMob scrape from this server
-app.get('/api/debug/scrape-test', async (req, res) => {
-  try {
-    const matchId = req.query.matchId || '5161863'
-    const playerId = req.query.playerId || '982677' // Balogun
-
-    // Test match page
-    const matchResp = await fetch(`https://www.fotmob.com/match/${matchId}`)
-    const matchHtml = await matchResp.text()
-    const matchData = matchHtml.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s)
-    let matchPlayers = []
-    if (matchData) {
-      const d = JSON.parse(matchData[1])
-      const lineup = d.props?.pageProps?.content?.lineup?.homeTeam?.starters || []
-      matchPlayers = lineup.map(p => `${p.name}: ${p.performance?.rating || 'N/A'}`)
-    }
-
-    // Test player page
-    const playerResp = await fetch(`https://www.fotmob.com/players/${playerId}`)
-    const playerHtml = await playerResp.text()
-    const playerData = playerHtml.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s)
-    let recentMatches = []
-    if (playerData) {
-      const d = JSON.parse(playerData[1])
-      const pp = d.props?.pageProps?.data || d.props?.pageProps
-      recentMatches = (pp.recentMatches || []).slice(0, 3).map(m =>
-        `${m.teamName} vs ${m.opponentTeamName}: rating=${m.ratingProps?.rating}, goals=${m.goals}, mins=${m.minutesPlayed}`
-      )
-    }
-
-    // Test API directly
-    const apiResp = await fetch(`https://www.fotmob.com/api/playerData?id=${playerId}`)
-    const apiBody = await apiResp.text()
-    let apiResult = 'unknown'
-    try {
-      const apiJson = JSON.parse(apiBody)
-      apiResult = apiJson.code || apiJson.name || 'ok'
-    } catch { apiResult = 'non-json' }
-
-    res.json({
-      matchPage: { status: matchResp.status, hasData: !!matchData, players: matchPlayers.slice(0, 3) },
-      playerPage: { status: playerResp.status, hasData: !!playerData, recentMatches },
-      api: { status: apiResp.status, result: apiResult }
-    })
-  } catch (error) {
-    res.json({ error: error.message })
-  }
-})
-
 // API status
 app.get('/api/status', (req, res) => {
   res.json({
