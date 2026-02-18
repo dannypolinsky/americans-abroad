@@ -683,11 +683,11 @@ class MatchTrackerFD {
               }
 
               // Fallback: if matchDetails was blocked (Turnstile), try team API's lastLineupStats
-              // Only use this if the lastLineupStats is for the SAME match (not a different one)
+              // The method internally validates that the lineup data is fresh and consistent
               if (playerStats.participated === null) {
                 try {
                   const teamLineupStats = await this.fotmob.getPlayerStatsFromTeamLineup(teamName, player.name, forLiveData)
-                  if (teamLineupStats && teamLineupStats.matchId === matchToUse.id) {
+                  if (teamLineupStats) {
                     playerStats.participated = teamLineupStats.participated
                     playerStats.started = teamLineupStats.started
                     playerStats.onBench = teamLineupStats.onBench || false
@@ -696,8 +696,6 @@ class MatchTrackerFD {
                     if (teamLineupStats.participated) {
                       console.log(`FotMob (team lineup fallback): ${player.name} - ${status}, started: ${teamLineupStats.started}, rating: ${teamLineupStats.rating}`)
                     }
-                  } else if (teamLineupStats) {
-                    console.log(`FotMob: Skipping team lineup fallback for ${player.name} - lineup is for match ${teamLineupStats.matchId}, not ${matchToUse.id}`)
                   }
                 } catch (err) {
                   // Continue without fallback

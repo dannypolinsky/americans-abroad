@@ -693,7 +693,9 @@ class FotMobService {
 
   // Get player stats from team API's lastLineupStats (fallback when matchDetails is blocked)
   // Returns player stats similar to getPlayerStatsFromMatch but from team-level data
-  // Note: lastLineupStats is for the team's most recently COMPLETED match, not an ongoing one
+  // Note: lastLineupStats is for the team's most recently COMPLETED match, not an ongoing one.
+  // IMPORTANT: lastMatch and lastLineupStats can update at different rates in FotMob's API,
+  // so we validate consistency by checking that the goal count in lineup events matches the team's score.
   async getPlayerStatsFromTeamLineup(teamName, playerName, forLiveData = false) {
     try {
       const teamData = await this.getTeamData(teamName, forLiveData)
@@ -703,6 +705,32 @@ class FotMobService {
       const lastMatch = teamData.overview.lastMatch
       const starters = lineup.starters || []
       const subs = lineup.subs || []
+
+      // Validate that lastLineupStats is consistent with lastMatch
+      // by checking if the total goals in lineup events roughly match the team's score
+      if (lastMatch) {
+        const teamId = lineup.id
+        const isHome = lastMatch.home?.id === teamId
+        const teamScore = isHome ? lastMatch.home?.score : lastMatch.away?.score
+
+        if (teamScore != null) {
+          let lineupGoals = 0
+          let lineupOwnGoals = 0
+          for (const p of [...starters, ...subs]) {
+            for (const e of p.performance?.events || []) {
+              if (e.type === 'goal') lineupGoals++
+              if (e.type === 'ownGoal') lineupOwnGoals++
+            }
+          }
+          // Team score = goals scored - own goals scored (+ opponent own goals which we can't see)
+          // If lineup goals don't match, the data is stale
+          const netLineupGoals = lineupGoals - lineupOwnGoals
+          if (netLineupGoals !== teamScore && lineupGoals !== teamScore) {
+            console.log(`FotMob: lastLineupStats appears stale for ${teamName} (lineup goals: ${lineupGoals}, own goals: ${lineupOwnGoals}, team score: ${teamScore})`)
+            return null
+          }
+        }
+      }
 
       // Search starters
       let playerData = starters.find(p => this.playerNameMatches(p.name, playerName))
