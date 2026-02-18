@@ -390,6 +390,35 @@ app.get('/api/health', (req, res) => {
   })
 })
 
+// Debug: test FotMob HTML scrape from this server
+app.get('/api/debug/scrape-test', async (req, res) => {
+  try {
+    const matchId = req.query.matchId || '5161863'
+    const response = await fetch(`https://www.fotmob.com/match/${matchId}`)
+    const html = await response.text()
+    const hasNextData = html.includes('__NEXT_DATA__')
+    const hasTurnstile = html.toLowerCase().includes('turnstile')
+    const match = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s)
+    let playerNames = []
+    if (match) {
+      try {
+        const data = JSON.parse(match[1])
+        const lineup = data.props?.pageProps?.content?.lineup?.homeTeam?.starters || []
+        playerNames = lineup.map(p => `${p.name}: ${p.performance?.rating || 'N/A'}`).slice(0, 5)
+      } catch (e) { playerNames = ['parse error: ' + e.message] }
+    }
+    res.json({
+      status: response.status,
+      pageSize: html.length,
+      hasNextData,
+      hasTurnstile,
+      samplePlayers: playerNames
+    })
+  } catch (error) {
+    res.json({ error: error.message })
+  }
+})
+
 // API status
 app.get('/api/status', (req, res) => {
   res.json({
