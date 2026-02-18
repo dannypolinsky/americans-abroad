@@ -176,7 +176,7 @@ class FotMobService {
         // Detect Cloudflare Turnstile / challenge responses
         if (response.status === 403) {
           const body = await response.text()
-          if (body.includes('turnstile') || body.includes('challenge') || body.includes('cf-') || body.includes('Cloudflare')) {
+          if (body.includes('turnstile') || body.includes('TURNSTILE') || body.includes('Verification required') || body.includes('challenge') || body.includes('cf-') || body.includes('Cloudflare')) {
             console.error(`FotMob API BLOCKED by Cloudflare Turnstile for ${endpoint} - server-side requests are not supported`)
             throw new Error('FotMob API blocked by Cloudflare Turnstile verification')
           }
