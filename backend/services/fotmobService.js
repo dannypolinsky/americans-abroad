@@ -242,23 +242,114 @@ class FotMobService {
   }
 
   // Get match details including player stats
+  // Falls back to scraping the match page HTML if the API is blocked by Turnstile
   async getMatchDetails(matchId, forLiveData = false) {
     try {
       return await this.fetchFromApi(`/matchDetails?matchId=${matchId}`, forLiveData)
     } catch (error) {
+      if (error.message.includes('Turnstile')) {
+        console.log(`FotMob: matchDetails blocked by Turnstile for ${matchId}, trying HTML scrape...`)
+        return await this.getMatchDetailsFromHtml(matchId)
+      }
       console.error(`FotMob: Error fetching match ${matchId}:`, error.message)
       return null
     }
   }
 
+  // Scrape match details from the FotMob match page HTML (__NEXT_DATA__)
+  // This bypasses Turnstile because the data is server-side rendered
+  async getMatchDetailsFromHtml(matchId) {
+    const cacheKey = `html_match_${matchId}`
+    const cached = this.cache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < this.liveCacheExpiry) {
+      return cached.data
+    }
+
+    try {
+      const response = await fetch(`https://www.fotmob.com/match/${matchId}`)
+      if (!response.ok) {
+        throw new Error(`FotMob page returned ${response.status}`)
+      }
+
+      const html = await response.text()
+      const match = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s)
+      if (!match) {
+        throw new Error('Could not find __NEXT_DATA__ in page')
+      }
+
+      const nextData = JSON.parse(match[1])
+      const pageProps = nextData.props?.pageProps
+      if (!pageProps) {
+        throw new Error('No pageProps in __NEXT_DATA__')
+      }
+
+      // Reconstruct the matchDetails-like structure from pageProps
+      const data = {
+        general: pageProps.general || {},
+        header: pageProps.header || {},
+        content: pageProps.content || {},
+        nav: pageProps.nav || {}
+      }
+
+      this.cache.set(cacheKey, { data, timestamp: Date.now() })
+      console.log(`FotMob: Got match ${matchId} data from HTML scrape`)
+      return data
+    } catch (error) {
+      console.error(`FotMob: HTML scrape failed for match ${matchId}:`, error.message)
+      return null
+    }
+  }
+
   // Get player data directly by FotMob player ID
+  // Falls back to scraping the player page HTML if the API is blocked by Turnstile
   async getPlayerData(fotmobPlayerId) {
     if (!fotmobPlayerId) return null
 
     try {
       return await this.fetchFromApi(`/playerData?id=${fotmobPlayerId}`)
     } catch (error) {
+      if (error.message.includes('Turnstile')) {
+        console.log(`FotMob: playerData blocked by Turnstile for ${fotmobPlayerId}, trying HTML scrape...`)
+        return await this.getPlayerDataFromHtml(fotmobPlayerId)
+      }
       console.error(`FotMob: Error fetching player ${fotmobPlayerId}:`, error.message)
+      return null
+    }
+  }
+
+  // Scrape player data from the FotMob player page HTML (__NEXT_DATA__)
+  async getPlayerDataFromHtml(fotmobPlayerId) {
+    const cacheKey = `html_player_${fotmobPlayerId}`
+    const cached = this.cache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+      return cached.data
+    }
+
+    try {
+      const response = await fetch(`https://www.fotmob.com/players/${fotmobPlayerId}`)
+      if (!response.ok) {
+        throw new Error(`FotMob player page returned ${response.status}`)
+      }
+
+      const html = await response.text()
+      const match = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s)
+      if (!match) {
+        throw new Error('Could not find __NEXT_DATA__ in player page')
+      }
+
+      const nextData = JSON.parse(match[1])
+      const pageProps = nextData.props?.pageProps
+      if (!pageProps) {
+        throw new Error('No pageProps in player __NEXT_DATA__')
+      }
+
+      // Player data may be nested under 'data' key in the page props
+      const playerData = pageProps.data || pageProps
+      this.cache.set(cacheKey, { data: playerData, timestamp: Date.now() })
+      console.log(`FotMob: Got player ${fotmobPlayerId} data from HTML scrape`)
+      return playerData
+    } catch (error) {
+      console.error(`FotMob: Player HTML scrape failed for ${fotmobPlayerId}:`, error.message)
       return null
     }
   }
