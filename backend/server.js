@@ -504,7 +504,7 @@ function stopKeepAlive() {
 }
 
 // Start server
-const SERVER_VERSION = '2.4.0' // HTML scrape fallback for Turnstile-blocked FotMob endpoints
+const SERVER_VERSION = '2.5.0' // Fix Turnstile detection for 200 OK JSON responses
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
