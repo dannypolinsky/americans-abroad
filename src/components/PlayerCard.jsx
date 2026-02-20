@@ -171,7 +171,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                   <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
                 ) : (
                   <>
-                    {matchData.rating && <span className="rating-badge">{matchData.rating}</span>}
+                    <span className="rating-badge">{matchData.rating || 'NR'}</span>
                     {matchData.minutesPlayed != null && <span className={matchData.started === false ? 'sub-minutes-badge' : 'minutes-badge'}>{matchData.minutesPlayed}'</span>}
                     {matchData.started === true && <span className="start-badge">START</span>}
                     {matchData.started === false && <span className="sub-badge">SUB</span>}
@@ -232,7 +232,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
 
               {lastGame.participated ? (
                 <div className="last-game-stats">
-                  {lastGame.rating && <span className="rating-badge">{lastGame.rating}</span>}
+                  <span className="rating-badge">{lastGame.rating || 'NR'}</span>
                   {lastGame.minutesPlayed !== null && (
                     <span className={lastGame.started === false ? 'sub-minutes-badge' : 'minutes-badge'}>{lastGame.minutesPlayed}'</span>
                   )}

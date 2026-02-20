@@ -276,20 +276,10 @@ app.get('/api/matches', (req, res) => {
     })
   } else {
     const liveData = matchTracker.getAllMatchData()
-    // If live API returns no data, fall back to sample data with indicator
-    if (Object.keys(liveData).length === 0) {
-      res.json({
-        mode: 'live',
-        apiStatus: 'unavailable',
-        message: 'Live API temporarily unavailable - showing sample data',
-        data: sampleMatchData
-      })
-    } else {
-      res.json({
-        mode: 'live',
-        data: liveData
-      })
-    }
+    res.json({
+      mode: 'live',
+      data: liveData
+    })
   }
 })
 
