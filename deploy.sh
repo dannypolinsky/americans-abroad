@@ -13,11 +13,12 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 usage() {
-    echo "Usage: ./deploy.sh [frontend|backend|both]"
+    echo "Usage: ./deploy.sh [frontend|backend|nas|both]"
     echo ""
     echo "  frontend  - Build and deploy frontend to Ionos via SSH"
     echo "  backend   - Push to GitHub (triggers Render auto-deploy)"
-    echo "  both      - Deploy both frontend and backend"
+    echo "  nas       - Sync backend to QNAP NAS and restart Docker container"
+    echo "  both      - Deploy both frontend and backend (Render)"
     exit 1
 }
 
@@ -33,6 +34,69 @@ deploy_backend() {
 
     git push origin main
     echo -e "${GREEN}Backend deployed! Render will auto-deploy from GitHub.${NC}"
+}
+
+deploy_nas() {
+    echo -e "${YELLOW}Deploying backend to QNAP NAS...${NC}"
+
+    if [ -z "$QNAP_SSH_HOST" ] || [ -z "$QNAP_SSH_USER" ] || [ -z "$QNAP_REMOTE_PATH" ]; then
+        echo -e "${RED}Error: Missing QNAP credentials in .env${NC}"
+        echo "  Required: QNAP_SSH_HOST, QNAP_SSH_USER, QNAP_REMOTE_PATH"
+        echo "  Optional: QNAP_SSH_PASS (if not using SSH key auth)"
+        exit 1
+    fi
+
+    echo "Syncing backend files to NAS..."
+
+    # Build rsync command (exclude node_modules — NAS will install them)
+    RSYNC_EXCLUDES="--exclude=node_modules --exclude=.env"
+    SSH_OPTS="-o StrictHostKeyChecking=no"
+
+    if command -v sshpass &> /dev/null && [ -n "$QNAP_SSH_PASS" ]; then
+        sshpass -p "$QNAP_SSH_PASS" rsync -avz $RSYNC_EXCLUDES \
+            -e "ssh $SSH_OPTS" \
+            backend/ "${QNAP_SSH_USER}@${QNAP_SSH_HOST}:${QNAP_REMOTE_PATH}/"
+    elif [ -n "$QNAP_SSH_PASS" ]; then
+        expect << EOF
+set timeout 120
+spawn rsync -avz $RSYNC_EXCLUDES -e "ssh $SSH_OPTS" backend/ ${QNAP_SSH_USER}@${QNAP_SSH_HOST}:${QNAP_REMOTE_PATH}/
+expect {
+    "password:" { send "${QNAP_SSH_PASS}\r"; exp_continue }
+    "Password:" { send "${QNAP_SSH_PASS}\r"; exp_continue }
+    eof
+}
+EOF
+    else
+        # SSH key auth (no password needed)
+        rsync -avz $RSYNC_EXCLUDES \
+            -e "ssh $SSH_OPTS" \
+            backend/ "${QNAP_SSH_USER}@${QNAP_SSH_HOST}:${QNAP_REMOTE_PATH}/"
+    fi
+
+    echo "Restarting Docker container on NAS..."
+
+    SSH_CMD="cd ${QNAP_REMOTE_PATH} && docker compose down && docker compose up -d --build"
+
+    if [ -n "$QNAP_SSH_PASS" ] && command -v sshpass &> /dev/null; then
+        sshpass -p "$QNAP_SSH_PASS" ssh $SSH_OPTS \
+            "${QNAP_SSH_USER}@${QNAP_SSH_HOST}" "$SSH_CMD"
+    elif [ -n "$QNAP_SSH_PASS" ]; then
+        expect << EOF
+set timeout 300
+spawn ssh $SSH_OPTS ${QNAP_SSH_USER}@${QNAP_SSH_HOST} "$SSH_CMD"
+expect {
+    "password:" { send "${QNAP_SSH_PASS}\r"; exp_continue }
+    "Password:" { send "${QNAP_SSH_PASS}\r"; exp_continue }
+    eof
+}
+EOF
+    else
+        ssh $SSH_OPTS "${QNAP_SSH_USER}@${QNAP_SSH_HOST}" "$SSH_CMD"
+    fi
+
+    echo -e "${GREEN}Backend deployed to NAS!${NC}"
+    echo ""
+    echo "Test it: curl http://${QNAP_SSH_HOST}:3001/api/health"
 }
 
 deploy_frontend() {
@@ -85,6 +149,9 @@ case "${1:-both}" in
         ;;
     backend)
         deploy_backend
+        ;;
+    nas)
+        deploy_nas
         ;;
     both)
         deploy_backend

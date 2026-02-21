@@ -1,0 +1,31 @@
+services:
+  backend:
+    build: .
+    container_name: americans-abroad-backend
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      # Persists the cache files (nextGamesCache.json, fotmobCache.json)
+      # across container restarts without losing players.json changes
+      - backend-data:/app/data
+    networks:
+      - app-network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: americans-abroad-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  backend-data:
