@@ -156,16 +156,18 @@ class MatchTrackerFD {
     return byTeam
   }
 
-  // Get today's date in YYYY-MM-DD format
+  // Get today's date in YYYY-MM-DD format (Eastern time)
+  // Using Eastern time so that European games played on the same calendar day
+  // don't disappear after midnight UTC (which is only ~7pm Eastern)
   getTodayDate() {
-    return new Date().toISOString().split('T')[0]
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
   }
 
-  // Get date N days ago/ahead in YYYY-MM-DD format
+  // Get date N days ago/ahead in YYYY-MM-DD format (Eastern time)
   getDateOffset(daysOffset) {
     const date = new Date()
     date.setDate(date.getDate() + daysOffset)
-    return date.toISOString().split('T')[0]
+    return date.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
   }
 
   // Check if a team name matches (fuzzy matching)
@@ -556,7 +558,7 @@ class MatchTrackerFD {
 
           // First check if nextMatch is today (live or upcoming)
           if (nextMatch?.status?.utcTime) {
-            const nextMatchDate = new Date(nextMatch.status.utcTime).toISOString().split('T')[0]
+            const nextMatchDate = new Date(nextMatch.status.utcTime).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
             if (nextMatchDate === today) {
               matchToUse = nextMatch
             }
@@ -564,7 +566,7 @@ class MatchTrackerFD {
 
           // If no nextMatch today, check if lastMatch is today (just finished)
           if (!matchToUse && lastMatch?.status?.utcTime) {
-            const lastMatchDate = new Date(lastMatch.status.utcTime).toISOString().split('T')[0]
+            const lastMatchDate = new Date(lastMatch.status.utcTime).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
             if (lastMatchDate === today && lastMatch.status?.finished) {
               matchToUse = lastMatch
             }
