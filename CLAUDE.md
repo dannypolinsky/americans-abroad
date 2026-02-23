@@ -6,6 +6,7 @@
 - **Location**: `/backend`
 - **Platform**: Node.js + Express, runs in Docker
 - **Hosted on**: QNAP NAS (primary) — always-on, no cold starts
+- **Public URL**: `https://PolinskyNAS.myqnapcloud.com/api`
 - **Entry point**: `server.js`
 
 ### Frontend
@@ -22,7 +23,7 @@
 
 Fill in `.env` at the project root:
 ```
-QNAP_SSH_HOST=192.168.1.xxx    # your NAS local IP
+QNAP_SSH_HOST=192.168.1.245
 QNAP_SSH_USER=admin
 QNAP_SSH_PASS=your-password
 QNAP_REMOTE_PATH=/share/Container/americans-abroad
@@ -37,55 +38,42 @@ This rsyncs the backend code to the NAS and rebuilds/restarts the Docker contain
 
 ---
 
-### First-Time NAS Setup
+### NAS Setup (already done)
 
-#### Step 1 — Copy the backend `.env` to the NAS
-The deploy script syncs code but not `.env` (it's gitignored). SSH into the NAS and create it manually:
+#### How HTTPS works
+- Router forwards external port 443 → NAS IP 192.168.1.245:443
+- QNAP's built-in Apache (port 443) uses `/etc/app_proxy.conf` to route `/api/` to the Docker container on port 3001
+- The SSL cert (`*.myqnapcloud.com`) is provided by QNAP and covers `PolinskyNAS.myqnapcloud.com`
+- Result: `https://PolinskyNAS.myqnapcloud.com/api/health` → Docker container
 
-```bash
-ssh admin@192.168.1.xxx
-mkdir -p /share/Container/americans-abroad
-nano /share/Container/americans-abroad/.env
+#### The proxy rule (already in place)
+File: `/etc/app_proxy.conf` on the NAS:
+```
+ProxyPass /api/ http://127.0.0.1:3001/api/ retry=0
+ProxyPassReverse /api/ http://127.0.0.1:3001/api/
 ```
 
-Paste this content (same API key as local dev):
+#### CRITICAL: Apache restart on NAS
+A normal `restart` leaves old worker processes running with the stale config.
+Always use a hard kill + restart when changing Apache config:
+```bash
+sshpass -p 'PASSWORD' ssh admin@192.168.1.245 \
+  "/etc/init.d/Qthttpd.sh stop && sleep 2 && killall -9 fcgi-pm apache_proxy apache_proxys 2>/dev/null; sleep 2 && /etc/init.d/Qthttpd.sh start"
+```
+
+#### Backend `.env` on the NAS
+The deploy script doesn't sync `.env` (gitignored). It lives at:
+`/share/Container/americans-abroad/.env`
+
+Content:
 ```
 FOOTBALL_DATA_KEY=5ab892d85c385306440c7a6395947c86
 PORT=3001
-CLOUDFLARE_TUNNEL_TOKEN=   # fill in after Step 2
 ```
 
-#### Step 2 — Set up Cloudflare Tunnel
-
-The tunnel gives the NAS a public HTTPS URL so the Ionos-hosted frontend can reach it.
-
-1. Go to [https://one.dash.cloudflare.com](https://one.dash.cloudflare.com) → **Networks → Tunnels → Create a tunnel**
-2. Name it `americans-abroad`
-3. Choose **Docker** as the connector — Cloudflare will show you a `TUNNEL_TOKEN` value
-4. Copy that token into `/share/Container/americans-abroad/.env` as `CLOUDFLARE_TUNNEL_TOKEN=...`
-5. Under **Public Hostnames**, add:
-   - Subdomain: `api` (or `americans-abroad-api`)
-   - Domain: `midnightllamas.com`
-   - Service: `http://backend:3001`
-6. Save — your backend will be live at `https://api.midnightllamas.com`
-
-#### Step 3 — Point the frontend at the NAS
-
-In `.env` at the project root, update `VITE_API_URL`:
-```
-VITE_API_URL=https://api.midnightllamas.com/api
-```
-
-Redeploy the frontend:
+#### Verify
 ```bash
-./deploy.sh frontend
-```
-
-#### Step 4 — Verify everything works
-
-From your local machine:
-```bash
-curl https://api.midnightllamas.com/api/health
+curl https://PolinskyNAS.myqnapcloud.com/api/health
 ```
 
 ---
@@ -110,7 +98,7 @@ curl https://api.midnightllamas.com/api/health
 - `backend/services/footballData.js` - Football-Data.org API integration
 - `backend/services/fotmobService.js` - FotMob API integration
 - `backend/Dockerfile` - Docker image definition
-- `backend/docker-compose.yml` - Backend + Cloudflare Tunnel services
+- `backend/docker-compose.yml` - Backend service
 
 ### Frontend
 - `src/App.jsx` - Main React application

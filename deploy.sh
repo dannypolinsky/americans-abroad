@@ -75,7 +75,8 @@ EOF
 
     echo "Restarting Docker container on NAS..."
 
-    SSH_CMD="cd ${QNAP_REMOTE_PATH} && docker compose down && docker compose up -d --build"
+    DOCKER="/share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker"
+    SSH_CMD="cd ${QNAP_REMOTE_PATH} && ${DOCKER} compose down && ${DOCKER} compose up -d --build"
 
     if [ -n "$QNAP_SSH_PASS" ] && command -v sshpass &> /dev/null; then
         sshpass -p "$QNAP_SSH_PASS" ssh $SSH_OPTS \
