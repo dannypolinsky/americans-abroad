@@ -76,6 +76,18 @@ function App() {
         }
       }
 
+      // Clear stale finished/live statuses for players not in fresh API data.
+      // These come from a previous day's cache and would incorrectly appear
+      // in "Finished Today" or "Live Now" sections.
+      for (const playerId of Object.keys(mergedData)) {
+        if (!newMatchData[playerId]) {
+          const stale = mergedData[playerId]
+          if (stale?.status === 'finished' || stale?.status === 'live') {
+            mergedData[playerId] = { ...stale, status: 'no_match_today' }
+          }
+        }
+      }
+
       const hasData = Object.keys(mergedData).length > 0
       if (hasData) {
         setMatchData(mergedData)
