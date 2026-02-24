@@ -7,6 +7,15 @@ import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || null
 const RETRY_DELAY = 5000 // 5 seconds between retries
+const CACHE_VERSION = '2'
+
+// Clear stale match data cache if version changed
+const storedCacheVersion = localStorage.getItem('americansAbroad_cacheVersion')
+if (storedCacheVersion !== CACHE_VERSION) {
+  localStorage.removeItem('americansAbroad_matchData')
+  localStorage.removeItem('americansAbroad_lastUpdate')
+  localStorage.setItem('americansAbroad_cacheVersion', CACHE_VERSION)
+}
 
 function App() {
   const [filter, setFilter] = useState(() => {
