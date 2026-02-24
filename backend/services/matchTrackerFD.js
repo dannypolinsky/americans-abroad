@@ -535,7 +535,39 @@ class MatchTrackerFD {
           return data && data.status !== 'no_match_today' && data.source !== 'fotmob'
         })
 
-        if (hasFootballDataMatch) continue // Skip - Football-Data.org already has this team's match
+        if (hasFootballDataMatch) {
+          // FD has this team's match - but if it's upcoming and within the lineup window,
+          // augment with FotMob lineup status (FD free tier has no lineup data for upcoming games)
+          const fdMatch = this.matchData.get(players[0].id)
+          if (fdMatch?.status === 'upcoming' && fdMatch.kickoff) {
+            const minutesUntilKickoff = (new Date(fdMatch.kickoff) - new Date()) / 60000
+            if (minutesUntilKickoff <= 45 && minutesUntilKickoff > -15) {
+              try {
+                const teamData = await this.fotmob.getTeamData(teamName, false)
+                const fotmobMatchId = teamData?.overview?.nextMatch?.id
+                if (fotmobMatchId) {
+                  const teamId = TEAM_IDS[teamName] || this.getTeamIdFromFotMob(teamName, teamData)
+                  const isHome = teamData.overview.nextMatch.home?.id === teamId
+                  for (const player of players) {
+                    try {
+                      const lineupInfo = await this.fotmob.getPlayerLineupStatus(fotmobMatchId, player.name, isHome)
+                      if (lineupInfo) {
+                        const existing = this.matchData.get(player.id)
+                        if (existing) {
+                          this.matchData.set(player.id, { ...existing, lineupStatus: lineupInfo.status })
+                          console.log(`FotMob: ${player.name} lineup status (FD match): ${lineupInfo.status}`)
+                        }
+                      }
+                    } catch (err) { /* continue */ }
+                  }
+                }
+              } catch (err) {
+                console.log(`FotMob: Could not get lineup for ${teamName}: ${err.message}`)
+              }
+            }
+          }
+          continue // Skip full FotMob match processing - FD already has this team's match
+        }
 
         // Query FotMob for this team's data
         try {

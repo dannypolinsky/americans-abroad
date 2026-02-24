@@ -127,18 +127,22 @@ function App() {
     loadMatchData()
   }, [loadMatchData])
 
-  // Auto-refresh when there are live matches (every 90 seconds)
+  // Auto-refresh when there are live matches, or when an upcoming match is at/past kickoff
   useEffect(() => {
     const hasLiveMatches = Object.values(matchData).some(m => m?.status === 'live')
+    const hasMatchNearKickoff = Object.values(matchData).some(m => {
+      if (m?.status !== 'upcoming' || !m.kickoff) return false
+      const minSinceKickoff = (Date.now() - new Date(m.kickoff)) / 60000
+      return minSinceKickoff > -5 // within 5 min before kickoff or past it
+    })
 
-    if (!hasLiveMatches) return
+    if (!hasLiveMatches && !hasMatchNearKickoff) return
 
-    const liveRefreshInterval = setInterval(() => {
-      console.log('Live match refresh...')
+    const refreshInterval = setInterval(() => {
       loadMatchData()
     }, 60 * 1000) // 60 seconds
 
-    return () => clearInterval(liveRefreshInterval)
+    return () => clearInterval(refreshInterval)
   }, [matchData, loadMatchData])
 
   // Persist filter to localStorage
