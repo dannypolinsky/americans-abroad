@@ -7,7 +7,7 @@ import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || null
 const RETRY_DELAY = 5000 // 5 seconds between retries
-const CACHE_VERSION = '2'
+const CACHE_VERSION = '3'
 
 // Clear stale match data cache if version changed
 const storedCacheVersion = localStorage.getItem('americansAbroad_cacheVersion')
@@ -294,6 +294,14 @@ function App() {
     return players
   }, [uniquePlayers, filter, selectedLeague, searchTerm, matchData])
 
+  // Check if a kickoff timestamp is actually today (Eastern time)
+  const isKickoffToday = (kickoff) => {
+    if (!kickoff) return false
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const gameDay = new Date(kickoff).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    return gameDay === today
+  }
+
   // Group players by category for section headers (only for "all" filter)
   const groupedPlayers = useMemo(() => {
     if (filter !== 'all') return null
@@ -312,12 +320,13 @@ function App() {
         groups.recent.push(player)
       } else if (data.status === 'live') {
         groups.live.push(player)
-      } else if (data.status === 'finished') {
+      } else if (data.status === 'finished' && isKickoffToday(data.kickoff)) {
+        // Only show in Finished Today if the match actually kicked off today
         groups.finished.push(player)
       } else if (data.status === 'upcoming') {
         groups.upcoming.push(player)
       } else {
-        // All other players go to recent (no_match_today, etc.)
+        // All other players go to recent (no_match_today, stale finished, etc.)
         groups.recent.push(player)
       }
     }
