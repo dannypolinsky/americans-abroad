@@ -6,7 +6,6 @@ import playersData from './data/players.json'
 import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || null
-const RETRY_DELAY = 5000 // 5 seconds between retries
 const CACHE_VERSION = '3'
 
 // Clear stale match data cache if version changed
@@ -47,16 +46,12 @@ function App() {
     return cached ? new Date(cached) : null
   })
   const [isLoading, setIsLoading] = useState(false)
-  const [isApiLoading, setIsApiLoading] = useState(() => {
-    // If we have cached data, don't show loading state initially
-    const hasCached = !!localStorage.getItem('americansAbroad_matchData')
-    return !hasCached
-  })
+  const [isApiLoading, setIsApiLoading] = useState(
+    !localStorage.getItem('americansAbroad_matchData')
+  )
 
-  // Try to fetch from API, with retry on failure
-  const loadMatchData = useCallback(async (isRetry = false) => {
+  const loadMatchData = useCallback(async () => {
     if (!API_BASE) {
-      // No API configured, show cached data as-is
       setApiMode('cached')
       setIsApiLoading(false)
       return
@@ -68,18 +63,14 @@ function App() {
       const data = await response.json()
       const newMatchData = data.data || {}
 
-      // Get cached data to preserve lastGame info during cold starts
+      // Merge new data with cached data, preserving lastGame from cache
       const cachedStr = localStorage.getItem('americansAbroad_matchData')
       const cachedData = cachedStr ? JSON.parse(cachedStr) : {}
-
-      // Merge new data with cached data, preserving lastGame from cache
-      // when new data doesn't have it (common during API cold start)
       const mergedData = { ...cachedData }
       for (const [playerId, playerData] of Object.entries(newMatchData)) {
         if (playerData) {
           mergedData[playerId] = {
             ...playerData,
-            // Preserve cached lastGame if new data doesn't have it
             lastGame: playerData.lastGame || cachedData[playerId]?.lastGame
           }
         }
@@ -110,15 +101,8 @@ function App() {
       setLastUpdate(new Date())
       setIsApiLoading(false)
     } catch (err) {
-      console.log('API unavailable, retrying in', RETRY_DELAY / 1000, 'seconds...')
-      // Check localStorage directly for cached data (avoid stale closure)
-      const cachedData = localStorage.getItem('americansAbroad_matchData')
-      const hasCachedData = cachedData && Object.keys(JSON.parse(cachedData)).length > 0
-      if (hasCachedData) {
-        setIsApiLoading(false) // Show cached data instead of loading spinner
-      }
-      // Keep retrying
-      setTimeout(() => loadMatchData(true), RETRY_DELAY)
+      console.error('API error:', err)
+      setIsApiLoading(false)
     }
   }, [])
 
@@ -380,7 +364,7 @@ function App() {
         <div className="api-loading-overlay">
           <div className="api-loading-content">
             <div className="loading-spinner"></div>
-            <p>Loading the live game API; wait a few moments.</p>
+            <p>Loading match data...</p>
           </div>
         </div>
       )}

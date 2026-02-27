@@ -543,13 +543,23 @@ class FotMobService {
     // Exact match
     if (fotmob === our) return true
 
-    // Last name match
-    const fotmobLast = fotmob.split(' ').pop()
-    const ourLast = our.split(' ').pop()
-    if (fotmobLast === ourLast && fotmobLast.length > 3) return true
-
     // Contains match
     if (fotmob.includes(our) || our.includes(fotmob)) return true
+
+    // Last name match — also check first initial to avoid collisions
+    // between teammates with the same surname (e.g. Quinn vs Cavan Sullivan)
+    const fotmobParts = fotmob.split(' ')
+    const ourParts = our.split(' ')
+    const fotmobLast = fotmobParts.pop()
+    const ourLast = ourParts.pop()
+
+    if (fotmobLast === ourLast && fotmobLast.length > 3) {
+      const fotmobFirst = fotmobParts[0]
+      const ourFirst = ourParts[0]
+      // If both names have a first name/initial, first letters must match
+      if (fotmobFirst && ourFirst && fotmobFirst[0] !== ourFirst[0]) return false
+      return true
+    }
 
     return false
   }

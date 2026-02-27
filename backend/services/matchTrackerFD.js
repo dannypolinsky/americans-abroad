@@ -170,6 +170,26 @@ class MatchTrackerFD {
     return date.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
   }
 
+  // Check if a lineup player name matches our player's full name.
+  // Uses last name as primary key but validates first initial to avoid
+  // collisions between teammates with the same surname (e.g. Quinn vs Cavan Sullivan).
+  lineupNameMatches(lineupName, ourPlayerName) {
+    if (!lineupName || !ourPlayerName) return false
+    const normalize = s => s.toLowerCase().replace(/[^a-z\s]/g, '').trim()
+    const ln = normalize(lineupName)
+    const our = normalize(ourPlayerName)
+    if (ln === our || ln.includes(our) || our.includes(ln)) return true
+    const lnParts = ln.split(' ')
+    const ourParts = our.split(' ')
+    const lnLast = lnParts.pop()
+    const ourLast = ourParts.pop()
+    if (lnLast !== ourLast || lnLast.length <= 3) return false
+    const lnFirst = lnParts[0]
+    const ourFirst = ourParts[0]
+    if (lnFirst && ourFirst && lnFirst[0] !== ourFirst[0]) return false
+    return true
+  }
+
   // Check if a team name matches (fuzzy matching)
   teamMatches(apiTeamName, ourTeamName) {
     if (!apiTeamName || !ourTeamName) return false
@@ -440,10 +460,7 @@ class MatchTrackerFD {
                 // Check if FD returned lineup data (available in higher tiers)
                 const teamLineup = isHome ? matchDetails.homeTeam?.lineup : matchDetails.awayTeam?.lineup
                 if (teamLineup && teamLineup.length > 0) {
-                  const playerLastName = player.name.split(' ').pop().toLowerCase()
-                  const inLineup = teamLineup.some(p =>
-                    (p.name || '').toLowerCase().includes(playerLastName)
-                  )
+                  const inLineup = teamLineup.some(p => this.lineupNameMatches(p.name, player.name))
                   if (inLineup) {
                     participated = true
                     started = true
@@ -453,10 +470,7 @@ class MatchTrackerFD {
                 // Check bench data
                 const teamBench = isHome ? matchDetails.homeTeam?.bench : matchDetails.awayTeam?.bench
                 if (teamBench && teamBench.length > 0 && !participated) {
-                  const playerLastName = player.name.split(' ').pop().toLowerCase()
-                  const onBench = teamBench.some(p =>
-                    (p.name || '').toLowerCase().includes(playerLastName)
-                  )
+                  const onBench = teamBench.some(p => this.lineupNameMatches(p.name, player.name))
                   if (onBench) {
                     started = false
                   }
@@ -985,14 +999,11 @@ class MatchTrackerFD {
 
               if (matchDetails) {
                 // Check lineup/bench data from FD match details
-                const playerLastName = player.name.split(' ').pop().toLowerCase()
                 const teamLineup = isHome ? matchDetails.homeTeam?.lineup : matchDetails.awayTeam?.lineup
                 const teamBench = isHome ? matchDetails.homeTeam?.bench : matchDetails.awayTeam?.bench
 
                 if (teamLineup && teamLineup.length > 0) {
-                  const inLineup = teamLineup.some(p =>
-                    (p.name || '').toLowerCase().includes(playerLastName)
-                  )
+                  const inLineup = teamLineup.some(p => this.lineupNameMatches(p.name, player.name))
                   if (inLineup) {
                     participated = true
                     started = true
@@ -1001,9 +1012,7 @@ class MatchTrackerFD {
                 }
 
                 if (!participated && teamBench && teamBench.length > 0) {
-                  const onBench = teamBench.some(p =>
-                    (p.name || '').toLowerCase().includes(playerLastName)
-                  )
+                  const onBench = teamBench.some(p => this.lineupNameMatches(p.name, player.name))
                   if (onBench) {
                     // On bench - will check sub events below to determine if they came on
                     started = false
