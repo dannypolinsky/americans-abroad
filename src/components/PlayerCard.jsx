@@ -169,6 +169,8 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               <div className="player-participation">
                 {matchData.participated === false ? (
                   <span className={matchData.onBench ? 'unused-sub' : 'did-not-play'}>{matchData.onBench ? 'Unused sub' : 'Not in squad'}</span>
+                ) : matchData.minutesPlayed === 0 && matchData.started === false && !matchData.events?.some(e => e.type === 'sub_in') ? (
+                  <span className="unused-sub">Unused sub</span>
                 ) : (
                   <>
                     <span className="rating-badge">{matchData.rating || 'NR'}</span>
@@ -231,20 +233,26 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               </div>
 
               {lastGame.participated ? (
-                <div className="last-game-stats">
-                  <span className="rating-badge">{lastGame.rating || 'NR'}</span>
-                  {lastGame.minutesPlayed !== null && (
-                    <span className={lastGame.started === false ? 'sub-minutes-badge' : 'minutes-badge'}>{lastGame.minutesPlayed}'</span>
-                  )}
-                  {lastGame.started === true && <span className="start-badge">START</span>}
-                  {lastGame.started === false && <span className="sub-badge">SUB</span>}
-                  {lastGame.events?.filter(e => e.type === 'goal').map((e, i) => (
-                    <span key={`goal-${i}`} className="stat-badge goal">⚽{e.minute ? ` ${e.minute}'` : ''}</span>
-                  ))}
-                  {lastGame.events?.filter(e => e.type === 'assist').map((e, i) => (
-                    <span key={`assist-${i}`} className="stat-badge assist">🅰️{e.minute ? ` ${e.minute}'` : ''}</span>
-                  ))}
-                </div>
+                lastGame.minutesPlayed === 0 && lastGame.started === false && !lastGame.events?.some(e => e.type === 'sub_in') ? (
+                  <div className="last-game-stats">
+                    <span className="unused-sub">Unused sub</span>
+                  </div>
+                ) : (
+                  <div className="last-game-stats">
+                    <span className="rating-badge">{lastGame.rating || 'NR'}</span>
+                    {lastGame.minutesPlayed !== null && (
+                      <span className={lastGame.started === false ? 'sub-minutes-badge' : 'minutes-badge'}>{lastGame.minutesPlayed}'</span>
+                    )}
+                    {lastGame.started === true && <span className="start-badge">START</span>}
+                    {lastGame.started === false && <span className="sub-badge">SUB</span>}
+                    {lastGame.events?.filter(e => e.type === 'goal').map((e, i) => (
+                      <span key={`goal-${i}`} className="stat-badge goal">⚽{e.minute ? ` ${e.minute}'` : ''}</span>
+                    ))}
+                    {lastGame.events?.filter(e => e.type === 'assist').map((e, i) => (
+                      <span key={`assist-${i}`} className="stat-badge assist">🅰️{e.minute ? ` ${e.minute}'` : ''}</span>
+                    ))}
+                  </div>
+                )
               ) : (
                 <div className="last-game-stats">
                   <span className="did-not-play">Did not play</span>
