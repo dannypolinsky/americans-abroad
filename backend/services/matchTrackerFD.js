@@ -1280,7 +1280,11 @@ class MatchTrackerFD {
         const mostRecentMatch = recentMatches[0]
 
         // If most recent match from player API is one they didn't play in, include it as missedGame
-        if (mostRecentMatch && !mostRecentMatch.participated && participatedMatch) {
+        // Only if player's current team is actually in that match (guards against transferred players
+        // showing old-team games as missed)
+        const currentTeamInMatch = mostRecentMatch &&
+          (this.teamMatches(mostRecentMatch.homeTeam, player.team) || this.teamMatches(mostRecentMatch.awayTeam, player.team))
+        if (mostRecentMatch && !mostRecentMatch.participated && participatedMatch && currentTeamInMatch) {
           result.missedGame = {
             fixtureId: mostRecentMatch.matchId || null,
             date: mostRecentMatch.date,
