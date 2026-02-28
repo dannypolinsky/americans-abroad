@@ -5,18 +5,26 @@
 
 ---
 
-## Current State (as of 2026-02-27)
+## Current State (as of 2026-02-28)
 
 **All three targets are in sync and healthy.**
 - NAS (primary backend): ✅ up to date
-- Render (fallback backend): ✅ up to date
+- Render (fallback backend): ✅ up to date (not redeployed this session — no backend changes)
 - Ionos (frontend): ✅ up to date
 
 ---
 
 ## Recent Changes
 
-### 2026-02-27
+### 2026-02-28
+- **Josh Sargent**: Updated team from Norwich City → Toronto FC in both `players.json` files
+- **Unused sub display fix**: Players with `minutesPlayed === 0`, `started === false`, and no `sub_in` event now show "Unused sub" badge instead of NR/0/SUB — applies to both Finished Today and Recently Played sections (`PlayerCard.jsx`)
+
+### 2026-02-27 (session 2)
+- **Sullivan surname collision fix**: `fotmobService.playerNameMatches()` and `matchTrackerFD.lineupNameMatches()` now check first initial when two players share a last name — Quinn Sullivan (ID 1171007) and Cavan Sullivan (ID 1630736) now correctly show separate stats
+- **Removed Render cold-start code**: Frontend no longer retries the API on failure (that was for Render cold starts). Loading overlay message simplified to "Loading match data..." — NAS is always-on, no cold starts.
+
+### 2026-02-27 (session 1)
 - **Djordje Mihailovic**: Updated team from Colorado Rapids → Toronto FC in both `src/data/players.json` and `backend/data/players.json`
 - **Stale "Finished Today" bug**: Three-part fix:
   1. `CACHE_VERSION` bump in `src/App.jsx` forces localStorage clear on all clients (currently `'3'`)
@@ -30,6 +38,14 @@
 ## Known Issues
 
 None currently.
+
+---
+
+## Key Facts About Player Name Matching
+
+- `fotmobService.playerNameMatches()` — disambiguates FotMob player names vs our player names (checks first initial on last-name collisions)
+- `matchTrackerFD.lineupNameMatches()` — same logic for FD lineup/bench arrays
+- `parsePlayerEvents()` in `matchTrackerFD.js` still uses last-name-only matching for goal/sub/card events (FD event data rarely has two players with the same last name on the same team)
 
 ---
 
