@@ -19,6 +19,8 @@
 ### 2026-02-28
 - **Josh Sargent**: Updated team from Norwich City → Toronto FC in both `players.json` files
 - **Unused sub display fix**: Players with `minutesPlayed === 0`, `started === false`, and no `sub_in` event now show "Unused sub" badge instead of NR/0/SUB — applies to both Finished Today and Recently Played sections (`PlayerCard.jsx`)
+- **Stale missed-game fix for transferred players**: `getPlayerRecentMatchFromFotMob` now verifies player's current team is in the match before creating a `missedGame` entry — fixes Mihailovic and Sargent showing old-team (Colorado/Norwich) games as missed after transfer to Toronto FC
+- **Added Adri Mehmeti**: New York Red Bulls, MLS, Midfielder, age 16, fotmobId 1715268
 
 ### 2026-02-27 (session 2)
 - **Sullivan surname collision fix**: `fotmobService.playerNameMatches()` and `matchTrackerFD.lineupNameMatches()` now check first initial when two players share a last name — Quinn Sullivan (ID 1171007) and Cavan Sullivan (ID 1630736) now correctly show separate stats
