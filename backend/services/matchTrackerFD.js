@@ -2,7 +2,7 @@
 // Handles tracking matches for American players
 // Integrates with FotMob for player-level statistics
 
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { LEAGUE_CODES, EUROPEAN_COMPETITIONS } from './footballData.js'
@@ -23,8 +23,10 @@ class MatchTrackerFD {
     this.manualStats = new Map() // playerId -> manually entered stats
     this.isPolling = false
     this.pollInterval = null
-    this.cacheFile = join(__dirname, '../data/nextGamesCache.json')
-    this.fotmobCacheFile = join(__dirname, '../data/fotmobCache.json')
+    const cacheDir = join(__dirname, '../data/cache')
+    mkdirSync(cacheDir, { recursive: true })
+    this.cacheFile = join(cacheDir, 'nextGamesCache.json')
+    this.fotmobCacheFile = join(cacheDir, 'fotmobCache.json')
     this.manualStatsFile = join(__dirname, '../data/playerStats.json')
     this.loadNextGamesCache()
     this.loadFotMobCache()
