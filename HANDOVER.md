@@ -21,6 +21,9 @@
 - **Unused sub display fix**: Players with `minutesPlayed === 0`, `started === false`, and no `sub_in` event now show "Unused sub" badge instead of NR/0/SUB — applies to both Finished Today and Recently Played sections (`PlayerCard.jsx`)
 - **Stale missed-game fix for transferred players**: `getPlayerRecentMatchFromFotMob` now verifies player's current team is in the match before creating a `missedGame` entry — fixes Mihailovic and Sargent showing old-team (Colorado/Norwich) games as missed after transfer to Toronto FC
 - **Added Adri Mehmeti**: New York Red Bulls, MLS, Midfielder, age 16, fotmobId 1715268
+- **Added Niko Tsakiris**: San Jose Earthquakes, MLS, Midfielder, age 20, fotmobId 1339609
+- **Removed Kaedren Spivey and Christopher Cupps**: Both removed from both `players.json` files
+- **Docker volume fix**: Cache files moved to `data/cache/` subdirectory; Docker volume now mounts only `/app/data/cache` (was `/app/data`). Previously, the volume shadowed `players.json` on every deploy, requiring a manual `docker cp` workaround.
 
 ### 2026-02-27 (session 2)
 - **Sullivan surname collision fix**: `fotmobService.playerNameMatches()` and `matchTrackerFD.lineupNameMatches()` now check first initial when two players share a last name — Quinn Sullivan (ID 1171007) and Cavan Sullivan (ID 1630736) now correctly show separate stats
@@ -39,7 +42,7 @@
 
 ## Known Issues
 
-None currently.
+- **Mihailovic/Sargent lastGame still shows old-team game**: After Toronto's first game, FotMob's player API should return Toronto matches and the `currentTeamInMatch` guard will prevent the stale missedGame. Expected to self-resolve. Monitor after their next Toronto FC match.
 
 ---
 
