@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 3001
 // Middleware
 app.use(cors())
 app.use(express.json())
+app.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next() })
 
 // Load players data
 const playersData = JSON.parse(
