@@ -31,7 +31,16 @@ function App() {
     const cached = localStorage.getItem('americansAbroad_matchData')
     if (cached) {
       try {
-        return JSON.parse(cached)
+        const data = JSON.parse(cached)
+        // Clear stale live/finished entries whose kickoff wasn't today
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+        for (const [id, m] of Object.entries(data)) {
+          if ((m?.status === 'live' || m?.status === 'finished') && m?.kickoff) {
+            const gameDay = new Date(m.kickoff).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+            if (gameDay !== today) data[id] = { ...m, status: 'no_match_today' }
+          }
+        }
+        return data
       } catch (e) {
         return {}
       }
