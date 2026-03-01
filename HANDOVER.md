@@ -9,7 +9,7 @@
 
 **All three targets are in sync and healthy.**
 - NAS (primary backend): ✅ up to date
-- Render (fallback backend): ⚠️ not redeployed this session (backend changes made — deploy if fallback matters)
+- Render (fallback backend): ✅ up to date
 - Ionos (frontend): ✅ up to date
 
 ---
