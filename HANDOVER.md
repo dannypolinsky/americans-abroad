@@ -5,7 +5,7 @@
 
 ---
 
-## Current State (as of 2026-02-28)
+## Current State (as of 2026-03-01)
 
 **All three targets are in sync and healthy.**
 - NAS (primary backend): ✅ up to date
@@ -16,6 +16,11 @@
 
 ## Recent Changes
 
+### 2026-03-01
+- **Docker volume fix**: Cache files (`nextGamesCache.json`, `fotmobCache.json`) moved to `data/cache/` subdirectory; volume now mounts only `/app/data/cache`. Previously the entire `/app/data` volume shadowed `players.json` on every deploy, requiring a manual `docker cp` workaround — future player data changes will take effect on normal deploy
+- **Cache-Control header**: Added `Cache-Control: no-store` middleware to all API responses in `server.js` — prevents Cloudflare or any proxy from caching live match data
+- **Stale live/finished status fix**: On initial cache load in `App.jsx`, `live`/`finished` entries whose kickoff date is not today are immediately reset to `no_match_today` — fixes games from previous days persisting as live when the API was temporarily unreachable
+
 ### 2026-02-28
 - **Josh Sargent**: Updated team from Norwich City → Toronto FC in both `players.json` files
 - **Unused sub display fix**: Players with `minutesPlayed === 0`, `started === false`, and no `sub_in` event now show "Unused sub" badge instead of NR/0/SUB — applies to both Finished Today and Recently Played sections (`PlayerCard.jsx`)
@@ -23,7 +28,6 @@
 - **Added Adri Mehmeti**: New York Red Bulls, MLS, Midfielder, age 16, fotmobId 1715268
 - **Added Niko Tsakiris**: San Jose Earthquakes, MLS, Midfielder, age 20, fotmobId 1339609
 - **Removed Kaedren Spivey and Christopher Cupps**: Both removed from both `players.json` files
-- **Docker volume fix**: Cache files moved to `data/cache/` subdirectory; Docker volume now mounts only `/app/data/cache` (was `/app/data`). Previously, the volume shadowed `players.json` on every deploy, requiring a manual `docker cp` workaround.
 
 ### 2026-02-27 (session 2)
 - **Sullivan surname collision fix**: `fotmobService.playerNameMatches()` and `matchTrackerFD.lineupNameMatches()` now check first initial when two players share a last name — Quinn Sullivan (ID 1171007) and Cavan Sullivan (ID 1630736) now correctly show separate stats
@@ -42,7 +46,8 @@
 
 ## Known Issues
 
-- **Mihailovic/Sargent lastGame still shows old-team game**: After Toronto's first game, FotMob's player API should return Toronto matches and the `currentTeamInMatch` guard will prevent the stale missedGame. Expected to self-resolve. Monitor after their next Toronto FC match.
+- **Mihailovic/Sargent lastGame may still show old-team game**: After Toronto's first game, FotMob's player API should return Toronto matches and the `currentTeamInMatch` guard will prevent the stale missedGame. Expected to self-resolve. Monitor after their next Toronto FC match.
+- **NAS security — Fios router**: Port 8080 is still externally reachable (likely via DMZ rule on the Fios router, not the UDM). User needs to log into the Fios router directly (plug into it) to investigate. Long-term recommendation: set up Cloudflare Tunnel to eliminate all port forwarding.
 
 ---
 
