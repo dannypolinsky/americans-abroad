@@ -328,25 +328,42 @@ function App() {
       }
     }
 
-    // Sort upcoming group by kickoff time (soonest first)
+    // Activity score: how much a player is seeing the field recently.
+    // Used as a secondary sort so low-activity players (unused subs, DNPs,
+    // young players who aren't getting minutes) sink to the bottom of each section.
+    const getActivityScore = (player, data) => {
+      const lastGame = data?.lastGame
+      if (!lastGame) return 1
+      if (lastGame.participated === false) return 0            // bench / absent
+      if (lastGame.minutesPlayed === 0 && !lastGame.started) return 0  // unused sub
+      if (lastGame.minutesPlayed < 15) return 1               // token minutes
+      const score = 2                                          // meaningful minutes
+      // Boost players who started — they're clearly in the manager's plans
+      return lastGame.started ? 3 : score
+    }
+
+    // Combined sort key: activity score, with an extra penalty for under-18 low-activity players
+    const getSortKey = (player, data) => {
+      const score = getActivityScore(player, data)
+      if (player.age < 18 && score <= 1) return score - 1   // youth penalty
+      return score
+    }
+
+    // Sort upcoming group: soonest kickoff first, then by activity (more active higher)
     groups.upcoming.sort((a, b) => {
       const dataA = matchData[a.id]
       const dataB = matchData[b.id]
       const kickoffA = dataA?.kickoff ? new Date(dataA.kickoff) : new Date()
       const kickoffB = dataB?.kickoff ? new Date(dataB.kickoff) : new Date()
-      return kickoffA - kickoffB
+      if (kickoffA - kickoffB !== 0) return kickoffA - kickoffB
+      return getSortKey(b, dataB) - getSortKey(a, dataA)
     })
 
-    // Sort recent group: players who participated first, then those who didn't play
+    // Sort recent group: by activity score descending (more active first)
     groups.recent.sort((a, b) => {
       const dataA = matchData[a.id]
       const dataB = matchData[b.id]
-      const participatedA = dataA?.lastGame?.participated === true
-      const participatedB = dataB?.lastGame?.participated === true
-
-      if (participatedA && !participatedB) return -1
-      if (!participatedA && participatedB) return 1
-      return 0
+      return getSortKey(b, dataB) - getSortKey(a, dataA)
     })
 
     return groups
