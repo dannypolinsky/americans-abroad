@@ -5,7 +5,7 @@
 
 ---
 
-## Current State (as of 2026-03-01)
+## Current State (as of 2026-03-02)
 
 **All three targets are in sync and healthy.**
 - NAS (primary backend): ✅ up to date
@@ -15,6 +15,11 @@
 ---
 
 ## Recent Changes
+
+### 2026-03-02
+- **Added Aiden Hezarkhani**: Real Salt Lake, MLS, Midfielder, age 18, fotmobId 1643328
+- **Added Luca Moisa**: Real Salt Lake, MLS, Midfielder, age 17, fotmobId 1663013
+- **Activity-based sorting**: Upcoming and recently played sections now sort by activity score (starters > sub appearances > token minutes > unused subs/DNPs). Players under 18 with low activity get an extra penalty, sinking to the bottom of each section. Score: 3=started, 2=meaningful sub, 1=<15 min, 0=unused sub or DNP; youth (<18) with score ≤1 get score−1.
 
 ### 2026-03-01
 - **Docker volume fix**: Cache files (`nextGamesCache.json`, `fotmobCache.json`) moved to `data/cache/` subdirectory; volume now mounts only `/app/data/cache`. Previously the entire `/app/data` volume shadowed `players.json` on every deploy, requiring a manual `docker cp` workaround — future player data changes will take effect on normal deploy
