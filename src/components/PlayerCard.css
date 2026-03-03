@@ -294,6 +294,10 @@
   margin-top: 0.5rem;
 }
 
+.player-card.live .match-info .stats-strip {
+  justify-content: center;
+}
+
 .player-card.live .match-time {
   color: #f44336;
   font-weight: bold;

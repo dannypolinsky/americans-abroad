@@ -248,7 +248,11 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               <div className="match-time">
                 {matchData.status === 'upcoming' && formatKickoff(matchData.kickoff)}
                 {matchData.status === 'finished' && (matchData.legInfo ? `FT · ${matchData.legInfo}` : 'FT')}
-                {matchData.competition && <span className="time-comp-sep"> · {matchData.competition}</span>}
+                {matchData.competition && (
+                  <span className="time-comp-sep">
+                    {matchData.status === 'live' ? matchData.competition : ` · ${matchData.competition}`}
+                  </span>
+                )}
               </div>
 
               {matchData.aggregateScore && (
