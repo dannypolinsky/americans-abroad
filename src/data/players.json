@@ -382,19 +382,6 @@
       "fotmobId": 621882
     },
     {
-      "id": 37,
-      "name": "Brandon Vazquez",
-      "team": "Austin FC",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Striker",
-      "number": 9,
-      "age": 26,
-      "caps": 5,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Brandon_Vazquez.jpg/330px-Brandon_Vazquez.jpg",
-      "fotmobId": 688296
-    },
-    {
       "id": 38,
       "name": "Daryl Dike",
       "team": "West Bromwich Albion",
@@ -686,30 +673,6 @@
       "caps": 0,
       "image": "/images/campbell_cole.jpg",
       "fotmobId": 1288195
-    },
-    {
-      "id": 114,
-      "name": "Peyton Miller",
-      "team": "New England Revolution",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Left Wing-Back",
-      "age": 18,
-      "caps": 0,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Peyton_Miller_Revolution_Nashville_6.25.25-208_%28cropped%29.jpg/330px-Peyton_Miller_Revolution_Nashville_6.25.25-208_%28cropped%29.jpg",
-      "fotmobId": 1473789
-    },
-    {
-      "id": 115,
-      "name": "Liam West",
-      "team": "FC København U19",
-      "league": "UEFA Youth League",
-      "country": "Denmark",
-      "position": "Right Winger",
-      "age": 18,
-      "caps": 0,
-      "image": "/images/west_liam.jpg",
-      "fotmobId": 1777625
     },
     {
       "id": 117,
