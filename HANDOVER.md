@@ -5,16 +5,41 @@
 
 ---
 
-## Current State (as of 2026-03-02)
+## Current State (as of 2026-03-03)
 
-**All three targets are in sync and healthy.**
+**All targets deployed and healthy.**
 - NAS (primary backend): ✅ up to date
-- Render (fallback backend): ✅ up to date
+- Render (fallback backend): ⏳ not deployed (low priority — NAS is primary)
 - Ionos (frontend): ✅ up to date
 
 ---
 
 ## Recent Changes
+
+### 2026-03-03
+- **Badge overhaul**:
+  - `Full 90` badge (blue) replaces `▶ START` + `90'` for completed full-game starters
+  - Arrow removed from START badge for upcoming and live games (`STARTING` / `START`)
+  - Minute badge suppressed when an Out badge is present (redundant info)
+  - Minute badge suppressed for sub players in completed games (`↑ SUB 60'` is sufficient)
+  - Goal/assist badges now transparent pill (no colored background) — reads `⚽ 34'` / `🅰️ 67'` inline
+  - All badge types (goal, assist, card) now uniform height via consistent base `.badge` padding
+  - New `.badge-full90` CSS class (blue, with dark mode override)
+- **Goal/assist/sub minutes for recently played**: `fotmobService.getPlayerRecentMatches` now extracts sub_in, sub_out, goal, assist, and card events with real minute timestamps from match detail events (previously all had `minute: null`)
+- **`subInMinute` fixed for lastGame source**: `renderStatsStrip` previously hardcoded `subInMinute = null` for lastGame; now reads from event data for all sources
+- **Local backend `.env` fixed**: renamed `API_FOOTBALL_KEY` → `FOOTBALL_DATA_KEY` so local dev runs in live mode
+- **Luca de la Torre**: Updated team from San Diego FC → Charlotte FC in both `players.json` files
+
+### 2026-03-02 (session 3)
+- **Player photos**: Added Wikipedia/Wikimedia Commons headshots for all players that were missing them (20 found automatically, remainder added manually by user). Every player now has a photo.
+- **Badge styling**: `.badge-bench` (Unused sub) and `.badge-dnp` (Not in squad / Did not play) now render as proper filled pill badges matching the rest of the stats strip — no more italic/transparent text.
+- **Unified badge CSS system**: Added `.stats-strip`, `.badge`, and all `.badge-*` variant classes (`badge-start`, `badge-sub-in`, `badge-sub-out`, `badge-mins`, `badge-goal`, `badge-assist`, `badge-card`, `badge-bench`, `badge-dnp`) with dark mode overrides.
+
+### 2026-03-02 (session 2)
+- **Expandable stats drawer**: Tap the ▼ button on any played game card (Recently Played, Finished Today, Live) to see detailed FotMob stats — groups: Summary (xG, chances, pass%), Attacking, Passing, Defending, Duels. Stats are fetched on demand via new `GET /api/player/:id/match-stats?fixtureId=XXXX` endpoint. Result cached for the session (no re-fetch on re-open).
+- **Color shading for playing status**: Replaced START/SUB text badges with 4px left border + faint background tint on game boxes — green = started, amber = sub on, gray = bench/unused. Status classes: `.status-started`, `.status-sub`, `.status-bench` on `.match-info` and `.last-game-info`.
+- **Dark mode**: CSS custom properties throughout all stylesheets (`index.css`, `App.css`, `PlayerCard.css`, `LeagueFilter.css`). Responds automatically to `prefers-color-scheme: dark` (macOS system appearance).
+- **Average rating badge**: Players in Recently Played section show a secondary lighter-blue badge with their 5-game average FotMob rating, e.g. `7.2 (4)` — only shown when 2+ games have ratings.
 
 ### 2026-03-02
 - **Added Aiden Hezarkhani**: Real Salt Lake, MLS, Midfielder, age 18, fotmobId 1643328

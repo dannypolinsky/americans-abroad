@@ -6,13 +6,92 @@
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #333;
-  background-color: #f0f2f5;
+
+  /* Light mode tokens */
+  --bg: #f0f2f5;
+  --card-bg: #ffffff;
+  --card-shadow: rgba(0, 0, 0, 0.08);
+  --card-shadow-hover: rgba(0, 0, 0, 0.12);
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-accent: #1a237e;
+  --border: #e0e0e0;
+  --border-light: #eeeeee;
+  --section-header-bg: #f5f5f5;
+  --match-info-bg: #f8f9fa;
+  --last-game-bg: #fafafa;
+  --last-game-border: #dddddd;
+  --missed-game-bg: #fff8e1;
+  --missed-game-border: #ffb74d;
+  --missed-game-text: #f57c00;
+  --bench-game-bg: #f3f4f6;
+  --bench-game-border: #9ca3af;
+  --bench-game-text: #6b7280;
+  --league-filter-bg: #f8f9fa;
+  --league-btn-bg: #ffffff;
+  --input-bg: #ffffff;
+  --score-bg: #1a237e;
+  --position-bg: #e3f2fd;
+  --position-color: #1565c0;
+  --league-bg: #f5f5f5;
+  --league-color: #666666;
+
+  /* Playing status shading */
+  --started-border: #2e7d32;
+  --started-bg: rgba(46, 125, 50, 0.07);
+  --sub-border: #e65100;
+  --sub-bg: rgba(230, 81, 0, 0.07);
+  --bench-border: #9e9e9e;
+  --bench-bg: rgba(158, 158, 158, 0.07);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1114;
+    --card-bg: #1a1f2b;
+    --card-shadow: rgba(0, 0, 0, 0.35);
+    --card-shadow-hover: rgba(0, 0, 0, 0.5);
+    --text-primary: #e0e0e0;
+    --text-secondary: #9e9e9e;
+    --text-muted: #555555;
+    --text-accent: #7b9ff0;
+    --border: #2d3748;
+    --border-light: #252c38;
+    --section-header-bg: #1e2535;
+    --match-info-bg: #1e2535;
+    --last-game-bg: #161b27;
+    --last-game-border: #2d3748;
+    --missed-game-bg: #2a2010;
+    --missed-game-border: #7a5c20;
+    --missed-game-text: #ffb74d;
+    --bench-game-bg: #1c2130;
+    --bench-game-border: #3d4a5c;
+    --bench-game-text: #9ca3af;
+    --league-filter-bg: #13171f;
+    --league-btn-bg: #1a1f2b;
+    --input-bg: #1a1f2b;
+    --score-bg: #1a237e;
+    --position-bg: #1a2a40;
+    --position-color: #7eb3e8;
+    --league-bg: #1e2535;
+    --league-color: #9e9e9e;
+
+    /* Playing status shading — slightly brighter for dark bg */
+    --started-border: #4caf50;
+    --started-bg: rgba(76, 175, 80, 0.1);
+    --sub-border: #ff9800;
+    --sub-bg: rgba(255, 152, 0, 0.1);
+    --bench-border: #607d8b;
+    --bench-bg: rgba(96, 125, 139, 0.1);
+  }
 }
 
 body {
   margin: 0;
   min-width: 320px;
+  background-color: var(--bg);
+  color: var(--text-primary);
 }
 
 #root {

@@ -45,3 +45,9 @@ export async function fetchHealth() {
   if (!response.ok) throw new Error('API health check failed')
   return response.json()
 }
+
+export async function fetchPlayerMatchStats(playerId, fixtureId) {
+  const response = await fetch(`${API_BASE}/player/${playerId}/match-stats?fixtureId=${fixtureId}`)
+  if (!response.ok) throw new Error('Failed to fetch player match stats')
+  return response.json()
+}

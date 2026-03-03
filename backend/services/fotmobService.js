@@ -397,12 +397,14 @@ class FotMobService {
       // Default values - will be updated from match details if available
       let started = null
       let actualMinutesPlayed = minutesPlayed
+      let savedMatchEvents = []
 
       // Fetch match details to get accurate starter status and minutes
       // Only do this for matches where player participated
       if (minutesPlayed > 0 || !match.onBench) {
         try {
           const matchDetails = await this.getMatchDetails(match.id)
+          savedMatchEvents = matchDetails?.content?.matchFacts?.events?.events || []
           if (matchDetails?.content?.lineup) {
             const teamLineup = isHome ? matchDetails.content.lineup.homeTeam : matchDetails.content.lineup.awayTeam
             if (teamLineup) {
@@ -418,7 +420,7 @@ class FotMobService {
               }
 
               // Get accurate minutes from match events
-              const events = matchDetails.content?.matchFacts?.events?.events || []
+              const events = savedMatchEvents
               if (started === true) {
                 // Starter - check if subbed out
                 const subOut = events.find(e =>
@@ -473,22 +475,37 @@ class FotMobService {
         events: []
       }
 
-      // Add goal events
-      for (let i = 0; i < matchInfo.goals; i++) {
-        matchInfo.events.push({ type: 'goal', minute: null })
-      }
-
-      // Add assist events
-      for (let i = 0; i < matchInfo.assists; i++) {
-        matchInfo.events.push({ type: 'assist', minute: null })
-      }
-
-      // Add card events
-      if (matchInfo.yellowCards > 0) {
-        matchInfo.events.push({ type: 'yellow', minute: null })
-      }
-      if (matchInfo.redCards > 0) {
-        matchInfo.events.push({ type: 'red', minute: null })
+      // Add all player events with minutes when match detail events are available
+      if (savedMatchEvents.length > 0) {
+        for (const event of savedMatchEvents) {
+          if (event.type === 'Substitution' && this.playerNameMatches(event.swap?.[0]?.name, playerName)) {
+            matchInfo.events.push({ type: 'sub_in', minute: event.time })
+          }
+          if (event.type === 'Substitution' && this.playerNameMatches(event.swap?.[1]?.name, playerName)) {
+            matchInfo.events.push({ type: 'sub_out', minute: event.time })
+          }
+          if (event.type === 'Goal' && this.playerNameMatches(event.player?.name || event.nameStr, playerName)) {
+            matchInfo.events.push({ type: 'goal', minute: event.time })
+          }
+          if (event.type === 'Goal' && this.playerNameMatches(event.assistInput, playerName)) {
+            matchInfo.events.push({ type: 'assist', minute: event.time })
+          }
+          if ((event.type === 'Card' || event.type === 'Yellow' || event.type === 'Red') &&
+              this.playerNameMatches(event.player?.name || event.nameStr, playerName)) {
+            const cardType = event.card === 'Red' || event.type === 'Red' ? 'red' : 'yellow'
+            matchInfo.events.push({ type: cardType, minute: event.time })
+          }
+        }
+      } else {
+        // Fallback: no match detail events available, use counts without minutes
+        for (let i = 0; i < matchInfo.goals; i++) {
+          matchInfo.events.push({ type: 'goal', minute: null })
+        }
+        for (let i = 0; i < matchInfo.assists; i++) {
+          matchInfo.events.push({ type: 'assist', minute: null })
+        }
+        if (matchInfo.yellowCards > 0) matchInfo.events.push({ type: 'yellow', minute: null })
+        if (matchInfo.redCards > 0) matchInfo.events.push({ type: 'red', minute: null })
       }
 
       recentMatches.push(matchInfo)
@@ -869,8 +886,33 @@ class FotMobService {
       const perf = playerData.performance || {}
       const events = []
 
-      // Parse events from performance
-      if (perf.events) {
+      // Try to get goal/assist/card events with real minutes from match detail events
+      let matchDetailEvents = []
+      if (lastMatch?.id) {
+        try {
+          const matchDetails = await this.getMatchDetails(lastMatch.id)
+          matchDetailEvents = matchDetails?.content?.matchFacts?.events?.events || []
+        } catch (err) {
+          // Blocked or failed — fall back to perf.events below
+        }
+      }
+
+      if (matchDetailEvents.length > 0) {
+        for (const event of matchDetailEvents) {
+          if (event.type === 'Goal' && this.playerNameMatches(event.player?.name || event.nameStr, playerName)) {
+            events.push({ type: 'goal', minute: event.time })
+          }
+          if (event.type === 'Goal' && this.playerNameMatches(event.assistInput, playerName)) {
+            events.push({ type: 'assist', minute: event.time })
+          }
+          if ((event.type === 'Card' || event.type === 'Yellow' || event.type === 'Red') &&
+              this.playerNameMatches(event.player?.name || event.nameStr, playerName)) {
+            const cardType = event.card === 'Red' || event.type === 'Red' ? 'red' : 'yellow'
+            events.push({ type: cardType, minute: event.time })
+          }
+        }
+      } else if (perf.events) {
+        // Fallback: parse from performance events without minutes
         for (const evt of perf.events) {
           if (evt.type === 'goal') events.push({ type: 'goal', minute: null })
           if (evt.type === 'assist') events.push({ type: 'assist', minute: null })
@@ -964,6 +1006,80 @@ class FotMobService {
       return stats
     } catch (error) {
       console.error(`FotMob: Error getting stats for ${playerName}:`, error.message)
+      return null
+    }
+  }
+
+  // Get expanded player stats for a specific match (used by on-demand stats drawer)
+  async getPlayerExpandedStats(matchId, fotmobPlayerId) {
+    try {
+      const match = await this.getMatchDetails(matchId)
+      if (!match) return null
+
+      const playerStats = match.content?.playerStats?.[fotmobPlayerId] ||
+                          match.content?.playerStats?.[String(fotmobPlayerId)] ||
+                          match.content?.playerStats?.[Number(fotmobPlayerId)]
+      if (!playerStats?.stats) return null
+
+      // Stat keys to extract per group, in display order
+      const GROUPS = [
+        {
+          key: 'summary',
+          label: 'Summary',
+          keys: ['Goals', 'Assists', 'Expected goals (xG)', 'Chances created', 'Pass accuracy', 'Minutes played']
+        },
+        {
+          key: 'attacking',
+          label: 'Attacking',
+          keys: ['Touches', 'Touches in opp. box', 'Shot attempts', 'Shots on target', 'Non-penalty xG', 'Offsides']
+        },
+        {
+          key: 'passing',
+          label: 'Passing',
+          keys: ['Accurate passes', 'Key passes', 'Final third passes', 'Long ball accuracy']
+        },
+        {
+          key: 'defending',
+          label: 'Defending',
+          keys: ['Tackles', 'Interceptions', 'Clearances', 'Blocked shots', 'Recoveries', 'Dribbled past']
+        },
+        {
+          key: 'duels',
+          label: 'Duels',
+          keys: ['Ground duels won', 'Aerial duels won', 'Fouls committed', 'Fouls drawn']
+        }
+      ]
+
+      // Flatten all stats from all FotMob groups into a single lookup map
+      const allStats = {}
+      for (const group of playerStats.stats) {
+        if (group.stats) {
+          for (const [statKey, statData] of Object.entries(group.stats)) {
+            const value = statData?.stat?.value
+            if (value !== null && value !== undefined && value !== '') {
+              allStats[statKey] = String(value)
+            }
+          }
+        }
+      }
+
+      // Build output groups, only including stats that have values
+      const result = []
+      for (const group of GROUPS) {
+        const stats = []
+        for (const key of group.keys) {
+          if (allStats[key] !== undefined) {
+            stats.push({ key, label: key, value: allStats[key] })
+          }
+        }
+        if (stats.length > 0) {
+          result.push({ key: group.key, label: group.label, stats })
+        }
+      }
+
+      return result.length > 0 ? result : null
+    } catch (error) {
+      console.error(`FotMob: Error getting expanded stats for match ${matchId}:`, error.message)
       return null
     }
   }

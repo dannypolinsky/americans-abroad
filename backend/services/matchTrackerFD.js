@@ -853,6 +853,8 @@ class MatchTrackerFD {
               goals: fotmobMatch.goals || 0,
               assists: fotmobMatch.assists || 0,
               rating: fotmobMatch.rating,
+              avgRating: fotmobMatch.avgRating || null,
+              avgRatingGames: fotmobMatch.avgRatingGames || null,
               competition: fotmobMatch.competition,
               source: 'fotmob_player_api'
             }
@@ -1333,6 +1335,14 @@ class MatchTrackerFD {
           result.rating = null
           result.competition = mostRecentMatch.competition
           result.events = []
+        }
+
+        // Compute average rating from participated matches that have a rating
+        const ratedMatches = recentMatches.filter(m => m.participated && m.rating !== null)
+        if (ratedMatches.length > 0) {
+          const avg = ratedMatches.reduce((sum, m) => sum + m.rating, 0) / ratedMatches.length
+          result.avgRating = Math.round(avg * 10) / 10
+          result.avgRatingGames = ratedMatches.length
         }
 
         // Check if team's last match is more recent than what's in player API

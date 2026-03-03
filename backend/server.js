@@ -354,6 +354,31 @@ app.post('/api/fotmob/refresh', async (req, res) => {
   }
 })
 
+// On-demand expanded stats for a player's specific match (powers the stats drawer)
+app.get('/api/player/:id/match-stats', async (req, res) => {
+  const playerId = parseInt(req.params.id, 10)
+  const fixtureId = req.query.fixtureId
+
+  if (!fixtureId) {
+    return res.status(400).json({ error: 'fixtureId query param required' })
+  }
+
+  const player = playersData.players.find(p => p.id === playerId)
+  if (!player) {
+    return res.status(404).json({ error: 'Player not found' })
+  }
+  if (!player.fotmobId) {
+    return res.status(404).json({ error: 'Player has no fotmobId' })
+  }
+
+  try {
+    const stats = await matchTracker.fotmob.getPlayerExpandedStats(fixtureId, player.fotmobId)
+    res.json({ stats: stats || null })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Reload manual player stats from file
 app.post('/api/stats/reload', async (req, res) => {
   try {
