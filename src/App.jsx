@@ -6,7 +6,7 @@ import playersData from './data/players.json'
 import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || null
-const CACHE_VERSION = '3'
+const CACHE_VERSION = '4'
 
 // Clear stale match data cache if version changed
 const storedCacheVersion = localStorage.getItem('americansAbroad_cacheVersion')
