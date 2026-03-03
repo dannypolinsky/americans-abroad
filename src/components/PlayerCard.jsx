@@ -89,9 +89,10 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
     return 'rating-red'
   }
 
-  const getStatusClass = (started, participated, onBench) => {
+  const getStatusClass = (started, participated, onBench, minutesPlayed) => {
     if (!participated && onBench) return 'status-bench'
     if (!participated) return ''
+    if (!started && !minutesPlayed && onBench) return 'status-bench'
     return started ? 'status-started' : 'status-sub'
   }
 
@@ -224,7 +225,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                 isNotInSquad ? 'not-in-squad-highlight' : '',
                 isUnusedSub  ? 'unused-sub-highlight'  : '',
                 (matchData.status === 'live' || matchData.status === 'finished')
-                  ? getStatusClass(matchData.started, matchData.participated, matchData.onBench) : '',
+                  ? getStatusClass(matchData.started, matchData.participated, matchData.onBench, matchData.minutesPlayed) : '',
                 matchData.status === 'upcoming' ? getUpcomingStatusClass(matchData.lineupStatus) : '',
                 canExpand ? 'expandable' : ''
               ].filter(Boolean).join(' ')}
@@ -266,10 +267,10 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               )}
 
               {matchData.status === 'live' && (
-                matchData.participated === false
+                (matchData.participated === false || (!matchData.started && !matchData.minutesPlayed))
                   ? <div className="stats-strip">
                       <span className={`badge ${matchData.onBench ? 'badge-bench' : 'badge-dnp'}`}>
-                        {matchData.onBench ? 'Unused sub' : 'Not in squad'}
+                        {matchData.onBench ? 'On Bench' : 'Not in Squad'}
                       </span>
                     </div>
                   : renderStatsStrip(matchData, 'today', true)
