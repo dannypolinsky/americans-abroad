@@ -129,7 +129,8 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
             ↑ SUB{subInMinute ? ` ${subInMinute}'` : ''}
           </span>
         )}
-        {data.minutesPlayed != null && data.minutesPlayed > 0 && !isFullGame
+        {data.minutesPlayed != null && data.minutesPlayed > 0
+          && !(data.started === true && data.minutesPlayed >= 90)
           && (isLive || (!subOutMinute && data.started !== false)) && (
           <span className="badge badge-mins">{data.minutesPlayed}'</span>
         )}
