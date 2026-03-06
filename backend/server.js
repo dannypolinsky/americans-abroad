@@ -121,7 +121,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     version: SERVER_VERSION,
-    mode: isDemoMode ? 'demo' : 'live',
+    mode: 'live',
     timestamp: new Date().toISOString()
   })
 })
