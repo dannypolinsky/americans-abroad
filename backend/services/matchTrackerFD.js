@@ -5,15 +5,13 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { LEAGUE_CODES, EUROPEAN_COMPETITIONS } from './footballData.js'
 import FotMobService, { TEAM_IDS } from './fotmobService.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 class MatchTrackerFD {
-  constructor(apiService) {
-    this.api = apiService
+  constructor() {
     this.fotmob = new FotMobService()
     this.players = this.loadPlayers()
     this.matchData = new Map() // playerId -> today's match data
@@ -325,50 +323,6 @@ class MatchTrackerFD {
     return matchMinute // Default to full match
   }
 
-  // Get match status from Football-Data.org status
-  getMatchStatus(match) {
-    const status = match.status
-    switch (status) {
-      case 'SCHEDULED':
-      case 'TIMED':
-        return 'upcoming'
-      case 'IN_PLAY':
-      case 'PAUSED':
-      case 'LIVE':
-        return 'live'
-      case 'FINISHED':
-        return 'finished'
-      case 'SUSPENDED':
-        return 'suspended'
-      case 'POSTPONED':
-        return 'postponed'
-      case 'CANCELLED':
-        return 'cancelled'
-      default:
-        return status
-    }
-  }
-
-  // Get supported league codes as comma-separated string
-  // Includes domestic leagues and European competitions (Champions League, Europa League)
-  getSupportedLeagueCodes() {
-    const codes = new Set()
-
-    // Add domestic league codes for players
-    for (const player of this.players) {
-      const code = LEAGUE_CODES[player.league]
-      if (code) codes.add(code)
-    }
-
-    // Add European competitions (Champions League, Europa League)
-    // These apply to players in top European leagues
-    for (const [, code] of Object.entries(EUROPEAN_COMPETITIONS)) {
-      codes.add(code)
-    }
-
-    return Array.from(codes).join(',')
-  }
-
   // Check if we need to refresh next game for a team
   needsNextGameRefresh(teamName) {
     const players = this.players.filter(p => p.team === teamName)
@@ -380,158 +334,7 @@ class MatchTrackerFD {
     return false
   }
 
-  // Fetch and process matches for a date range
-  async fetchMatches(dateFrom, dateTo, forLiveData = false) {
-    const leagueCodes = this.getSupportedLeagueCodes()
-    console.log(`Fetching matches from ${dateFrom} to ${dateTo} for leagues: ${leagueCodes}${forLiveData ? ' (live refresh)' : ''}`)
-
-    try {
-      const response = await this.api.getMatchesByDateRange(dateFrom, dateTo, leagueCodes, forLiveData)
-      return response.matches || []
-    } catch (error) {
-      console.error('Error fetching matches:', error.message)
-      return []
-    }
-  }
-
-  // Update match data for today
-  async updateMatchData(forLiveData = false) {
-    try {
-      const today = this.getTodayDate()
-      const matches = await this.fetchMatches(today, today, forLiveData)
-      console.log(`Found ${matches.length} matches today`)
-
-      const playersByTeam = this.getPlayersByTeam()
-      const matchDetailsCache = new Map() // Cache match details to avoid duplicate fetches
-
-      for (const match of matches) {
-        const homeTeam = match.homeTeam?.name || match.homeTeam?.shortName
-        const awayTeam = match.awayTeam?.name || match.awayTeam?.shortName
-        const status = this.getMatchStatus(match)
-
-        // Check if any of our players' teams are playing
-        for (const [teamName, players] of Object.entries(playersByTeam)) {
-          let isHome = null
-
-          if (this.teamMatches(homeTeam, teamName)) {
-            isHome = true
-          } else if (this.teamMatches(awayTeam, teamName)) {
-            isHome = false
-          }
-
-          if (isHome !== null) {
-            // For live or finished matches, fetch detailed match data from Football-Data.org
-            let matchDetails = null
-            if (status === 'live' || status === 'finished') {
-              if (matchDetailsCache.has(match.id)) {
-                matchDetails = matchDetailsCache.get(match.id)
-              } else {
-                try {
-                  console.log(`Fetching FD match details for ${homeTeam} vs ${awayTeam} (${status})`)
-                  matchDetails = await this.api.getMatchDetails(match.id)
-                  matchDetailsCache.set(match.id, matchDetails)
-                } catch (error) {
-                  console.error(`Error fetching match details for ${match.id}:`, error.message)
-                }
-              }
-            }
-
-            for (const player of players) {
-              let participated = null
-              let minutesPlayed = null
-              let started = null
-              let playerEvents = []
-
-              // Parse player events from match details if available
-              if (matchDetails) {
-                // Log available data on first player per match to debug API response
-                if (players.indexOf(player) === 0) {
-                  const topKeys = Object.keys(matchDetails).join(', ')
-                  console.log(`FD match ${match.id} keys: ${topKeys}`)
-                  console.log(`FD match ${match.id} events - goals: ${matchDetails.goals?.length ?? 'N/A'}, subs: ${matchDetails.substitutions?.length ?? 'N/A'}, bookings: ${matchDetails.bookings?.length ?? 'N/A'}`)
-                  // Log goal scorer names for debugging name matching
-                  if (matchDetails.goals?.length > 0) {
-                    const scorerNames = matchDetails.goals.map(g => g.scorer?.name || 'unknown').join(', ')
-                    console.log(`FD match ${match.id} scorers: ${scorerNames}`)
-                  }
-                  if (matchDetails.homeTeam?.lineup) {
-                    console.log(`FD match ${match.id} has lineup data`)
-                  }
-                }
-
-                // Check if FD returned lineup data (available in higher tiers)
-                const teamLineup = isHome ? matchDetails.homeTeam?.lineup : matchDetails.awayTeam?.lineup
-                if (teamLineup && teamLineup.length > 0) {
-                  const inLineup = teamLineup.some(p => this.lineupNameMatches(p.name, player.name))
-                  if (inLineup) {
-                    participated = true
-                    started = true
-                  }
-                }
-
-                // Check bench data
-                const teamBench = isHome ? matchDetails.homeTeam?.bench : matchDetails.awayTeam?.bench
-                if (teamBench && teamBench.length > 0 && !participated) {
-                  const onBench = teamBench.some(p => this.lineupNameMatches(p.name, player.name))
-                  if (onBench) {
-                    started = false
-                  }
-                }
-
-                // Parse events (goals, subs, cards)
-                playerEvents = this.parsePlayerEvents(matchDetails, player.name, isHome)
-                if (playerEvents.length > 0) {
-                  const hasSubIn = playerEvents.some(e => e.type === 'sub_in')
-                  if (hasSubIn) started = false
-                  else if (started === null) started = true
-                  participated = true
-
-                  const currentMinute = status === 'live' ? (match.minute || 45) : 90
-                  minutesPlayed = this.calculateMinutesPlayed(playerEvents, currentMinute)
-
-                  console.log(`FD: ${player.name} - ${status}, started: ${started}, minutes: ${minutesPlayed}, events: ${playerEvents.map(e => e.type).join(', ')}`)
-                } else if (participated === true && status === 'finished') {
-                  // In lineup but no events = played full 90
-                  minutesPlayed = 90
-                }
-                // IMPORTANT: If no events found and no lineup data, leave participated as null (unknown).
-                // We cannot assume "didn't play" — FD events only cover goals/subs/cards,
-                // not all participants. A player could play 90 min with zero events.
-              }
-
-              this.matchData.set(player.id, {
-                fixtureId: match.id,
-                status,
-                homeTeam: homeTeam,
-                awayTeam: awayTeam,
-                homeScore: match.score?.fullTime?.home ?? match.score?.halfTime?.home ?? 0,
-                awayScore: match.score?.fullTime?.away ?? match.score?.halfTime?.away ?? 0,
-                minute: match.minute || 0,
-                isHome,
-                events: playerEvents,
-                kickoff: match.utcDate,
-                venue: match.venue || '',
-                participated,
-                minutesPlayed,
-                started,
-                goals: playerEvents.filter(e => e.type === 'goal').length,
-                assists: playerEvents.filter(e => e.type === 'assist').length,
-                competition: match.competition?.name
-              })
-            }
-          }
-        }
-      }
-
-      console.log(`Updated match data for ${this.matchData.size} players from Football-Data.org`)
-      return true
-    } catch (error) {
-      console.error('Error updating match data:', error)
-      return false
-    }
-  }
-
-  // Update match data from FotMob for players without Football-Data.org coverage
+  // Update match data from FotMob for all players
   async updateMatchDataFromFotMob(forLiveData = false) {
     try {
       const playersByTeam = this.getPlayersByTeam()
@@ -543,47 +346,6 @@ class MatchTrackerFD {
         // Skip if we already processed this team
         if (processedTeams.has(teamName)) continue
         processedTeams.add(teamName)
-
-        // Check if any player from this team already has match data from Football-Data.org
-        // (We still want to update FotMob-sourced matches to catch status changes)
-        const hasFootballDataMatch = players.some(p => {
-          const data = this.matchData.get(p.id)
-          return data && data.status !== 'no_match_today' && data.source !== 'fotmob'
-        })
-
-        if (hasFootballDataMatch) {
-          // FD has this team's match - but if it's upcoming and within the lineup window,
-          // augment with FotMob lineup status (FD free tier has no lineup data for upcoming games)
-          const fdMatch = this.matchData.get(players[0].id)
-          if (fdMatch?.status === 'upcoming' && fdMatch.kickoff) {
-            const minutesUntilKickoff = (new Date(fdMatch.kickoff) - new Date()) / 60000
-            if (minutesUntilKickoff <= 45 && minutesUntilKickoff > -15) {
-              try {
-                const teamData = await this.fotmob.getTeamData(teamName, false)
-                const fotmobMatchId = teamData?.overview?.nextMatch?.id
-                if (fotmobMatchId) {
-                  const teamId = TEAM_IDS[teamName] || this.getTeamIdFromFotMob(teamName, teamData)
-                  const isHome = teamData.overview.nextMatch.home?.id === teamId
-                  for (const player of players) {
-                    try {
-                      const lineupInfo = await this.fotmob.getPlayerLineupStatus(fotmobMatchId, player.name, isHome)
-                      if (lineupInfo) {
-                        const existing = this.matchData.get(player.id)
-                        if (existing) {
-                          this.matchData.set(player.id, { ...existing, lineupStatus: lineupInfo.status })
-                          console.log(`FotMob: ${player.name} lineup status (FD match): ${lineupInfo.status}`)
-                        }
-                      }
-                    } catch (err) { /* continue */ }
-                  }
-                }
-              } catch (err) {
-                console.log(`FotMob: Could not get lineup for ${teamName}: ${err.message}`)
-              }
-            }
-          }
-          continue // Skip full FotMob match processing - FD already has this team's match
-        }
 
         // Query FotMob for this team's data
         // Bypass the 1-hour cache if we already have an "upcoming" FotMob match for this team
@@ -1564,10 +1326,7 @@ class MatchTrackerFD {
     this.isPolling = true
     console.log(`Starting match polling every ${intervalMs / 1000} seconds`)
 
-    // Initial update from Football-Data.org
-    await this.updateMatchData()
-
-    // Fill in gaps with FotMob (for leagues not covered by Football-Data.org)
+    // Initial update from FotMob
     await this.updateMatchDataFromFotMob()
 
     // Update FotMob data for player stats
@@ -1585,13 +1344,7 @@ class MatchTrackerFD {
     // Polling function that adjusts interval based on live status
     const pollForUpdates = async () => {
       // Always update with fresh data to detect status changes
-      await this.updateMatchData(true) // Always bypass cache for match status
-
-      // Check live status AFTER Football-Data update
       isLive = this.hasLiveMatches()
-
-      // Always use fresh data when there are live matches
-      // This ensures live scores/minutes are never stale
       await this.updateMatchDataFromFotMob(isLive)
 
       if (isLive) {

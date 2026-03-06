@@ -4,7 +4,6 @@ import dotenv from 'dotenv'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { FootballDataService } from './services/footballData.js'
 import MatchTrackerFD from './services/matchTrackerFD.js'
 
 dotenv.config()
@@ -25,235 +24,9 @@ const playersData = JSON.parse(
   readFileSync(join(__dirname, 'data/players.json'), 'utf-8')
 )
 
-// Initialize services - Football-Data.org
-const footballDataKey = process.env.FOOTBALL_DATA_KEY || ''
-const apiService = new FootballDataService(footballDataKey)
-const matchTracker = new MatchTrackerFD(apiService)
+// Initialize services - FotMob only
+const matchTracker = new MatchTrackerFD()
 
-// Demo mode - use sample data when no API key
-const isDemoMode = !footballDataKey
-
-// Helper to generate dates
-const daysAgo = (days) => {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  return d.toISOString()
-}
-
-// Sample match data for demo mode
-const sampleMatchData = {
-  1: { // Pulisic - live match today
-    fixtureId: 12345,
-    status: 'live',
-    homeTeam: 'AC Milan',
-    awayTeam: 'Inter',
-    homeScore: 2,
-    awayScore: 1,
-    minute: 67,
-    isHome: true,
-    participated: true,
-    minutesPlayed: 67,
-    started: true,
-    events: [
-      { type: 'goal', minute: 23 },
-      { type: 'assist', minute: 55 }
-    ],
-    lastGame: {
-      date: daysAgo(7),
-      homeTeam: 'Roma',
-      awayTeam: 'AC Milan',
-      homeScore: 1,
-      awayScore: 2,
-      isHome: false,
-      participated: true,
-      minutesPlayed: 90,
-      started: true,
-      events: [{ type: 'goal', minute: 78 }]
-    }
-  },
-  6: { // Antonee Robinson - live match
-    fixtureId: 12346,
-    status: 'live',
-    homeTeam: 'Fulham',
-    awayTeam: 'Chelsea',
-    homeScore: 1,
-    awayScore: 1,
-    minute: 82,
-    isHome: true,
-    participated: true,
-    minutesPlayed: 82,
-    started: true,
-    events: [],
-    lastGame: {
-      date: daysAgo(4),
-      homeTeam: 'Fulham',
-      awayTeam: 'Arsenal',
-      homeScore: 0,
-      awayScore: 3,
-      isHome: true,
-      participated: true,
-      minutesPlayed: 90,
-      started: true,
-      events: []
-    }
-  },
-  5: { // Giovanni Reyna - finished match today
-    fixtureId: 12347,
-    status: 'finished',
-    homeTeam: 'Borussia Monchengladbach',
-    awayTeam: 'Bayern Munich',
-    homeScore: 0,
-    awayScore: 2,
-    minute: 90,
-    isHome: true,
-    participated: true,
-    minutesPlayed: 25,
-    started: false,
-    events: [
-      { type: 'sub_in', minute: 65 }
-    ],
-    lastGame: {
-      date: daysAgo(6),
-      homeTeam: 'Wolfsburg',
-      awayTeam: 'Borussia Monchengladbach',
-      homeScore: 1,
-      awayScore: 1,
-      isHome: false,
-      participated: true,
-      minutesPlayed: 70,
-      started: true,
-      events: [{ type: 'sub_out', minute: 70 }]
-    }
-  },
-  16: { // Ricardo Pepi - upcoming match today
-    fixtureId: 12348,
-    status: 'upcoming',
-    homeTeam: 'PSV',
-    awayTeam: 'Ajax',
-    homeScore: 0,
-    awayScore: 0,
-    minute: 0,
-    isHome: true,
-    participated: false,
-    minutesPlayed: 0,
-    started: false,
-    events: [],
-    kickoff: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-    lastGame: {
-      date: daysAgo(3),
-      homeTeam: 'PSV',
-      awayTeam: 'Feyenoord',
-      homeScore: 2,
-      awayScore: 0,
-      isHome: true,
-      participated: true,
-      minutesPlayed: 90,
-      started: true,
-      events: [{ type: 'goal', minute: 34 }, { type: 'goal', minute: 67 }]
-    }
-  },
-  2: { // McKennie - live match
-    fixtureId: 12349,
-    status: 'live',
-    homeTeam: 'Juventus',
-    awayTeam: 'Napoli',
-    homeScore: 1,
-    awayScore: 0,
-    minute: 34,
-    isHome: true,
-    participated: true,
-    minutesPlayed: 34,
-    started: true,
-    events: [
-      { type: 'yellow', minute: 28 }
-    ],
-    lastGame: {
-      date: daysAgo(5),
-      homeTeam: 'Juventus',
-      awayTeam: 'Torino',
-      homeScore: 2,
-      awayScore: 0,
-      isHome: true,
-      participated: true,
-      minutesPlayed: 85,
-      started: true,
-      events: [{ type: 'assist', minute: 44 }, { type: 'sub_out', minute: 85 }]
-    }
-  },
-  12: { // Balogun - upcoming match
-    fixtureId: 12350,
-    status: 'upcoming',
-    homeTeam: 'AS Monaco',
-    awayTeam: 'PSG',
-    homeScore: 0,
-    awayScore: 0,
-    minute: 0,
-    isHome: true,
-    participated: false,
-    minutesPlayed: 0,
-    started: false,
-    events: [],
-    kickoff: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-    lastGame: {
-      date: daysAgo(8),
-      homeTeam: 'Lyon',
-      awayTeam: 'AS Monaco',
-      homeScore: 1,
-      awayScore: 3,
-      isHome: false,
-      participated: true,
-      minutesPlayed: 72,
-      started: true,
-      events: [{ type: 'goal', minute: 23 }, { type: 'sub_out', minute: 72 }]
-    }
-  },
-  // Players with no match today but have last game data
-  7: { // Tyler Adams - no match today
-    status: 'no_match_today',
-    lastGame: {
-      date: daysAgo(2),
-      homeTeam: 'Bournemouth',
-      awayTeam: 'Liverpool',
-      homeScore: 0,
-      awayScore: 4,
-      isHome: true,
-      participated: true,
-      minutesPlayed: 90,
-      started: true,
-      events: [{ type: 'yellow', minute: 56 }]
-    }
-  },
-  3: { // Yunus Musah - no match today
-    status: 'no_match_today',
-    lastGame: {
-      date: daysAgo(10),
-      homeTeam: 'Atalanta',
-      awayTeam: 'Udinese',
-      homeScore: 3,
-      awayScore: 1,
-      isHome: true,
-      participated: true,
-      minutesPlayed: 15,
-      started: false,
-      events: [{ type: 'sub_in', minute: 75 }]
-    }
-  },
-  4: { // Timothy Weah - no match today, didn't play last game
-    status: 'no_match_today',
-    lastGame: {
-      date: daysAgo(5),
-      homeTeam: 'Juventus',
-      awayTeam: 'Torino',
-      homeScore: 2,
-      awayScore: 0,
-      isHome: true,
-      participated: false,
-      minutesPlayed: 0,
-      started: false,
-      events: []
-    }
-  }
-}
 
 // Routes
 
@@ -269,88 +42,35 @@ app.get('/api/leagues', (req, res) => {
 
 // Get match data for all players
 app.get('/api/matches', (req, res) => {
-  if (isDemoMode) {
-    res.json({
-      mode: 'demo',
-      message: 'Running in demo mode with sample data. Set API_FOOTBALL_KEY to enable live data.',
-      data: sampleMatchData
-    })
-  } else {
-    const liveData = matchTracker.getAllMatchData()
-    res.json({
-      mode: 'live',
-      data: liveData
-    })
-  }
+  res.json({ mode: 'live', data: matchTracker.getAllMatchData() })
 })
 
 // Get match data for a specific player
 app.get('/api/matches/:playerId', (req, res) => {
   const playerId = parseInt(req.params.playerId)
-
-  if (isDemoMode) {
-    const matchData = sampleMatchData[playerId]
-    res.json({
-      mode: 'demo',
-      data: matchData || null
-    })
-  } else {
-    const matchData = matchTracker.getPlayerMatchData(playerId)
-    res.json({
-      mode: 'live',
-      data: matchData
-    })
-  }
+  res.json({ mode: 'live', data: matchTracker.getPlayerMatchData(playerId) })
 })
 
 // Force refresh match data
 app.post('/api/matches/refresh', async (req, res) => {
-  if (isDemoMode) {
-    res.json({
-      mode: 'demo',
-      message: 'Demo mode - no refresh needed'
-    })
-  } else {
-    try {
-      await matchTracker.updateMatchData()
-      await matchTracker.updateFotMobData()
-      await matchTracker.updateLastGameData()
-      await matchTracker.updateNextGameData()
-      res.json({
-        mode: 'live',
-        success: true,
-        message: 'Match data, FotMob data, last game data, and next game data refreshed'
-      })
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error.message
-      })
-    }
+  try {
+    await matchTracker.updateMatchDataFromFotMob(true)
+    await matchTracker.updateFotMobData()
+    await matchTracker.updateLastGameData()
+    await matchTracker.updateNextGameData()
+    res.json({ mode: 'live', success: true, message: 'Match data refreshed' })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
   }
 })
 
 // Force refresh FotMob data only
 app.post('/api/fotmob/refresh', async (req, res) => {
-  if (isDemoMode) {
-    res.json({
-      mode: 'demo',
-      message: 'Demo mode - no FotMob data'
-    })
-  } else {
-    try {
-      await matchTracker.updateFotMobData()
-      res.json({
-        mode: 'live',
-        success: true,
-        message: 'FotMob player data refreshed'
-      })
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error.message
-      })
-    }
+  try {
+    await matchTracker.updateFotMobData()
+    res.json({ mode: 'live', success: true, message: 'FotMob player data refreshed' })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
   }
 })
 
@@ -409,30 +129,13 @@ app.get('/api/health', (req, res) => {
 // API status
 app.get('/api/status', (req, res) => {
   res.json({
-    mode: isDemoMode ? 'demo' : 'live',
-    apiKeyConfigured: !!footballDataKey,
-    apiProvider: 'football-data.org',
+    mode: 'live',
+    apiProvider: 'fotmob',
     playersCount: playersData.players.length,
     leaguesCount: playersData.leagues.length,
     polling: matchTracker.isPolling,
-    hasLiveMatches: isDemoMode ?
-      Object.values(sampleMatchData).some(m => m.status === 'live') :
-      matchTracker.hasLiveMatches()
+    hasLiveMatches: matchTracker.hasLiveMatches()
   })
-})
-
-// Football-Data.org status (for debugging)
-app.get('/api/football-status', async (req, res) => {
-  if (isDemoMode) {
-    res.json({ mode: 'demo', message: 'API not configured' })
-  } else {
-    try {
-      const status = await apiService.getApiStatus()
-      res.json({ provider: 'football-data.org', ...status })
-    } catch (error) {
-      res.status(500).json({ error: error.message })
-    }
-  }
 })
 
 
@@ -444,22 +147,13 @@ app.listen(PORT, () => {
 ║        Americans Abroad - Backend Server              ║
 ╠═══════════════════════════════════════════════════════╣
 ║  Server running on http://localhost:${PORT}              ║
-║  Mode: ${isDemoMode ? 'DEMO (sample data)' : 'LIVE (Football-Data.org)'}                 ${isDemoMode ? ' ' : ''}║
+║  Mode: LIVE (FotMob)                                  ║
 ║  Players tracked: ${playersData.players.length}                              ║
 ╚═══════════════════════════════════════════════════════╝
   `)
 
-  if (isDemoMode) {
-    console.log('⚠️  Running in DEMO mode with sample data.')
-    console.log('   To enable live data, create a .env file with:')
-    console.log('   FOOTBALL_DATA_KEY=your_api_key_here')
-    console.log('')
-    console.log('   Get a free API key at: https://www.football-data.org/')
-    console.log('')
-  } else {
-    // Start polling for live matches (every 5 minutes)
-    matchTracker.startPolling(5 * 60 * 1000)
-  }
+  // Start polling for live matches (every 5 minutes)
+  matchTracker.startPolling(5 * 60 * 1000)
 })
 
 // Graceful shutdown
