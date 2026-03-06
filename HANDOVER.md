@@ -5,7 +5,7 @@
 
 ---
 
-## Current State (as of 2026-03-04, session 1)
+## Current State (as of 2026-03-06)
 
 **All targets deployed and healthy.**
 - NAS (primary backend): ✅ up to date
@@ -15,6 +15,18 @@
 ---
 
 ## Recent Changes
+
+### 2026-03-06
+- **UI overhaul — minimalist card redesign**:
+  - Removed box-within-box clutter: match-info/last-game blocks transparent with thin top separator only
+  - Score pulled into dedicated right column with inset vertical divider (doesn't touch top/bottom borders)
+  - Score: no background, larger font, `·` separator between numbers, W/L/D result badge below
+  - Team display: two-line layout — player's team bold on line 1, "vs/at [opponent]" on line 2
+  - Upcoming games: kickoff time (KO label + time) in score column; competition name only on left
+  - Section headers: small uppercase text with colored left-border accent, no background fill
+  - Player name larger/bolder (1.1rem, weight 700); avatar 44px → 54px
+  - Card green border removed; status left-border only (no tinted background)
+  - Position/league tags: text-only, no pill backgrounds
 
 ### 2026-03-04
 - **Pukstas stale-cache fix**: In `updateMatchDataFromFotMob`, FotMob-only teams (Croatian First League etc.) whose match was cached as "upcoming" but kickoff has since passed now bypass the 1-hour FotMob team API cache, forcing a fresh fetch. This catches games that went live/finished while the backend was polling without live matches active.
