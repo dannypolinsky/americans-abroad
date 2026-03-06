@@ -586,8 +586,24 @@ class MatchTrackerFD {
         }
 
         // Query FotMob for this team's data
+        // Bypass the 1-hour cache if we already have an "upcoming" FotMob match for this team
+        // whose kickoff time has already passed — the game may have gone live or finished while
+        // the cached team data still shows it as upcoming.
+        let teamCacheBypass = forLiveData
+        if (!teamCacheBypass) {
+          for (const player of players) {
+            const existing = this.matchData.get(player.id)
+            if (existing?.source === 'fotmob' && existing?.status === 'upcoming' && existing?.kickoff) {
+              if (new Date(existing.kickoff) <= new Date()) {
+                teamCacheBypass = true
+                console.log(`FotMob: Bypassing cache for ${teamName} — upcoming match kickoff has passed`)
+                break
+              }
+            }
+          }
+        }
         try {
-          const teamData = await this.fotmob.getTeamData(teamName, forLiveData)
+          const teamData = await this.fotmob.getTeamData(teamName, teamCacheBypass)
           if (!teamData?.overview) continue
 
           // CRITICAL: Verify FotMob returned data for the correct team

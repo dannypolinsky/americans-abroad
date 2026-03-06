@@ -5,7 +5,7 @@
 
 ---
 
-## Current State (as of 2026-03-03)
+## Current State (as of 2026-03-04, session 1)
 
 **All targets deployed and healthy.**
 - NAS (primary backend): ✅ up to date
@@ -16,7 +16,16 @@
 
 ## Recent Changes
 
-### 2026-03-03
+### 2026-03-04
+- **Pukstas stale-cache fix**: In `updateMatchDataFromFotMob`, FotMob-only teams (Croatian First League etc.) whose match was cached as "upcoming" but kickoff has since passed now bypass the 1-hour FotMob team API cache, forcing a fresh fetch. This catches games that went live/finished while the backend was polling without live matches active.
+- **Badge consistency**: Fixed "Not in Squad" (capital S) → "Not in squad" in live game block; removed `font-weight: 600` override from `.badge-dnp` so all badges inherit 700; removed ~130 lines of dead CSS (old badge system: `.player-events`, `.stat-badge`, `.rating-badge`, `.bench-badge`, `.start-badge`, `.sub-badge`, `.competition-name`, `.game-box`, etc.)
+
+### 2026-03-03 (session 2)
+- **Card height reduction**: Tightened padding/spacing throughout `PlayerCard.css` and `App.css` — photo 50px→44px, card padding, match-info padding, badge padding, grid gap, section header margins all reduced ~20%
+- **Missed game → compact one-liner**: Replaced the full `missed-game-info` / `bench-game-info` box (with header, teams, score, badge) with a single compact text line above the last game box — e.g. `BENCH Mar 1 · MLS · Team A 2:1 Team B`. CSS: new `.missed-game-line` class replaces old `.missed-game-info` / `.bench-game-info` / `.missed-game-header` / `.bench-game-header` rules
+- **Removed players**: Brandon Vazquez, Liam West, Peyton Miller removed from both `players.json` files (58 → 55 players)
+
+### 2026-03-03 (session 1)
 - **Badge overhaul**:
   - `Full 90` badge (blue) replaces `▶ START` + `90'` for completed full-game starters
   - Arrow removed from START badge for upcoming and live games (`STARTING` / `START`)

@@ -1,7 +1,7 @@
 .player-card {
   background: var(--card-bg);
   border-radius: 12px;
-  padding: 0.75rem;
+  padding: 0.6rem 0.7rem;
   box-shadow: 0 2px 8px var(--card-shadow);
   position: relative;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -19,7 +19,7 @@
 }
 
 .player-card.has-match {
-  border-color: #4caf50;
+  border-color: transparent;
 }
 
 .player-card.live.has-match {
@@ -57,18 +57,18 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .photo-wrapper {
   position: relative;
   flex-shrink: 0;
-  width: 50px;
+  width: 54px;
 }
 
 .player-headshot {
-  width: 50px;
-  height: 50px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   object-fit: cover;
   display: block;
@@ -76,8 +76,8 @@
 }
 
 .player-avatar {
-  width: 50px;
-  height: 50px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   background: linear-gradient(135deg, #1a237e 0%, #3949ab 100%);
   color: white;
@@ -85,7 +85,7 @@
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 1rem;
+  font-size: 1.1rem;
 }
 
 /* Rating overlaid on photo */
@@ -119,7 +119,8 @@
 
 .player-name {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
   color: var(--text-accent);
   white-space: nowrap;
   overflow: hidden;
@@ -146,62 +147,73 @@
 }
 
 .position {
-  background: var(--position-bg);
   color: var(--position-color);
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
 }
 
 .league {
-  background: var(--league-bg);
   color: var(--league-color);
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
-}
-
-/* ── Game box wrapper (match-info / last-game-info): expandable ── */
-.game-box {
-  position: relative;
-  margin-top: 0.5rem;
 }
 
 .match-info {
-  background: var(--match-info-bg);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  border-left: 4px solid transparent;
-  transition: border-color 0.2s, background 0.2s;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  border-left: 3px solid transparent;
+  border-top: 1px solid var(--border-light);
+  transition: border-color 0.2s;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.match-body {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0 0.4rem 0.6rem;
+}
+
+.match-score-col {
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.75rem;
+}
+
+.match-score-col::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.4rem;
+  bottom: 0.4rem;
+  width: 1px;
+  background: var(--border);
 }
 
 .match-info.not-in-squad-highlight {
-  background: var(--missed-game-bg);
-  border: 1px dashed var(--missed-game-border);
   border-left: 4px solid var(--missed-game-border);
 }
 
 .match-info.unused-sub-highlight {
-  background: var(--bench-game-bg);
-  border: 1px dashed var(--bench-game-border);
   border-left: 4px solid var(--bench-border);
 }
 
-/* Playing-status left-border shading */
+/* Playing-status left-border only — no background tint */
 .match-info.status-started,
 .last-game-info.status-started {
   border-left: 4px solid var(--started-border);
-  background: var(--started-bg);
 }
 
 .match-info.status-sub,
 .last-game-info.status-sub {
   border-left: 4px solid var(--sub-border);
-  background: var(--sub-bg);
 }
 
 .match-info.status-bench,
 .last-game-info.status-bench {
   border-left: 4px solid var(--bench-border);
-  background: var(--bench-bg);
 }
 
 .aggregate-score {
@@ -216,21 +228,32 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   gap: 0.5rem;
 }
 
-.match-teams span {
+.match-teams-names {
   flex: 1;
-  text-align: center;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 
-.match-teams span:first-child {
-  text-align: left;
+.player-team {
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.match-teams span:last-child {
-  text-align: right;
+.opponent-team {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .match-teams .highlight {
@@ -238,12 +261,12 @@
   color: var(--text-accent);
 }
 
+
 .score-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.2rem;
-  flex: 0 !important;
 }
 
 .live-minute {
@@ -259,26 +282,32 @@
 }
 
 .score {
-  background: var(--score-bg);
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-weight: bold;
+  background: transparent;
+  color: var(--text-primary);
+  border-radius: 0;
+  font-weight: 700;
   display: inline-flex;
-  align-items: center;
-  gap: 0.1rem;
+  align-items: stretch;
+  flex-shrink: 0;
+  overflow: hidden;
+  font-size: 1.2rem;
 }
 
 .score-num {
-  font-size: 1rem;
-  min-width: 1rem;
+  min-width: 1.6rem;
+  padding: 0.2rem 0.4rem;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .score-colon {
-  font-size: 1.3rem;
-  font-weight: bold;
-  line-height: 1;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 0 0.1rem;
 }
 
 .score-link {
@@ -287,11 +316,33 @@
   display: contents;
 }
 
+.kickoff-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.kickoff-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.kickoff-time {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
 .match-time {
-  text-align: center;
+  text-align: left;
   font-size: 0.8rem;
   color: var(--text-secondary);
-  margin-top: 0.5rem;
+  margin-top: 0.3rem;
 }
 
 .player-card.live .match-info .stats-strip {
@@ -301,61 +352,6 @@
 .player-card.live .match-time {
   color: #f44336;
   font-weight: bold;
-}
-
-.player-events {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.event {
-  font-size: 0.8rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  background: var(--card-bg);
-}
-
-.event.goal {
-  background: #e8f5e9;
-}
-
-.event.assist {
-  background: #e3f2fd;
-}
-
-.player-participation {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  margin-top: 0.4rem;
-  padding-top: 0.4rem;
-  border-top: 1px dashed var(--border-light);
-  flex-wrap: wrap;
-}
-
-.stat-badge {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  line-height: 1;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.stat-badge.goal {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
-
-.stat-badge.assist {
-  background: #e3f2fd;
-  color: #1565c0;
 }
 
 .no-match {
@@ -372,15 +368,15 @@
 .game-info-section {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
 }
 
 .next-game-line {
   font-size: 0.75rem;
   color: var(--text-accent);
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
   border-top: 1px solid var(--border);
 }
 
@@ -390,31 +386,35 @@
   letter-spacing: 0.5px;
 }
 
-.missed-game-info {
-  background: var(--missed-game-bg);
-  border-radius: 8px;
-  padding: 0.75rem;
-  border: 1px dashed var(--missed-game-border);
-  border-left: 4px solid var(--missed-game-border);
-  margin-bottom: 0.5rem;
+.missed-game-line {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  padding: 0.15rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.missed-game-header {
-  font-size: 0.75rem;
-  color: var(--missed-game-text);
-  margin-bottom: 0.5rem;
+.missed-game-line .missed-label {
+  font-weight: 700;
+  font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
+  letter-spacing: 0.4px;
 }
+
+.missed-game-line.bench .missed-label { color: var(--bench-border); }
+.missed-game-line.dnp   .missed-label { color: var(--text-muted); }
 
 .last-game-info {
-  background: var(--last-game-bg);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  border: 1px dashed var(--last-game-border);
-  border-left: 4px solid transparent;
-  transition: border-color 0.2s, background 0.2s;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  border-left: 3px solid transparent;
+  border-top: 1px solid var(--border-light);
+  transition: border-color 0.2s;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
 }
 
 .last-game-header {
@@ -423,166 +423,6 @@
   margin-bottom: 0.25rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-
-.competition-name {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  font-weight: 500;
-}
-
-/* Center competition for upcoming/live games */
-.match-info .competition-name {
-  text-align: center;
-}
-
-/* Left align competition for last game */
-.last-game-info .competition-name {
-  text-align: left;
-}
-
-.last-game-stats {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  margin-top: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.minutes-played {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  background: #e8f5e9;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-}
-
-.rating-badge {
-  font-size: 0.75rem;
-  color: #fff;
-  background: #1565c0;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-weight: bold;
-  line-height: 1;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.avg-rating-badge {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-weight: normal;
-  line-height: 1;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.minutes-badge {
-  font-size: 0.75rem;
-  color: #2e7d32;
-  background: #e8f5e9;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  line-height: 1;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.sub-minutes-badge {
-  font-size: 0.75rem;
-  color: #e65100;
-  background: #fff3e0;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  line-height: 1;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.sub-badge {
-  font-size: 0.75rem;
-  color: #f57c00;
-  background: #fff3e0;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-weight: bold;
-  line-height: 1;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.start-badge {
-  font-size: 0.75rem;
-  color: #2e7d32;
-  background: #e8f5e9;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-weight: bold;
-  line-height: 1;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.bench-badge {
-  font-size: 0.75rem;
-  color: #757575;
-  background: #eeeeee;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-weight: bold;
-  line-height: 1;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.did-not-play {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-.bench-game-info {
-  background: var(--bench-game-bg);
-  border-radius: 8px;
-  padding: 0.75rem;
-  border: 1px dashed var(--bench-game-border);
-  border-left: 4px solid var(--bench-border);
-  margin-bottom: 0.5rem;
-}
-
-.bench-game-header {
-  font-size: 0.75rem;
-  color: var(--bench-game-text);
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-}
-
-.unused-sub {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  font-style: italic;
 }
 
 /* ── Expandable game boxes ── */
@@ -664,19 +504,33 @@
   text-align: right;
 }
 
+/* ── Result badge ── */
+.result-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  margin-top: 0.25rem;
+}
+
+.result-w { background: #2e7d32; color: white; }
+.result-l { background: #c62828; color: white; }
+.result-d { background: #757575; color: white; }
+
 /* ── Unified stats strip ── */
 .stats-strip {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  margin-top: 0.4rem;
+  margin-top: 0.25rem;
   flex-wrap: wrap;
 }
 
 /* Base badge pill */
 .badge {
   font-size: 0.73rem;
-  padding: 0.25rem 0.55rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 12px;
   line-height: 1;
   display: inline-flex;
@@ -694,13 +548,6 @@
 .badge-sub-in {
   background: #e65100;
   color: white;
-}
-
-.badge-mins {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  font-weight: 600;
 }
 
 .badge-sub-out {
@@ -735,7 +582,6 @@
 .badge-dnp {
   background: #9e9e9e;
   color: white;
-  font-weight: 600;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -755,9 +601,9 @@
   }
 
   .player-avatar {
-    width: 40px;
-    height: 40px;
-    font-size: 0.85rem;
+    width: 48px;
+    height: 48px;
+    font-size: 0.95rem;
   }
 
   .player-name {
