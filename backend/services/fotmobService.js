@@ -134,6 +134,8 @@ const TEAM_IDS = {
   'San Diego FC': 1701119,
   // Liga MX
   'Club America': 6896,
+  'CF América': 6896,
+  'Club América': 6896,
   'Monterrey': 6904,
   // 2. Bundesliga
   'SV Darmstadt': 8262,
@@ -363,7 +365,9 @@ class FotMobService {
   // Check if two team names refer to the same team
   teamNamesMatch(name1, name2) {
     if (!name1 || !name2) return false
-    const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+    const normalize = (s) => s.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // strip accent marks (é→e, etc.)
+      .replace(/[^a-z0-9]/g, '')
     const n1 = normalize(name1)
     const n2 = normalize(name2)
     // Check if one contains the other or they're equal
