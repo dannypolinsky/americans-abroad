@@ -17,6 +17,7 @@
 ## Recent Changes
 
 ### 2026-03-06
+- **Zendejas missing data fix**: FotMob calls Club America "CF América" — updated team name in both `players.json` files and added "CF América"/"Club América" aliases to `TEAM_IDS`. Added NFD accent normalization to `teamNamesMatch()` (é→e etc.) so accent variants never silently filter out match data again. Root cause: team API (`/teams?id=6896`) returns null for Liga MX; player HTML scrape works but was filtering all matches due to name mismatch.
 - **UI overhaul — minimalist card redesign**:
   - Removed box-within-box clutter: match-info/last-game blocks transparent with thin top separator only
   - Score pulled into dedicated right column with inset vertical divider (doesn't touch top/bottom borders)
