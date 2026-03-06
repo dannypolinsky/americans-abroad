@@ -17,6 +17,8 @@
 ## Recent Changes
 
 ### 2026-03-06
+- **FotMob-only backend**: Removed Football-Data.org dependency entirely. All match tracking now goes through FotMob. Removed `updateMatchData()`, `fetchMatches()`, `getSupportedLeagueCodes()`, `getMatchStatus()`, demo mode, ~580 lines. `updateMatchDataFromFotMob` now processes all teams equally. `footballData.js` no longer used by the tracker (file kept but unused). No API key required.
+- **Balogun fix (AS Monaco)**: Was missing data because FD API token was invalid and Monaco was FD-tracked. Now covered by FotMob like all other teams.
 - **Zendejas missing data fix**: FotMob calls Club America "CF América" — updated team name in both `players.json` files and added "CF América"/"Club América" aliases to `TEAM_IDS`. Added NFD accent normalization to `teamNamesMatch()` (é→e etc.) so accent variants never silently filter out match data again. Root cause: team API (`/teams?id=6896`) returns null for Liga MX; player HTML scrape works but was filtering all matches due to name mismatch.
 - **UI overhaul — minimalist card redesign**:
   - Removed box-within-box clutter: match-info/last-game blocks transparent with thin top separator only
