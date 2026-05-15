@@ -23,7 +23,7 @@
 
 Fill in `.env` at the project root:
 ```
-QNAP_SSH_HOST=192.168.1.245
+QNAP_SSH_HOST=192.168.4.61
 QNAP_SSH_USER=admin
 QNAP_SSH_PASS=your-password
 QNAP_REMOTE_PATH=/share/Container/americans-abroad
@@ -41,7 +41,7 @@ This rsyncs the backend code to the NAS and rebuilds/restarts the Docker contain
 ### NAS Setup (already done)
 
 #### How HTTPS works
-- Router forwards external port 443 → NAS IP 192.168.1.245:443
+- Router forwards external port 443 → NAS IP 192.168.4.61:443
 - QNAP's built-in Apache (port 443) uses `/etc/app_proxy.conf` to route `/api/` to the Docker container on port 3001
 - The SSL cert (`*.myqnapcloud.com`) is provided by QNAP and covers `PolinskyNAS.myqnapcloud.com`
 - Result: `https://PolinskyNAS.myqnapcloud.com/api/health` → Docker container
@@ -57,7 +57,7 @@ ProxyPassReverse /api/ http://127.0.0.1:3001/api/
 A normal `restart` leaves old worker processes running with the stale config.
 Always use a hard kill + restart when changing Apache config:
 ```bash
-sshpass -p 'PASSWORD' ssh admin@192.168.1.245 \
+sshpass -p 'PASSWORD' ssh admin@192.168.4.61 \
   "/etc/init.d/Qthttpd.sh stop && sleep 2 && killall -9 fcgi-pm apache_proxy apache_proxys 2>/dev/null; sleep 2 && /etc/init.d/Qthttpd.sh start"
 ```
 

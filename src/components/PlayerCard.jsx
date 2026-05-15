@@ -1,10 +1,52 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { fetchPlayerMatchStats } from '../services/api'
 import './PlayerCard.css'
 
 function PlayerCard({ player, matchData, showLastGame = false }) {
   const [expanded, setExpanded] = useState(false)
   const [detailedStats, setDetailedStats] = useState(null)
+  const sheetRef = useRef(null)
+  const dragStartY = useRef(null)
+  const currentDragY = useRef(0)
+
+  const onDragStart = (clientY) => {
+    dragStartY.current = clientY
+    currentDragY.current = 0
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
+  }
+
+  const onDragMove = (clientY) => {
+    if (dragStartY.current === null) return
+    const delta = Math.max(0, clientY - dragStartY.current)
+    currentDragY.current = delta
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${delta}px)`
+  }
+
+  const onDragEnd = () => {
+    if (dragStartY.current === null) return
+    const y = currentDragY.current
+    dragStartY.current = null
+    currentDragY.current = 0
+    if (y > 120) {
+      setExpanded(false)
+    } else if (sheetRef.current) {
+      sheetRef.current.style.transition = ''
+      sheetRef.current.style.transform = ''
+    }
+  }
+
+  const onMouseDown = (e) => {
+    onDragStart(e.clientY)
+    const onMove = (e) => onDragMove(e.clientY)
+    const onUp = () => {
+      onDragEnd()
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   const isLive = matchData?.status === 'live'
   const hasTodayMatch = matchData !== null && matchData.status !== 'no_match_today'
@@ -159,26 +201,51 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
     )
   }
 
-  const renderStatsDrawer = (canExpand) => {
-    if (!canExpand || !detailedStats) return null
-    return (
-      <div className={`stats-drawer${expanded ? ' open' : ''}`}>
-        {expanded && (
-          <div className="stats-drawer-inner">
-            {detailedStats.map(group => (
-              <div key={group.key} className="stats-group">
-                <div className="stats-group-header">{group.label}</div>
-                {group.stats.map(stat => (
-                  <div key={stat.key} className="stat-row">
-                    <span className="stat-label">{stat.label}</span>
-                    <span className="stat-value">{stat.value}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
+  const renderStatsModal = (canExpand, title) => {
+    if (!canExpand || !expanded) return null
+    return createPortal(
+      <div className="stats-modal-backdrop" onClick={() => setExpanded(false)}>
+        <div
+          className="stats-modal-sheet"
+          ref={sheetRef}
+          onClick={e => e.stopPropagation()}
+        >
+          <div
+            className="stats-modal-handle"
+            onTouchStart={e => onDragStart(e.touches[0].clientY)}
+            onTouchMove={e => onDragMove(e.touches[0].clientY)}
+            onTouchEnd={onDragEnd}
+            onMouseDown={onMouseDown}
+          />
+          <div
+            className="stats-modal-header"
+            onTouchStart={e => onDragStart(e.touches[0].clientY)}
+            onTouchMove={e => onDragMove(e.touches[0].clientY)}
+            onTouchEnd={onDragEnd}
+            onMouseDown={onMouseDown}
+          >
+            <span className="stats-modal-title">{title}</span>
+            <button className="stats-modal-close" onClick={() => setExpanded(false)}>✕</button>
           </div>
-        )}
-      </div>
+          <div className="stats-modal-body">
+            {!detailedStats
+              ? <div className="stats-loading">Loading stats…</div>
+              : detailedStats.map(group => (
+                  <div key={group.key} className="stats-group">
+                    <div className="stats-group-header">{group.label}</div>
+                    {group.stats.map(stat => (
+                      <div key={stat.key} className="stat-row">
+                        <span className="stat-label">{stat.label}</span>
+                        <span className="stat-value">{stat.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))
+            }
+          </div>
+        </div>
+      </div>,
+      document.body
     )
   }
 
@@ -300,8 +367,9 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                     : renderStatsStrip(matchData, 'today')
               )}
 
-              {renderStatsDrawer(canExpand)}
             </div>
+
+            {renderStatsModal(canExpand, `${matchData.homeTeam} vs ${matchData.awayTeam}`)}
 
             <div className="match-score-col">
               {isLive && <span className="live-minute">{matchData.minute === 'HT' ? 'HT' : `${matchData.minute}'`}</span>}
@@ -322,7 +390,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
             </div>
             </div>
 
-            {nextGame && (matchData.status === 'finished' || matchData.status === 'live') && (
+            {nextGame && new Date(nextGame.kickoff) > new Date() && (matchData.status === 'finished' || matchData.status === 'live') && (
               <div className="next-game-line">
                 <span className="next-game-label">Next:</span>{' '}
                 {nextGame.isHome ? 'vs' : 'at'} {nextGame.isHome ? nextGame.awayTeam : nextGame.homeTeam}
@@ -337,21 +405,45 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
       {!hasTodayMatch && showLastGame && (lastGame || nextGame) && (
         <div className="game-info-section">
 
-          {lastGame?.missedGame && (() => {
-            const mg = lastGame.missedGame
-            const score = (mg.homeScore != null && mg.awayScore != null)
-              ? `${mg.homeScore}:${mg.awayScore}` : null
-            return (
-              <div className={`missed-game-line ${mg.onBench ? 'bench' : 'dnp'}`}>
-                <span className="missed-label">{mg.onBench ? 'Bench' : 'DNP'}</span>
-                {' '}{formatDate(mg.date)}
-                {mg.competition && ` · ${mg.competition}`}
-                {score && ` · ${mg.homeTeam} ${score} ${mg.awayTeam}`}
-              </div>
-            )
-          })()}
-
           {lastGame && (() => {
+            const mg = lastGame.missedGame
+            if (mg) {
+              // Main box: team's most recent game (player didn't participate)
+              return (
+                <div className={['last-game-info', getStatusClass(false, false, mg.onBench, 0)].filter(Boolean).join(' ')}>
+                  <div className="match-body">
+                    <div className="last-game-header">
+                      Last Game: {formatDate(mg.date)}
+                      {mg.competition && ` · ${mg.competition}`}
+                    </div>
+                    <div className="match-teams">
+                      <div className="match-teams-names">
+                        <span className="player-team">
+                          {mg.isHome ? mg.homeTeam : mg.awayTeam}
+                        </span>
+                        <span className="opponent-team">
+                          {mg.isHome ? 'vs ' : 'at '}{mg.isHome ? mg.awayTeam : mg.homeTeam}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="stats-strip">
+                      <span className={`badge ${mg.onBench ? 'badge-bench' : 'badge-dnp'}`}>
+                        {mg.onBench ? 'Not in squad' : 'Did not play'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="match-score-col">
+                    <span className="score">{renderScore(mg.homeScore, mg.awayScore, null)}</span>
+                    {(() => {
+                      const result = getResult(mg.isHome, mg.homeScore, mg.awayScore)
+                      return result ? <span className={`result-badge result-${result.toLowerCase()}`}>{result}</span> : null
+                    })()}
+                  </div>
+                </div>
+              )
+            }
+
+            // No missedGame — show lastGame as usual
             const canExpand = lastGame.participated && lastGame.fixtureId
             return (
               <div
@@ -364,8 +456,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
               >
                 <div className="match-body">
                   <div className="last-game-header">
-                    {lastGame.missedGame ? 'Last Played' : 'Last Game'}:{' '}
-                    {formatDate(lastGame.date)}
+                    Last Game: {formatDate(lastGame.date)}
                     {lastGame.competition && ` · ${lastGame.competition}`}
                   </div>
 
@@ -387,8 +478,9 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
                     : <div className="stats-strip"><span className="badge badge-dnp">Did not play</span></div>
                   }
 
-                  {renderStatsDrawer(canExpand)}
                 </div>
+
+                {renderStatsModal(canExpand, `${lastGame.homeTeam} vs ${lastGame.awayTeam}`)}
 
                 <div className="match-score-col">
                   <span className="score">{renderScore(lastGame.homeScore, lastGame.awayScore, lastGame.fixtureId)}</span>
@@ -401,7 +493,17 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
             )
           })()}
 
-          {nextGame && (
+          {/* Compact line: last game player actually played (only when missedGame is shown above) */}
+          {lastGame?.missedGame && (
+            <div className="missed-game-line">
+              <span className="missed-label">Last played:</span>
+              {' '}{formatDate(lastGame.date)}
+              {lastGame.competition && ` · ${lastGame.competition}`}
+              {(lastGame.homeScore != null && lastGame.awayScore != null) && ` · ${lastGame.homeTeam} ${lastGame.homeScore}·${lastGame.awayScore} ${lastGame.awayTeam}`}
+            </div>
+          )}
+
+          {nextGame && new Date(nextGame.kickoff) > new Date() && (
             <div className="next-game-line">
               <span className="next-game-label">Next:</span>{' '}
               {nextGame.isHome ? 'vs' : 'at'} {nextGame.isHome ? nextGame.awayTeam : nextGame.homeTeam}

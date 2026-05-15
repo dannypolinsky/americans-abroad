@@ -421,32 +421,6 @@
       "fotmobId": 1136097
     },
     {
-      "id": 50,
-      "name": "Jack McGlynn",
-      "team": "Houston Dynamo",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Midfielder",
-      "number": 21,
-      "age": 21,
-      "caps": 5,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Jack_McGlynn%2C_2025_CONCACAF_Gold_Cup%2C_01_%28cropped%29.jpg/330px-Jack_McGlynn%2C_2025_CONCACAF_Gold_Cup%2C_01_%28cropped%29.jpg",
-      "fotmobId": 1171013
-    },
-    {
-      "id": 52,
-      "name": "Quinn Sullivan",
-      "team": "Philadelphia Union",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Midfielder",
-      "number": 33,
-      "age": 21,
-      "caps": 2,
-      "image": "/images/sullivan_quinn.png",
-      "fotmobId": 1171007
-    },
-    {
       "id": 56,
       "name": "Auston Trusty",
       "team": "Celtic",
@@ -512,19 +486,6 @@
       "caps": 30,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Miles_Robinson%2C_2025_CONCACAF_Gold_Cup.jpg/330px-Miles_Robinson%2C_2025_CONCACAF_Gold_Cup.jpg",
       "fotmobId": 825623
-    },
-    {
-      "id": 84,
-      "name": "DeJuan Jones",
-      "team": "New England Revolution",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Left Back",
-      "number": 24,
-      "age": 27,
-      "caps": 10,
-      "image": "/images/jones_dejuan.jpg",
-      "fotmobId": 1026143
     },
     {
       "id": 85,
@@ -627,18 +588,6 @@
       "fotmobId": 1252636
     },
     {
-      "id": 110,
-      "name": "Nimfasha Berchimas",
-      "team": "Charlotte FC",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Left Midfielder",
-      "age": 18,
-      "caps": 0,
-      "image": "/images/berchimas_nimfasha.png",
-      "fotmobId": 1439804
-    },
-    {
       "id": 111,
       "name": "Mathis Albert",
       "team": "Borussia Dortmund U19",
@@ -661,18 +610,6 @@
       "caps": 0,
       "image": "/images/habroune_taha.png",
       "fotmobId": 1482266
-    },
-    {
-      "id": 113,
-      "name": "Cole Campbell",
-      "team": "Hoffenheim",
-      "league": "Bundesliga",
-      "country": "Germany",
-      "position": "Right Winger",
-      "age": 19,
-      "caps": 0,
-      "image": "/images/campbell_cole.jpg",
-      "fotmobId": 1288195
     },
     {
       "id": 117,
@@ -722,18 +659,6 @@
       "caps": 0,
       "image": "/images/hezarkhani_aiden.png",
       "fotmobId": 1643328
-    },
-    {
-      "id": 123,
-      "name": "Luca Moisa",
-      "team": "Real Salt Lake",
-      "league": "MLS",
-      "country": "USA",
-      "position": "Midfielder",
-      "age": 17,
-      "caps": 0,
-      "image": "/images/moisa_luca.jpg",
-      "fotmobId": 1663013
     }
   ],
   "leagues": [

@@ -17,17 +17,16 @@ class MatchTrackerFD {
     this.matchData = new Map() // playerId -> today's match data
     this.lastGameData = new Map() // playerId -> last game data
     this.nextGameData = new Map() // playerId -> next upcoming game (cached)
-    this.fotmobData = new Map() // playerId -> FotMob match data (cached)
     this.manualStats = new Map() // playerId -> manually entered stats
     this.isPolling = false
     this.pollInterval = null
     const cacheDir = join(__dirname, '../data/cache')
     mkdirSync(cacheDir, { recursive: true })
     this.cacheFile = join(cacheDir, 'nextGamesCache.json')
-    this.fotmobCacheFile = join(cacheDir, 'fotmobCache.json')
+    this.lastGameCacheFile = join(cacheDir, 'lastGameCache.json')
     this.manualStatsFile = join(__dirname, '../data/playerStats.json')
     this.loadNextGamesCache()
-    this.loadFotMobCache()
+    this.loadLastGameCache()
     this.loadManualStats()
   }
 
@@ -70,34 +69,28 @@ class MatchTrackerFD {
     }
   }
 
-  // Load FotMob cache from file
-  loadFotMobCache() {
+  // Load last game data from file (populated by updateLastGameData)
+  loadLastGameCache() {
     try {
-      if (existsSync(this.fotmobCacheFile)) {
-        const data = JSON.parse(readFileSync(this.fotmobCacheFile, 'utf-8'))
-        const now = new Date()
-        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
-
-        for (const [playerId, cacheEntry] of Object.entries(data)) {
-          // Only load cache entries that are less than 1 hour old
-          if (new Date(cacheEntry.timestamp) > oneHourAgo) {
-            this.fotmobData.set(parseInt(playerId), cacheEntry)
-          }
+      if (existsSync(this.lastGameCacheFile)) {
+        const data = JSON.parse(readFileSync(this.lastGameCacheFile, 'utf-8'))
+        for (const [playerId, entry] of Object.entries(data)) {
+          this.lastGameData.set(parseInt(playerId), entry)
         }
-        console.log(`Loaded ${this.fotmobData.size} cached FotMob entries`)
+        console.log(`Loaded ${this.lastGameData.size} cached last games`)
       }
     } catch (error) {
-      console.error('Error loading FotMob cache:', error)
+      console.error('Error loading last game cache:', error)
     }
   }
 
-  // Save FotMob cache to file
-  saveFotMobCache() {
+  // Save last game data to file
+  saveLastGameCache() {
     try {
-      const data = Object.fromEntries(this.fotmobData)
-      writeFileSync(this.fotmobCacheFile, JSON.stringify(data, null, 2))
+      const data = Object.fromEntries(this.lastGameData)
+      writeFileSync(this.lastGameCacheFile, JSON.stringify(data, null, 2))
     } catch (error) {
-      console.error('Error saving FotMob cache:', error)
+      console.error('Error saving last game cache:', error)
     }
   }
 
@@ -484,7 +477,7 @@ class MatchTrackerFD {
             // For live or finished games, fetch detailed player stats
             if (status === 'live' || status === 'finished') {
               try {
-                const stats = await this.fotmob.getPlayerStatsFromMatch(matchToUse.id, player.name, isHome, forLiveData)
+                const stats = await this.fotmob.getPlayerStatsFromMatch(matchToUse.id, player.name, isHome, forLiveData, player.fotmobId)
                 if (stats) {
                   playerStats = {
                     participated: stats.participated,
@@ -514,7 +507,7 @@ class MatchTrackerFD {
               // The method internally validates that the lineup data is fresh and consistent
               if (playerStats.participated === null) {
                 try {
-                  const teamLineupStats = await this.fotmob.getPlayerStatsFromTeamLineup(teamName, player.name, forLiveData)
+                  const teamLineupStats = await this.fotmob.getPlayerStatsFromTeamLineup(teamName, player.name, forLiveData, player.fotmobId)
                   if (teamLineupStats) {
                     playerStats.participated = teamLineupStats.participated
                     playerStats.started = teamLineupStats.started
@@ -610,9 +603,12 @@ class MatchTrackerFD {
       let fotmobPlayerApiCount = 0
 
       for (const player of this.players) {
-        // Fetch from FotMob if: no data yet, OR existing data has no rating (incomplete)
+        // Fetch from FotMob if: no data yet, OR existing data has no rating (incomplete),
+        // OR existing data is more than 24 hours old (may have played a new game since)
         const existingLastGame = this.lastGameData.get(player.id)
-        const needsFotMobData = !existingLastGame || (existingLastGame.rating === null && existingLastGame.source !== 'fotmob_player_api')
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        const isStale = existingLastGame?.date && new Date(existingLastGame.date) < oneDayAgo
+        const needsFotMobData = !existingLastGame || isStale || (existingLastGame.rating === null && existingLastGame.source !== 'fotmob_player_api')
         if (player.fotmobId && needsFotMobData) {
           const fotmobMatch = await this.getPlayerRecentMatchFromFotMob(player)
           if (fotmobMatch && fotmobMatch.date) {
@@ -663,8 +659,14 @@ class MatchTrackerFD {
       let teamLineupFallbackCount = 0
 
       for (const [teamName, players] of Object.entries(playersByTeamForLineup)) {
-        // Only process teams where players still need data
-        const playersNeedingData = players.filter(p => !this.lastGameData.has(p.id))
+        // Process teams where players have no data OR have stale data (>24h old)
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        const playersNeedingData = players.filter(p => {
+          const existing = this.lastGameData.get(p.id)
+          if (!existing) return true
+          if (!existing.date) return true
+          return new Date(existing.date) < oneDayAgo
+        })
         if (playersNeedingData.length === 0) continue
         if (processedTeamsForLineup.has(teamName)) continue
         processedTeamsForLineup.add(teamName)
@@ -681,31 +683,51 @@ class MatchTrackerFD {
           const isHome = lastMatch.home?.id === teamId
           const matchDate = lastMatch.status?.utcTime || null
 
-          for (const player of playersNeedingData) {
-            const stats = await this.fotmob.getPlayerStatsFromTeamLineup(teamName, player.name)
-            if (!stats) continue
+          const matchBase = {
+            fixtureId: lastMatch.id || null,
+            date: matchDate,
+            homeTeam: lastMatch.home?.name || 'Unknown',
+            awayTeam: lastMatch.away?.name || 'Unknown',
+            homeScore: lastMatch.home?.score ?? 0,
+            awayScore: lastMatch.away?.score ?? 0,
+            isHome,
+            competition: lastMatch.tournament?.name || 'Unknown',
+          }
 
-            this.lastGameData.set(player.id, {
-              fixtureId: lastMatch.id || null,
-              date: matchDate,
-              homeTeam: lastMatch.home?.name || 'Unknown',
-              awayTeam: lastMatch.away?.name || 'Unknown',
-              homeScore: lastMatch.home?.score ?? 0,
-              awayScore: lastMatch.away?.score ?? 0,
-              isHome,
-              events: stats.events || [],
-              participated: stats.participated,
-              minutesPlayed: null, // Not available from team lineup
-              started: stats.started,
-              goals: stats.goals || 0,
-              assists: stats.assists || 0,
-              rating: stats.rating,
-              competition: lastMatch.tournament?.name || 'Unknown',
-              source: 'fotmob_team_lineup'
-            })
-            teamLineupFallbackCount++
-            if (stats.participated) {
-              console.log(`FotMob Team Lineup: ${player.name} - started: ${stats.started}, rating: ${stats.rating}`)
+          for (const player of playersNeedingData) {
+            const stats = await this.fotmob.getPlayerStatsFromTeamLineup(teamName, player.name, false, player.fotmobId)
+            if (stats) {
+              this.lastGameData.set(player.id, {
+                ...matchBase,
+                events: stats.events || [],
+                participated: stats.participated,
+                minutesPlayed: null, // Not available from team lineup
+                started: stats.started,
+                goals: stats.goals || 0,
+                assists: stats.assists || 0,
+                rating: stats.rating,
+                source: 'fotmob_team_lineup'
+              })
+              teamLineupFallbackCount++
+              if (stats.participated) {
+                console.log(`FotMob Team Lineup: ${player.name} - started: ${stats.started}, rating: ${stats.rating}`)
+              }
+            } else if (matchDate) {
+              // Player not in squad — record the team's game so the UI can show "not in squad"
+              this.lastGameData.set(player.id, {
+                ...matchBase,
+                events: [],
+                participated: false,
+                minutesPlayed: 0,
+                started: false,
+                goals: 0,
+                assists: 0,
+                rating: null,
+                notInSquad: true,
+                source: 'fotmob_team_lineup'
+              })
+              teamLineupFallbackCount++
+              console.log(`FotMob Team Lineup: ${player.name} - not in squad for ${matchBase.homeTeam} vs ${matchBase.awayTeam}`)
             }
           }
 
@@ -719,323 +741,13 @@ class MatchTrackerFD {
         console.log(`FotMob Team Lineup: Got last game data for ${teamLineupFallbackCount} players`)
       }
 
-      // SECOND: Fill in remaining players from Football-Data.org API
-      const today = this.getTodayDate()
-      const tenDaysAgo = this.getDateOffset(-10)
-      const matches = await this.fetchMatches(tenDaysAgo, today)
-
-      // Sort by date descending (most recent first)
-      matches.sort((a, b) => new Date(b.utcDate) - new Date(a.utcDate))
-
-      const playersByTeam = this.getPlayersByTeam()
-      const matchDetailsCache = new Map() // Cache match details to avoid duplicate fetches
-
-      for (const match of matches) {
-        const status = this.getMatchStatus(match)
-        if (status !== 'finished') continue
-
-        const homeTeam = match.homeTeam?.name || match.homeTeam?.shortName
-        const awayTeam = match.awayTeam?.name || match.awayTeam?.shortName
-
-        // Check if game was within last 24 hours - if so, fetch detailed events
-        const gameTime = new Date(match.utcDate)
-        const now = new Date()
-        const hoursSinceGame = (now - gameTime) / (1000 * 60 * 60)
-        const isRecent = hoursSinceGame < 48 // Fetch details for games in last 48 hours
-
-        for (const [teamName, players] of Object.entries(playersByTeam)) {
-          let isHome = null
-
-          if (this.teamMatches(homeTeam, teamName)) {
-            isHome = true
-          } else if (this.teamMatches(awayTeam, teamName)) {
-            isHome = false
-          }
-
-          if (isHome !== null) {
-            // Fetch match details if recent and not already cached
-            let matchDetails = null
-            if (isRecent) {
-              if (matchDetailsCache.has(match.id)) {
-                matchDetails = matchDetailsCache.get(match.id)
-              } else {
-                try {
-                  console.log(`Fetching details for match ${match.id}`)
-                  matchDetails = await this.api.getMatchDetails(match.id)
-                  matchDetailsCache.set(match.id, matchDetails)
-                } catch (error) {
-                  console.error(`Error fetching match details for ${match.id}:`, error.message)
-                }
-              }
-            }
-
-            for (const player of players) {
-              // Skip if we already have data for this player (from FotMob Player API or previous match)
-              if (this.lastGameData.has(player.id)) continue
-
-              // Parse player events if we have match details
-              let playerEvents = []
-              let minutesPlayed = null // Unknown without detailed data
-              let started = null // Unknown without detailed data
-              let participated = null // Unknown without detailed data
-
-              if (matchDetails) {
-                // Check lineup/bench data from FD match details
-                const teamLineup = isHome ? matchDetails.homeTeam?.lineup : matchDetails.awayTeam?.lineup
-                const teamBench = isHome ? matchDetails.homeTeam?.bench : matchDetails.awayTeam?.bench
-
-                if (teamLineup && teamLineup.length > 0) {
-                  const inLineup = teamLineup.some(p => this.lineupNameMatches(p.name, player.name))
-                  if (inLineup) {
-                    participated = true
-                    started = true
-                    minutesPlayed = 90
-                  }
-                }
-
-                if (!participated && teamBench && teamBench.length > 0) {
-                  const onBench = teamBench.some(p => this.lineupNameMatches(p.name, player.name))
-                  if (onBench) {
-                    // On bench - will check sub events below to determine if they came on
-                    started = false
-                  }
-                }
-
-                // Parse events (goals, subs, cards)
-                playerEvents = this.parsePlayerEvents(matchDetails, player.name, isHome)
-                if (playerEvents.length > 0) {
-                  const hasSubIn = playerEvents.some(e => e.type === 'sub_in')
-                  const hasSubOut = playerEvents.some(e => e.type === 'sub_out')
-                  if (hasSubIn) {
-                    started = false
-                    participated = true
-                  } else if (started === null) {
-                    started = true
-                  }
-                  participated = true
-                  minutesPlayed = this.calculateMinutesPlayed(playerEvents, 90)
-                } else if (started === false && !participated) {
-                  // On bench with no sub events = unused sub
-                  participated = false
-                  minutesPlayed = 0
-                }
-              }
-
-              // Count goals/assists from FD events
-              let statsSource = 'api'
-              let goals = playerEvents.filter(e => e.type === 'goal').length
-              let assists = playerEvents.filter(e => e.type === 'assist').length
-              let rating = null
-              const fotmobMatch = this.findFotMobMatchForDate(player.id, match.utcDate)
-              const manualMatch = this.findManualMatchForDate(player.id, match.utcDate)
-
-              let fotmobFixtureId = null
-              if (fotmobMatch) {
-                // Use FotMob data for player stats
-                playerEvents = fotmobMatch.events || []
-                minutesPlayed = fotmobMatch.minutesPlayed || 0
-                started = fotmobMatch.started
-                participated = fotmobMatch.participated
-                goals = fotmobMatch.goals || 0
-                assists = fotmobMatch.assists || 0
-                rating = fotmobMatch.rating
-                fotmobFixtureId = fotmobMatch.matchId || null
-                statsSource = 'fotmob'
-                console.log(`Using FotMob data for ${player.name}: ${minutesPlayed}min, ${goals}g, ${assists}a, rating: ${rating}`)
-              } else if (manualMatch) {
-                // Use manual stats as fallback
-                playerEvents = manualMatch.events || []
-                minutesPlayed = manualMatch.minutesPlayed || 0
-                started = manualMatch.started
-                participated = manualMatch.participated
-                statsSource = 'manual'
-                console.log(`Using manual stats for ${player.name}: ${minutesPlayed}min, ${playerEvents.filter(e => e.type === 'goal').length} goals`)
-              }
-
-              this.lastGameData.set(player.id, {
-                fixtureId: fotmobFixtureId || null,
-                date: match.utcDate,
-                homeTeam: homeTeam,
-                awayTeam: awayTeam,
-                homeScore: match.score?.fullTime?.home ?? 0,
-                awayScore: match.score?.fullTime?.away ?? 0,
-                isHome,
-                events: playerEvents,
-                participated,
-                minutesPlayed,
-                started,
-                goals,
-                assists,
-                rating,
-                competition: match.competition?.name,
-                source: statsSource
-              })
-            }
-          }
-        }
-      }
-
       console.log(`Updated last game data for ${this.lastGameData.size} players`)
+      this.saveLastGameCache()
       return true
     } catch (error) {
       console.error('Error updating last game data:', error)
       return false
     }
-  }
-
-  // Update FotMob player statistics using direct player ID lookup when available
-  async updateFotMobData() {
-    try {
-      console.log(`Fetching FotMob data for ${this.players.length} players`)
-
-      let updated = 0
-      let failed = 0
-
-      for (const player of this.players) {
-        // Check if we need to refresh this player's data
-        const cached = this.fotmobData.get(player.id)
-        const now = new Date()
-        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
-
-        if (cached && new Date(cached.timestamp) > oneHourAgo) {
-          continue // Skip if cached data is fresh
-        }
-
-        try {
-          let stats = null
-
-          // PREFER direct player API if fotmobId is available
-          if (player.fotmobId) {
-            const recentMatches = await this.fotmob.getPlayerRecentMatches(player.fotmobId, player.team)
-            if (recentMatches && recentMatches.length > 0) {
-              const lastMatch = recentMatches[0]
-              stats = {
-                matchId: lastMatch.matchId || null,
-                date: lastMatch.date,
-                homeTeam: lastMatch.homeTeam,
-                awayTeam: lastMatch.awayTeam,
-                homeScore: lastMatch.homeScore,
-                awayScore: lastMatch.awayScore,
-                minutesPlayed: lastMatch.minutesPlayed,
-                started: lastMatch.started,
-                participated: lastMatch.participated,
-                goals: lastMatch.goals || 0,
-                assists: lastMatch.assists || 0,
-                rating: lastMatch.rating,
-                competition: lastMatch.competition,
-                events: lastMatch.events || []
-              }
-              console.log(`FotMob Player API: ${player.name} - ${stats.minutesPlayed || 0}min, ${stats.goals}g, ${stats.assists}a`)
-            }
-          }
-
-          // Fallback to team-based lookup if no fotmobId or no data from player API
-          if (!stats) {
-            stats = await this.fotmob.getPlayerLastMatchStats(player.name, player.team)
-          }
-
-          // Fallback to team API's lastLineupStats if both player API and match details are blocked
-          if (!stats) {
-            const teamLineupStats = await this.fotmob.getPlayerStatsFromTeamLineup(player.team, player.name)
-            if (teamLineupStats) {
-              const teamData = await this.fotmob.getTeamData(player.team)
-              const lastMatch = teamData?.overview?.lastMatch
-              if (lastMatch) {
-                const teamId = TEAM_IDS[player.team]
-                const isHomeMatch = lastMatch.home?.id === teamId
-                stats = {
-                  matchId: lastMatch.id || null,
-                  date: lastMatch.status?.utcTime,
-                  homeTeam: lastMatch.home?.name || 'Unknown',
-                  awayTeam: lastMatch.away?.name || 'Unknown',
-                  homeScore: lastMatch.home?.score ?? 0,
-                  awayScore: lastMatch.away?.score ?? 0,
-                  minutesPlayed: null,
-                  started: teamLineupStats.started,
-                  participated: teamLineupStats.participated,
-                  goals: teamLineupStats.goals || 0,
-                  assists: teamLineupStats.assists || 0,
-                  rating: teamLineupStats.rating,
-                  competition: lastMatch.tournament?.name,
-                  events: teamLineupStats.events || []
-                }
-                console.log(`FotMob Team Lineup fallback: ${player.name} - rating: ${stats.rating}, started: ${stats.started}`)
-              }
-            }
-          }
-
-          if (stats && stats.participated) {
-            // Use teamMatches for consistent fuzzy matching instead of exact comparison
-            const isHomeMatch = this.teamMatches(stats.homeTeam, player.team)
-            this.fotmobData.set(player.id, {
-              timestamp: now.toISOString(),
-              lastMatch: {
-                matchId: stats.matchId || null,
-                date: stats.date,
-                opponent: isHomeMatch ? stats.awayTeam : stats.homeTeam,
-                isHome: isHomeMatch,
-                homeTeam: stats.homeTeam,
-                awayTeam: stats.awayTeam,
-                homeScore: stats.homeScore,
-                awayScore: stats.awayScore,
-                minutesPlayed: stats.minutesPlayed,
-                started: stats.started,
-                participated: stats.participated,
-                goals: stats.goals,
-                assists: stats.assists,
-                rating: stats.rating,
-                competition: stats.competition,
-                events: stats.events || []
-              }
-            })
-            updated++
-          } else if (stats) {
-            // Player didn't participate but we have match data
-            this.fotmobData.set(player.id, {
-              timestamp: now.toISOString(),
-              lastMatch: {
-                date: stats.date,
-                participated: false
-              }
-            })
-          }
-        } catch (error) {
-          failed++
-          if (failed <= 3) {
-            console.log(`FotMob: Error for ${player.name}: ${error.message}`)
-          }
-        }
-
-        // Add a small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
-
-      if (updated > 0) {
-        this.saveFotMobCache()
-        console.log(`FotMob: Updated data for ${updated} players`)
-      }
-
-      return true
-    } catch (error) {
-      console.error('Error in FotMob update:', error.message)
-      return true // Don't fail the whole process
-    }
-  }
-
-  // Get FotMob match data for a specific date and player
-  findFotMobMatchForDate(playerId, matchDate) {
-    const cached = this.fotmobData.get(playerId)
-    if (!cached || !cached.lastMatch) return null
-
-    const fotmobDate = new Date(cached.lastMatch.date)
-    const targetDate = new Date(matchDate)
-
-    // Check if dates match (same day)
-    if (fotmobDate.toISOString().split('T')[0] === targetDate.toISOString().split('T')[0]) {
-      return cached.lastMatch
-    }
-
-    return null
   }
 
   // Get most recent FotMob data for a player (using direct player API if fotmobId exists)
@@ -1066,7 +778,10 @@ class MatchTrackerFD {
         // showing old-team games as missed)
         const currentTeamInMatch = mostRecentMatch &&
           (this.teamMatches(mostRecentMatch.homeTeam, player.team) || this.teamMatches(mostRecentMatch.awayTeam, player.team))
-        if (mostRecentMatch && !mostRecentMatch.participated && participatedMatch && currentTeamInMatch) {
+        const matchIsFinished = mostRecentMatch && (
+          mostRecentMatch.homeScore != null || (mostRecentMatch.date && new Date(mostRecentMatch.date) < new Date())
+        )
+        if (mostRecentMatch && !mostRecentMatch.participated && participatedMatch && currentTeamInMatch && matchIsFinished) {
           result.missedGame = {
             fixtureId: mostRecentMatch.matchId || null,
             date: mostRecentMatch.date,
@@ -1132,17 +847,50 @@ class MatchTrackerFD {
               const teamMatchDate = new Date(teamLastMatch.date)
               const participatedDate = new Date(participatedMatch.date)
 
-              // If team's last match is more recent than player's last participation
-              if (teamMatchDate > participatedDate) {
-                result.missedGame = {
-                  fixtureId: teamLastMatch.id || null,
-                  date: teamLastMatch.date,
-                  homeTeam: teamLastMatch.homeTeam,
-                  awayTeam: teamLastMatch.awayTeam,
-                  homeScore: teamLastMatch.homeScore,
-                  awayScore: teamLastMatch.awayScore,
-                  isHome: teamLastMatch.isHome,
-                  competition: teamLastMatch.competition
+              // If team's last match is more recent than player's last participation (and is finished)
+              if (teamMatchDate > participatedDate && teamMatchDate < new Date()) {
+                // Verify whether the player actually played in this match before marking as missed.
+                // FotMob's player API can lag by several minutes after a game ends, so the match may
+                // not appear in recentMatches yet even for players who started and scored.
+                let matchStats = null
+                try {
+                  matchStats = await this.fotmob.getPlayerStatsFromMatch(
+                    teamLastMatch.id, player.name, teamLastMatch.isHome, true, player.fotmobId
+                  )
+                } catch (matchErr) {
+                  // Couldn't get match details — fall through to missedGame
+                }
+
+                if (matchStats && matchStats.participated) {
+                  // Player was in the lineup and played — use this as the last game
+                  result.fixtureId = teamLastMatch.id || null
+                  result.date = teamLastMatch.date
+                  result.homeTeam = teamLastMatch.homeTeam
+                  result.awayTeam = teamLastMatch.awayTeam
+                  result.homeScore = teamLastMatch.homeScore
+                  result.awayScore = teamLastMatch.awayScore
+                  result.isHome = teamLastMatch.isHome
+                  result.competition = teamLastMatch.competition
+                  result.minutesPlayed = matchStats.minutesPlayed
+                  result.started = matchStats.started
+                  result.participated = matchStats.participated
+                  result.goals = matchStats.goals || 0
+                  result.assists = matchStats.assists || 0
+                  result.rating = matchStats.rating
+                  result.events = matchStats.events || []
+                  console.log(`FotMob: ${player.name} played in team's latest match (player API lagged) — using match lineup data`)
+                } else {
+                  result.missedGame = {
+                    fixtureId: teamLastMatch.id || null,
+                    date: teamLastMatch.date,
+                    homeTeam: teamLastMatch.homeTeam,
+                    awayTeam: teamLastMatch.awayTeam,
+                    homeScore: teamLastMatch.homeScore,
+                    awayScore: teamLastMatch.awayScore,
+                    isHome: teamLastMatch.isHome,
+                    competition: teamLastMatch.competition,
+                    onBench: !!(matchStats?.onBench)
+                  }
                 }
               }
             }
@@ -1194,6 +942,16 @@ class MatchTrackerFD {
 
       console.log(`Fetching next games for ${teamsNeedingRefresh.length} teams`)
 
+      // Clear stale entries before refreshing so fallbacks work correctly
+      for (const teamName of teamsNeedingRefresh) {
+        for (const player of playersByTeam[teamName]) {
+          const cached = this.nextGameData.get(player.id)
+          if (!cached || new Date(cached.kickoff) <= new Date()) {
+            this.nextGameData.delete(player.id)
+          }
+        }
+      }
+
       // Use FotMob as primary source (team-ID-based, reliable)
       for (const teamName of teamsNeedingRefresh) {
         try {
@@ -1221,49 +979,7 @@ class MatchTrackerFD {
             }
           }
         } catch (err) {
-          // Will try football-data.org fallback below
-        }
-      }
-
-      // Football-data.org fallback for teams without FotMob data
-      const teamsStillNeeding = teamsNeedingRefresh.filter(team => {
-        const players = playersByTeam[team]
-        return players.some(p => !this.nextGameData.has(p.id))
-      })
-
-      if (teamsStillNeeding.length > 0) {
-        console.log(`Football-data.org fallback: Fetching next games for ${teamsStillNeeding.length} teams`)
-        const today = this.getTodayDate()
-        const twoWeeksAhead = this.getDateOffset(14)
-        const matches = await this.fetchMatches(today, twoWeeksAhead)
-        matches.sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
-
-        for (const teamName of teamsStillNeeding) {
-          const players = playersByTeam[teamName]
-          for (const match of matches) {
-            const homeTeam = match.homeTeam?.name || match.homeTeam?.shortName
-            const awayTeam = match.awayTeam?.name || match.awayTeam?.shortName
-            let isHome = null
-            if (this.teamMatches(homeTeam, teamName)) {
-              isHome = true
-            } else if (this.teamMatches(awayTeam, teamName)) {
-              isHome = false
-            }
-            if (isHome !== null) {
-              for (const player of players) {
-                this.nextGameData.set(player.id, {
-                  fixtureId: match.id,
-                  kickoff: match.utcDate,
-                  homeTeam,
-                  awayTeam,
-                  isHome,
-                  venue: match.venue || '',
-                  competition: match.competition?.name
-                })
-              }
-              break
-            }
-          }
+          // FotMob returned no data for this team's next game
         }
       }
 
@@ -1284,8 +1000,14 @@ class MatchTrackerFD {
   // Get all match data
   getAllMatchData() {
     const data = {}
+    const today = this.getTodayDate()
     for (const player of this.players) {
-      const todayMatch = this.matchData.get(player.id)
+      let todayMatch = this.matchData.get(player.id)
+      // Discard stale entries from previous days — kickoff must be today
+      if (todayMatch?.kickoff) {
+        const matchDay = new Date(todayMatch.kickoff).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+        if (matchDay !== today) todayMatch = null
+      }
       const lastGame = this.lastGameData.get(player.id)
       const nextGame = this.nextGameData.get(player.id)
 
@@ -1328,10 +1050,6 @@ class MatchTrackerFD {
 
     // Initial update from FotMob
     await this.updateMatchDataFromFotMob()
-
-    // Update FotMob data for player stats
-    await this.updateFotMobData()
-
     await this.updateLastGameData()
     await this.updateNextGameData()
 
@@ -1342,10 +1060,18 @@ class MatchTrackerFD {
     let isLive = this.hasLiveMatches()
 
     // Polling function that adjusts interval based on live status
+    let pollCount = 0
     const pollForUpdates = async () => {
+      pollCount++
       // Always update with fresh data to detect status changes
       isLive = this.hasLiveMatches()
       await this.updateMatchDataFromFotMob(isLive)
+
+      // Every 6 polls (~30 min at normal interval), refresh last game and next game data
+      if (pollCount % 6 === 0) {
+        await this.updateLastGameData()
+        await this.updateNextGameData()
+      }
 
       if (isLive) {
         console.log('Live matches detected - using fresh FotMob data')

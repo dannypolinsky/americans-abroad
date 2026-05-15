@@ -5,124 +5,73 @@
 
 ---
 
-## Current State (as of 2026-03-06)
+## Current State (as of 2026-05-14)
 
-**All targets deployed and healthy.**
-- NAS (primary backend): ✅ up to date
-- Render (fallback backend): ⏳ not deployed (low priority — NAS is primary)
-- Ionos (frontend): ✅ up to date
+**All targets deployed and healthy. Refactor + performance improvements made — not yet deployed.**
+- NAS (primary backend): ✅ up, 49 players
+- Ionos (frontend): ✅ deployed and live
+- Render (fallback backend): ⏳ not deployed (low priority)
 
 ---
 
 ## Recent Changes
 
-### 2026-03-06
-- **FotMob-only backend**: Removed Football-Data.org dependency entirely. All match tracking now goes through FotMob. Removed `updateMatchData()`, `fetchMatches()`, `getSupportedLeagueCodes()`, `getMatchStatus()`, demo mode, ~580 lines. `updateMatchDataFromFotMob` now processes all teams equally. `footballData.js` no longer used by the tracker (file kept but unused). No API key required.
-- **Balogun fix (AS Monaco)**: Was missing data because FD API token was invalid and Monaco was FD-tracked. Now covered by FotMob like all other teams.
-- **Zendejas missing data fix**: FotMob calls Club America "CF América" — updated team name in both `players.json` files and added "CF América"/"Club América" aliases to `TEAM_IDS`. Added NFD accent normalization to `teamNamesMatch()` (é→e etc.) so accent variants never silently filter out match data again. Root cause: team API (`/teams?id=6896`) returns null for Liga MX; player HTML scrape works but was filtering all matches due to name mismatch.
-- **UI overhaul — minimalist card redesign**:
-  - Removed box-within-box clutter: match-info/last-game blocks transparent with thin top separator only
-  - Score pulled into dedicated right column with inset vertical divider (doesn't touch top/bottom borders)
-  - Score: no background, larger font, `·` separator between numbers, W/L/D result badge below
-  - Team display: two-line layout — player's team bold on line 1, "vs/at [opponent]" on line 2
-  - Upcoming games: kickoff time (KO label + time) in score column; competition name only on left
-  - Section headers: small uppercase text with colored left-border accent, no background fill
-  - Player name larger/bolder (1.1rem, weight 700); avatar 44px → 54px
-  - Card green border removed; status left-border only (no tinted background)
-  - Position/league tags: text-only, no pill backgrounds
+### 2026-05-14 — Refactor + startup performance (NOT YET DEPLOYED)
 
-### 2026-03-04
-- **Pukstas stale-cache fix**: In `updateMatchDataFromFotMob`, FotMob-only teams (Croatian First League etc.) whose match was cached as "upcoming" but kickoff has since passed now bypass the 1-hour FotMob team API cache, forcing a fresh fetch. This catches games that went live/finished while the backend was polling without live matches active.
-- **Badge consistency**: Fixed "Not in Squad" (capital S) → "Not in squad" in live game block; removed `font-weight: 600` override from `.badge-dnp` so all badges inherit 700; removed ~130 lines of dead CSS (old badge system: `.player-events`, `.stat-badge`, `.rating-badge`, `.bench-badge`, `.start-badge`, `.sub-badge`, `.competition-name`, `.game-box`, etc.)
+**Backend changes (`backend/services/matchTrackerFD.js`, `backend/server.js`):**
 
-### 2026-03-03 (session 2)
-- **Card height reduction**: Tightened padding/spacing throughout `PlayerCard.css` and `App.css` — photo 50px→44px, card padding, match-info padding, badge padding, grid gap, section header margins all reduced ~20%
-- **Missed game → compact one-liner**: Replaced the full `missed-game-info` / `bench-game-info` box (with header, teams, score, badge) with a single compact text line above the last game box — e.g. `BENCH Mar 1 · MLS · Team A 2:1 Team B`. CSS: new `.missed-game-line` class replaces old `.missed-game-info` / `.bench-game-info` / `.missed-game-header` / `.bench-game-header` rules
-- **Removed players**: Brandon Vazquez, Liam West, Peyton Miller removed from both `players.json` files (58 → 55 players)
+- **Removed dead `updateFotMobData()` pipeline** (~160 lines deleted): This method ran 49 sequential FotMob player API calls at startup and every 6 polls, but its output (`this.fotmobData`) was read only by `findFotMobMatchForDate()`, which was never called. `getAllMatchData()` (the API response) only reads `this.lastGameData`. Startup is now 1 pass shorter. Also removed: `this.fotmobData` map, `fotmobCacheFile`, `saveFotMobCache()`, `loadFotMobCache()`, `findFotMobMatchForDate()`, `/api/fotmob/refresh` endpoint.
 
-### 2026-03-03 (session 1)
-- **Badge overhaul**:
-  - `Full 90` badge (blue) replaces `▶ START` + `90'` for completed full-game starters
-  - Arrow removed from START badge for upcoming and live games (`STARTING` / `START`)
-  - Minute badge suppressed when an Out badge is present (redundant info)
-  - Minute badge suppressed for sub players in completed games (`↑ SUB 60'` is sufficient)
-  - Goal/assist badges now transparent pill (no colored background) — reads `⚽ 34'` / `🅰️ 67'` inline
-  - All badge types (goal, assist, card) now uniform height via consistent base `.badge` padding
-  - New `.badge-full90` CSS class (blue, with dark mode override)
-- **Goal/assist/sub minutes for recently played**: `fotmobService.getPlayerRecentMatches` now extracts sub_in, sub_out, goal, assist, and card events with real minute timestamps from match detail events (previously all had `minute: null`)
-- **`subInMinute` fixed for lastGame source**: `renderStatsStrip` previously hardcoded `subInMinute = null` for lastGame; now reads from event data for all sources
-- **Local backend `.env` fixed**: renamed `API_FOOTBALL_KEY` → `FOOTBALL_DATA_KEY` so local dev runs in live mode
-- **Luca de la Torre**: Updated team from San Diego FC → Charlotte FC in both `players.json` files
+- **Added `lastGameData` disk persistence** (`lastGameCache.json`): `this.lastGameData` was built at runtime but never saved. On container restart it was empty until `updateLastGameData()` finished (~1-2 min for 49 players). Now written to `data/cache/lastGameCache.json` at the end of every `updateLastGameData()` run and loaded on startup — backend serves `lastGame` data immediately after any restart.
 
-### 2026-03-02 (session 3)
-- **Player photos**: Added Wikipedia/Wikimedia Commons headshots for all players that were missing them (20 found automatically, remainder added manually by user). Every player now has a photo.
-- **Badge styling**: `.badge-bench` (Unused sub) and `.badge-dnp` (Not in squad / Did not play) now render as proper filled pill badges matching the rest of the stats strip — no more italic/transparent text.
-- **Unified badge CSS system**: Added `.stats-strip`, `.badge`, and all `.badge-*` variant classes (`badge-start`, `badge-sub-in`, `badge-sub-out`, `badge-mins`, `badge-goal`, `badge-assist`, `badge-card`, `badge-bench`, `badge-dnp`) with dark mode overrides.
+- **Server version bumped to `2.6.0`**.
 
-### 2026-03-02 (session 2)
-- **Expandable stats drawer**: Tap the ▼ button on any played game card (Recently Played, Finished Today, Live) to see detailed FotMob stats — groups: Summary (xG, chances, pass%), Attacking, Passing, Defending, Duels. Stats are fetched on demand via new `GET /api/player/:id/match-stats?fixtureId=XXXX` endpoint. Result cached for the session (no re-fetch on re-open).
-- **Color shading for playing status**: Replaced START/SUB text badges with 4px left border + faint background tint on game boxes — green = started, amber = sub on, gray = bench/unused. Status classes: `.status-started`, `.status-sub`, `.status-bench` on `.match-info` and `.last-game-info`.
-- **Dark mode**: CSS custom properties throughout all stylesheets (`index.css`, `App.css`, `PlayerCard.css`, `LeagueFilter.css`). Responds automatically to `prefers-color-scheme: dark` (macOS system appearance).
-- **Average rating badge**: Players in Recently Played section show a secondary lighter-blue badge with their 5-game average FotMob rating, e.g. `7.2 (4)` — only shown when 2+ games have ratings.
+**Frontend changes (`src/App.jsx`):**
 
-### 2026-03-02
-- **Added Aiden Hezarkhani**: Real Salt Lake, MLS, Midfielder, age 18, fotmobId 1643328
-- **Added Luca Moisa**: Real Salt Lake, MLS, Midfielder, age 17, fotmobId 1663013
-- **Activity-based sorting**: Upcoming and recently played sections now sort by activity score (starters > sub appearances > token minutes > unused subs/DNPs). Players under 18 with low activity get an extra penalty, sinking to the bottom of each section. Score: 3=started, 2=meaningful sub, 1=<15 min, 0=unused sub or DNP; youth (<18) with score ≤1 get score−1.
-
-### 2026-03-01
-- **Docker volume fix**: Cache files (`nextGamesCache.json`, `fotmobCache.json`) moved to `data/cache/` subdirectory; volume now mounts only `/app/data/cache`. Previously the entire `/app/data` volume shadowed `players.json` on every deploy, requiring a manual `docker cp` workaround — future player data changes will take effect on normal deploy
-- **Cache-Control header**: Added `Cache-Control: no-store` middleware to all API responses in `server.js` — prevents Cloudflare or any proxy from caching live match data
-- **Stale live/finished status fix**: On initial cache load in `App.jsx`, `live`/`finished` entries whose kickoff date is not today are immediately reset to `no_match_today` — fixes games from previous days persisting as live when the API was temporarily unreachable
-
-### 2026-02-28
-- **Josh Sargent**: Updated team from Norwich City → Toronto FC in both `players.json` files
-- **Unused sub display fix**: Players with `minutesPlayed === 0`, `started === false`, and no `sub_in` event now show "Unused sub" badge instead of NR/0/SUB — applies to both Finished Today and Recently Played sections (`PlayerCard.jsx`)
-- **Stale missed-game fix for transferred players**: `getPlayerRecentMatchFromFotMob` now verifies player's current team is in the match before creating a `missedGame` entry — fixes Mihailovic and Sargent showing old-team (Colorado/Norwich) games as missed after transfer to Toronto FC
-- **Added Adri Mehmeti**: New York Red Bulls, MLS, Midfielder, age 16, fotmobId 1715268
-- **Added Niko Tsakiris**: San Jose Earthquakes, MLS, Midfielder, age 20, fotmobId 1339609
-- **Removed Kaedren Spivey and Christopher Cupps**: Both removed from both `players.json` files
-
-### 2026-02-27 (session 2)
-- **Sullivan surname collision fix**: `fotmobService.playerNameMatches()` and `matchTrackerFD.lineupNameMatches()` now check first initial when two players share a last name — Quinn Sullivan (ID 1171007) and Cavan Sullivan (ID 1630736) now correctly show separate stats
-- **Removed Render cold-start code**: Frontend no longer retries the API on failure (that was for Render cold starts). Loading overlay message simplified to "Loading match data..." — NAS is always-on, no cold starts.
-
-### 2026-02-27 (session 1)
-- **Djordje Mihailovic**: Updated team from Colorado Rapids → Toronto FC in both `src/data/players.json` and `backend/data/players.json`
-- **Stale "Finished Today" bug**: Three-part fix:
-  1. `CACHE_VERSION` bump in `src/App.jsx` forces localStorage clear on all clients (currently `'3'`)
-  2. After API merge, clear stale `finished`/`live` status for players not in fresh response
-  3. `groupedPlayers` now validates kickoff date before placing a game in "Finished Today" (`isKickoffToday()`)
-- **Auto-refresh near kickoff**: Frontend now polls every 60s when any upcoming match is within 5 min of kickoff (previously only polled when already live)
-- **Lineup status for FD-tracked games**: `updateMatchDataFromFotMob` now augments Football-Data.org upcoming matches with FotMob lineup data when within 45-min pre-kickoff window
+- **Added unconditional 5-minute refresh interval**: The documented known gap — the 60-second auto-refresh only fired if `hasLiveMatches || hasMatchNearKickoff` was already in `matchData`. Tabs opened before a game entered matchData went stale indefinitely. New `fallbackInterval` fires every 5 minutes regardless. Worst-case staleness is now 5 min instead of indefinite.
 
 ---
 
-## Known Issues
+### 2026-04-26 — Proxy wipe (no code changes)
 
-- **Mihailovic/Sargent lastGame may still show old-team game**: After Toronto's first game, FotMob's player API should return Toronto matches and the `currentTeamInMatch` guard will prevent the stale missedGame. Expected to self-resolve. Monitor after their next Toronto FC match.
-- **NAS security — Fios router**: Port 8080 is still externally reachable (likely via DMZ rule on the Fios router, not the UDM). User needs to log into the Fios router directly (plug into it) to investigate. Long-term recommendation: set up Cloudflare Tunnel to eliminate all port forwarding.
+`/api/` proxy rule was missing from `/etc/app_proxy.conf` — wiped by a QNAP system event between 06:17 and 11:44. This is the 3rd occurrence. Re-added rule and graceful-restarted both Apache proxy instances.
+
+**Tsakiris "stuck" non-issue**: San Jose vs St. Louis kicked off `00:40 UTC = 8:40 PM ET April 25`. Backend correctly excluded it from "today". He shows as `no_match_today` with populated `lastGame` → appears in Recently Played. Frontend showed stale localStorage state due to proxy outage, resolved on refresh.
+
+### 2026-04-22 — Name-mismatch bug fix + player roster update
+
+- **ID-based lineup matching**: All lineup/event searches now match by `fotmobId` first, falling back to name. Fixes Julian Hall = "Julian Zakrzewski" on FotMob.
+- **`participated` used raw API value**: Changed to `actualMinutesPlayed > 0`.
+- **Team last-match check**: Now calls `getPlayerStatsFromMatch` before marking `missedGame`.
+- **Roster**: Removed 6 players. Now 49 players.
 
 ---
 
-## Key Facts About Player Name Matching
+## Known Issues / Gotchas
 
-- `fotmobService.playerNameMatches()` — disambiguates FotMob player names vs our player names (checks first initial on last-name collisions)
-- `matchTrackerFD.lineupNameMatches()` — same logic for FD lineup/bench arrays
-- `parsePlayerEvents()` in `matchTrackerFD.js` still uses last-name-only matching for goal/sub/card events (FD event data rarely has two players with the same last name on the same team)
+- **Proxy rule wipes (recurring)**: The `/api/` proxy rule in `/etc/app_proxy.conf` has been wiped 3 times by QNAP system events. If the backend goes unreachable, SSH to NAS and check that rule first:
+  ```
+  ProxyPass /api/ http://127.0.0.1:3001/api/ retry=0
+  ProxyPassReverse /api/ http://127.0.0.1:3001/api/
+  ```
+  Then hard-restart Apache (see `CLAUDE.md` for the kill command).
+
+- **`lastGameCache.json` doesn't exist yet on NAS**: The new cache file will be created automatically on first `updateLastGameData()` run after deploy. No manual action needed.
 
 ---
 
-## Next Steps / Backlog
+## Next Steps
 
-- Nothing explicitly queued — ask the user what they want to work on.
+1. **Deploy the refactor** — `./deploy.sh nas` then `./deploy.sh frontend`
+2. **Run QA** — `/qa-americans-abroad` after deploy to confirm backend is healthy
+3. Nothing else explicitly queued — ask the user what they want to work on
 
 ---
 
 ## Key Reminders
 
-- **NAS deploy requires home network** (192.168.1.245) — `./deploy.sh nas`
-- **Force client cache clear**: bump `CACHE_VERSION` in `src/App.jsx`
-- **Frontend cache version**: currently `'3'`
+- **NAS deploy requires home network** (192.168.4.61) — `./deploy.sh nas`
+- **Force client cache clear**: bump `CACHE_VERSION` in `src/App.jsx` (currently `'4'`)
+- **Do NOT use the global deploy skill** — it syncs project root and corrupts the container; always use project-local `./deploy.sh nas`
 - Lineup status only shows for upcoming games within 45 min of kickoff
-- FD free tier has no lineup data — FotMob is used as the lineup source
+- Julian Hall's FotMob name is "Julian Zakrzewski" — ID-based matching handles this automatically

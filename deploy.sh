@@ -50,10 +50,23 @@ deploy_nas() {
 
     # Build rsync command (exclude node_modules — NAS will install them)
     RSYNC_EXCLUDES="--exclude=node_modules --exclude=.env"
-    SSH_OPTS="-o StrictHostKeyChecking=no"
+    SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
 
-    if command -v sshpass &> /dev/null && [ -n "$QNAP_SSH_PASS" ]; then
-        sshpass -p "$QNAP_SSH_PASS" rsync -avz $RSYNC_EXCLUDES \
+    # If local NAS IP isn't reachable, fall back to Tailscale IP
+    TAILSCALE_NAS_IP="100.84.253.80"
+    if ! ssh $SSH_OPTS -i "$HOME/.ssh/nas_deploy" "${QNAP_SSH_USER}@${QNAP_SSH_HOST}" true 2>/dev/null; then
+        echo -e "${YELLOW}Local NAS unreachable — trying Tailscale (${TAILSCALE_NAS_IP})...${NC}"
+        echo -e "${YELLOW}Make sure Tailscale is connected and NordVPN is off.${NC}"
+        QNAP_SSH_HOST="$TAILSCALE_NAS_IP"
+    fi
+
+    NAS_SSH_KEY="$HOME/.ssh/nas_deploy"
+    if [ -f "$NAS_SSH_KEY" ]; then
+        rsync -avz $RSYNC_EXCLUDES \
+            -e "ssh $SSH_OPTS -i $NAS_SSH_KEY" \
+            backend/ "${QNAP_SSH_USER}@${QNAP_SSH_HOST}:${QNAP_REMOTE_PATH}/"
+    elif command -v sshpass &> /dev/null && [ -n "$QNAP_SSH_PASS" ]; then
+        SSHPASS="$QNAP_SSH_PASS" sshpass -e rsync -avz $RSYNC_EXCLUDES \
             -e "ssh $SSH_OPTS" \
             backend/ "${QNAP_SSH_USER}@${QNAP_SSH_HOST}:${QNAP_REMOTE_PATH}/"
     elif [ -n "$QNAP_SSH_PASS" ]; then
@@ -78,8 +91,10 @@ EOF
     DOCKER="/share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker"
     SSH_CMD="cd ${QNAP_REMOTE_PATH} && ${DOCKER} compose down && ${DOCKER} compose up -d --build"
 
-    if [ -n "$QNAP_SSH_PASS" ] && command -v sshpass &> /dev/null; then
-        sshpass -p "$QNAP_SSH_PASS" ssh $SSH_OPTS \
+    if [ -f "$NAS_SSH_KEY" ]; then
+        ssh $SSH_OPTS -i "$NAS_SSH_KEY" "${QNAP_SSH_USER}@${QNAP_SSH_HOST}" "$SSH_CMD"
+    elif [ -n "$QNAP_SSH_PASS" ] && command -v sshpass &> /dev/null; then
+        SSHPASS="$QNAP_SSH_PASS" sshpass -e ssh $SSH_OPTS \
             "${QNAP_SSH_USER}@${QNAP_SSH_HOST}" "$SSH_CMD"
     elif [ -n "$QNAP_SSH_PASS" ]; then
         expect << EOF
@@ -117,8 +132,13 @@ deploy_frontend() {
     echo "Uploading to Ionos..."
 
     # Use sshpass if available, otherwise fall back to expect
-    if command -v sshpass &> /dev/null; then
-        sshpass -p "$IONOS_SSH_PASS" rsync -avz --delete --exclude='logs' \
+    IONOS_SSH_KEY="$HOME/.ssh/ionos_deploy"
+    if [ -f "$IONOS_SSH_KEY" ]; then
+        rsync -avz --delete --exclude='logs' \
+            -e "ssh -i $IONOS_SSH_KEY -o StrictHostKeyChecking=no" \
+            dist/ "${IONOS_SSH_USER}@${IONOS_SSH_HOST}:${IONOS_REMOTE_PATH}"
+    elif command -v sshpass &> /dev/null; then
+        SSHPASS="$IONOS_SSH_PASS" sshpass -e rsync -avz --delete --exclude='logs' \
             -e "ssh -o StrictHostKeyChecking=no" \
             dist/ "${IONOS_SSH_USER}@${IONOS_SSH_HOST}:${IONOS_REMOTE_PATH}"
     else

@@ -55,20 +55,9 @@ app.get('/api/matches/:playerId', (req, res) => {
 app.post('/api/matches/refresh', async (req, res) => {
   try {
     await matchTracker.updateMatchDataFromFotMob(true)
-    await matchTracker.updateFotMobData()
     await matchTracker.updateLastGameData()
     await matchTracker.updateNextGameData()
     res.json({ mode: 'live', success: true, message: 'Match data refreshed' })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-// Force refresh FotMob data only
-app.post('/api/fotmob/refresh', async (req, res) => {
-  try {
-    await matchTracker.updateFotMobData()
-    res.json({ mode: 'live', success: true, message: 'FotMob player data refreshed' })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
   }
@@ -140,7 +129,7 @@ app.get('/api/status', (req, res) => {
 
 
 // Start server
-const SERVER_VERSION = '2.5.1' // Fix 403 Turnstile detection + HTML scrape fallback
+const SERVER_VERSION = '2.6.0' // Remove dead updateFotMobData pass; persist lastGameData to disk
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗

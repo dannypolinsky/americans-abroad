@@ -120,7 +120,7 @@ function App() {
     loadMatchData()
   }, [loadMatchData])
 
-  // Auto-refresh when there are live matches, or when an upcoming match is at/past kickoff
+  // Fast refresh (60s) when matches are live or kicking off soon
   useEffect(() => {
     const hasLiveMatches = Object.values(matchData).some(m => m?.status === 'live')
     const hasMatchNearKickoff = Object.values(matchData).some(m => {
@@ -133,10 +133,20 @@ function App() {
 
     const refreshInterval = setInterval(() => {
       loadMatchData()
-    }, 60 * 1000) // 60 seconds
+    }, 60 * 1000)
 
     return () => clearInterval(refreshInterval)
   }, [matchData, loadMatchData])
+
+  // Unconditional 5-minute refresh — catches games that start after page load,
+  // so tabs opened before kickoff don't go stale until manual refresh.
+  useEffect(() => {
+    const fallbackInterval = setInterval(() => {
+      loadMatchData()
+    }, 5 * 60 * 1000)
+
+    return () => clearInterval(fallbackInterval)
+  }, [loadMatchData])
 
   // Persist filter to localStorage
   useEffect(() => {
