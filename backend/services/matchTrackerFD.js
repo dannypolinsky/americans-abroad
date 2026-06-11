@@ -1062,30 +1062,35 @@ class MatchTrackerFD {
     // Polling function that adjusts interval based on live status
     let pollCount = 0
     const pollForUpdates = async () => {
-      pollCount++
-      // Always update with fresh data to detect status changes
-      isLive = this.hasLiveMatches()
-      await this.updateMatchDataFromFotMob(isLive)
+      try {
+        pollCount++
+        // Always update with fresh data to detect status changes
+        isLive = this.hasLiveMatches()
+        await this.updateMatchDataFromFotMob(isLive)
 
-      // Every 6 polls (~30 min at normal interval), refresh last game and next game data
-      if (pollCount % 6 === 0) {
-        await this.updateLastGameData()
-        await this.updateNextGameData()
-      }
+        // Every 6 polls (~30 min at normal interval), refresh last game and next game data
+        if (pollCount % 6 === 0) {
+          await this.updateLastGameData()
+          await this.updateNextGameData()
+        }
 
-      if (isLive) {
-        console.log('Live matches detected - using fresh FotMob data')
-      } else {
-        console.log('No live matches')
-      }
+        if (isLive) {
+          console.log('Live matches detected - using fresh FotMob data')
+        } else {
+          console.log('No live matches')
+        }
 
-      // Adjust polling interval if live status changed
-      const newInterval = isLive ? liveIntervalMs : normalIntervalMs
-      if (newInterval !== currentInterval) {
-        currentInterval = newInterval
-        clearInterval(this.pollInterval)
-        this.pollInterval = setInterval(pollForUpdates, currentInterval)
-        console.log(`Polling interval changed to ${currentInterval / 1000} seconds`)
+        // Adjust polling interval if live status changed
+        const newInterval = isLive ? liveIntervalMs : normalIntervalMs
+        if (newInterval !== currentInterval) {
+          currentInterval = newInterval
+          clearInterval(this.pollInterval)
+          this.pollInterval = setInterval(pollForUpdates, currentInterval)
+          console.log(`Polling interval changed to ${currentInterval / 1000} seconds`)
+        }
+      } catch (err) {
+        // Catch any unexpected error so an unhandled rejection can't kill the process
+        console.error('pollForUpdates unexpected error:', err)
       }
     }
 

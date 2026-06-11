@@ -11,10 +11,15 @@
 - NAS (primary backend): ✅ up, 49 players, v2.6.0, FotMob scraping healthy
 - Ionos (frontend): ✅ deployed and live
 - Render (fallback backend): ⏳ not deployed (low priority)
+- **Polling loop hardened**: `pollForUpdates` now has a top-level try/catch — unhandled rejections can no longer kill the Node process
 
 ---
 
 ## Recent Changes
+
+### 2026-06-11 — Polling loop error handling (deployed)
+
+- Wrapped `pollForUpdates` in `matchTrackerFD.js` with try/catch — prevents unhandled promise rejections from crashing the server if a runtime bug occurs inside the interval callback
 
 ### 2026-06-11 — Codebase refactor (deployed, QA passed)
 
