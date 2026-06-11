@@ -3,6 +3,11 @@ import Header from './components/Header'
 import PlayerCard from './components/PlayerCard'
 import LeagueFilter from './components/LeagueFilter'
 import playersData from './data/players.json'
+import {
+  getMostRecentGameDate,
+  hasRecentGame,
+  isKickoffToday,
+} from './utils/playerUtils'
 import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || null
@@ -176,64 +181,6 @@ function App() {
     }, {})
   }, [uniquePlayers])
 
-  // Get most recent game date for a player (either today's match, missed game, or last game)
-  const getMostRecentGameDate = (playerId) => {
-    const data = matchData[playerId]
-    if (!data) return null
-
-    // If player has a match today, use kickoff time if available
-    if (data.status && data.status !== 'no_match_today') {
-      // For upcoming games, use the kickoff time for proper sorting
-      if (data.kickoff) {
-        return data.kickoff
-      }
-      return new Date().toISOString()
-    }
-
-    // Check for missed game first (more recent than last played game)
-    if (data.lastGame?.missedGame?.date) {
-      return data.lastGame.missedGame.date
-    }
-
-    // Otherwise use last game date
-    if (data.lastGame?.date) {
-      return data.lastGame.date
-    }
-
-    return null
-  }
-
-  // Check if player participated in today's game or game hasn't started yet
-  const hasPlayedOrUpcoming = (playerId) => {
-    const data = matchData[playerId]
-    if (!data || data.status === 'no_match_today') return false
-    // Upcoming games count as "has played or upcoming"
-    if (data.status === 'upcoming') return true
-    // For live/finished games, check if they participated
-    return data.participated === true || (data.events && data.events.length > 0)
-  }
-
-  // Check if a date is within the last N days
-  const isWithinDays = (dateStr, days) => {
-    if (!dateStr) return false
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffMs = now - date
-    const diffDays = diffMs / (1000 * 60 * 60 * 24)
-    return diffDays >= 0 && diffDays <= days
-  }
-
-  // Check if player has a recent game (within last 3 days)
-  const hasRecentGame = (playerId) => {
-    const data = matchData[playerId]
-    if (!data) return false
-    // Check if lastGame is within last 3 days
-    if (data.lastGame?.date && isWithinDays(data.lastGame.date, 3)) return true
-    // Also check finished games from today
-    if (data.status === 'finished') return true
-    return false
-  }
-
   // Filter players based on current filters
   const filteredPlayers = useMemo(() => {
     let players = uniquePlayers
@@ -260,7 +207,7 @@ function App() {
     } else if (filter === 'today') {
       players = players.filter(p => matchData[p.id] && matchData[p.id].status !== 'no_match_today')
     } else if (filter === 'recent') {
-      players = players.filter(p => hasRecentGame(p.id))
+      players = players.filter(p => hasRecentGame(p.id, matchData))
     }
 
     // Sort players: 1) Completed today, 2) Upcoming, 3) Past games
@@ -284,8 +231,8 @@ function App() {
       if (priorityA !== priorityB) return priorityA - priorityB
 
       // Within same priority, sort by date
-      const dateA = getMostRecentGameDate(a.id)
-      const dateB = getMostRecentGameDate(b.id)
+      const dateA = getMostRecentGameDate(a.id, matchData)
+      const dateB = getMostRecentGameDate(b.id, matchData)
 
       if (!dateA && !dateB) return 0
       if (!dateA) return 1
@@ -300,14 +247,6 @@ function App() {
 
     return players
   }, [uniquePlayers, filter, selectedLeague, searchTerm, matchData])
-
-  // Check if a kickoff timestamp is actually today (Eastern time)
-  const isKickoffToday = (kickoff) => {
-    if (!kickoff) return false
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-    const gameDay = new Date(kickoff).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-    return gameDay === today
-  }
 
   // Group players by category for section headers (only for "all" filter)
   const groupedPlayers = useMemo(() => {

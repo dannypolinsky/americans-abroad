@@ -5,10 +5,10 @@
 
 ---
 
-## Current State (as of 2026-05-14)
+## Current State (as of 2026-06-11)
 
-**All targets deployed and healthy. Refactor + performance improvements made — not yet deployed.**
-- NAS (primary backend): ✅ up, 49 players
+**Refactor deployed and healthy. QA passed (5/5).**
+- NAS (primary backend): ✅ up, 49 players, v2.6.0, FotMob scraping healthy
 - Ionos (frontend): ✅ deployed and live
 - Render (fallback backend): ⏳ not deployed (low priority)
 
@@ -16,34 +16,35 @@
 
 ## Recent Changes
 
-### 2026-05-14 — Refactor + startup performance (NOT YET DEPLOYED)
+### 2026-06-11 — Codebase refactor (deployed, QA passed)
 
-**Backend changes (`backend/services/matchTrackerFD.js`, `backend/server.js`):**
+**Deleted dead files:**
+- Removed `backend/services/matchTracker.js`, `apiFootball.js`, `fbrefScraper.js` (~1,200 lines) — none were imported anywhere
 
-- **Removed dead `updateFotMobData()` pipeline** (~160 lines deleted): This method ran 49 sequential FotMob player API calls at startup and every 6 polls, but its output (`this.fotmobData`) was read only by `findFotMobMatchForDate()`, which was never called. `getAllMatchData()` (the API response) only reads `this.lastGameData`. Startup is now 1 pass shorter. Also removed: `this.fotmobData` map, `fotmobCacheFile`, `saveFotMobCache()`, `loadFotMobCache()`, `findFotMobMatchForDate()`, `/api/fotmob/refresh` endpoint.
+**Backend (`backend/services/fotmobService.js`):**
+- Extracted `parseGoalAssistCardEvents()` method — replaced three duplicated goal/assist/card parsing loops in `getPlayerStatsFromMatch`, `getPlayerStatsFromTeamLineup`, and `getPlayerRecentMatches`
 
-- **Added `lastGameData` disk persistence** (`lastGameCache.json`): `this.lastGameData` was built at runtime but never saved. On container restart it was empty until `updateLastGameData()` finished (~1-2 min for 49 players). Now written to `data/cache/lastGameCache.json` at the end of every `updateLastGameData()` run and loaded on startup — backend serves `lastGame` data immediately after any restart.
+**Frontend — new utility module:**
+- Created `src/utils/playerUtils.js` — all pure helpers consolidated here: display formatters (`abbrevPosition`, `formatDate`, `formatKickoff`, etc.), status classifiers (`getRatingClass`, `getStatusClass`, etc.), and match-data filters (`getMostRecentGameDate`, `hasRecentGame`, `isKickoffToday`, etc.)
 
-- **Server version bumped to `2.6.0`**.
+**Frontend — App.jsx:**
+- Removed 5 inline helper functions that closed over state; they now live in `playerUtils.js` and take `matchData` as an explicit parameter
 
-**Frontend changes (`src/App.jsx`):**
-
-- **Added unconditional 5-minute refresh interval**: The documented known gap — the 60-second auto-refresh only fired if `hasLiveMatches || hasMatchNearKickoff` was already in `matchData`. Tabs opened before a game entered matchData went stale indefinitely. New `fallbackInterval` fires every 5 minutes regardless. Worst-case staleness is now 5 min instead of indefinite.
+**Frontend — PlayerCard split (528 → 85 lines):**
+- `src/components/StatsStrip.jsx` — pure badge strip (goals, assists, cards, sub events)
+- `src/components/StatsModal.jsx` — owns all drag-to-dismiss refs and handlers
+- `src/components/TodayMatchSection.jsx` — today's match block
+- `src/components/LastGameSection.jsx` — last game + missed game + next game block
+- `PlayerCard.jsx` now just orchestrates state and renders sub-components
 
 ---
 
-### 2026-04-26 — Proxy wipe (no code changes)
+### 2026-05-14 — Refactor + startup performance (deployed, QA passed)
 
-`/api/` proxy rule was missing from `/etc/app_proxy.conf` — wiped by a QNAP system event between 06:17 and 11:44. This is the 3rd occurrence. Re-added rule and graceful-restarted both Apache proxy instances.
-
-**Tsakiris "stuck" non-issue**: San Jose vs St. Louis kicked off `00:40 UTC = 8:40 PM ET April 25`. Backend correctly excluded it from "today". He shows as `no_match_today` with populated `lastGame` → appears in Recently Played. Frontend showed stale localStorage state due to proxy outage, resolved on refresh.
-
-### 2026-04-22 — Name-mismatch bug fix + player roster update
-
-- **ID-based lineup matching**: All lineup/event searches now match by `fotmobId` first, falling back to name. Fixes Julian Hall = "Julian Zakrzewski" on FotMob.
-- **`participated` used raw API value**: Changed to `actualMinutesPlayed > 0`.
-- **Team last-match check**: Now calls `getPlayerStatsFromMatch` before marking `missedGame`.
-- **Roster**: Removed 6 players. Now 49 players.
+- Removed dead `updateFotMobData()` pipeline (~160 lines)
+- Added `lastGameData` disk persistence (`lastGameCache.json`) — backend serves `lastGame` data immediately after any restart
+- Added unconditional 5-minute frontend refresh interval (worst-case staleness now 5 min, not indefinite)
+- Server version bumped to `2.6.0`
 
 ---
 
@@ -56,15 +57,12 @@
   ```
   Then hard-restart Apache (see `CLAUDE.md` for the kill command).
 
-- **`lastGameCache.json` doesn't exist yet on NAS**: The new cache file will be created automatically on first `updateLastGameData()` run after deploy. No manual action needed.
-
 ---
 
 ## Next Steps
 
-1. **Deploy the refactor** — `./deploy.sh nas` then `./deploy.sh frontend`
-2. **Run QA** — `/qa-americans-abroad` after deploy to confirm backend is healthy
-3. Nothing else explicitly queued — ask the user what they want to work on
+- Nothing explicitly queued — ask what's next
+- Render fallback still not deployed (low priority, has cold starts)
 
 ---
 

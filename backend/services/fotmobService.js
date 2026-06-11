@@ -511,25 +511,15 @@ class FotMobService {
 
       // Add all player events with minutes when match detail events are available
       if (savedMatchEvents.length > 0) {
+        // Substitutions use name-only matching (swap IDs are from a different player set)
         for (const event of savedMatchEvents) {
-          if (event.type === 'Substitution' && this.playerNameMatches(event.swap?.[0]?.name, playerName)) {
+          if (event.type !== 'Substitution') continue
+          if (this.playerNameMatches(event.swap?.[0]?.name, playerName))
             matchInfo.events.push({ type: 'sub_in', minute: event.time })
-          }
-          if (event.type === 'Substitution' && this.playerNameMatches(event.swap?.[1]?.name, playerName)) {
+          if (this.playerNameMatches(event.swap?.[1]?.name, playerName))
             matchInfo.events.push({ type: 'sub_out', minute: event.time })
-          }
-          if (event.type === 'Goal' && this.playerNameMatches(event.player?.name || event.nameStr, playerName)) {
-            matchInfo.events.push({ type: 'goal', minute: event.time })
-          }
-          if (event.type === 'Goal' && this.playerNameMatches(event.assistInput, playerName)) {
-            matchInfo.events.push({ type: 'assist', minute: event.time })
-          }
-          if ((event.type === 'Card' || event.type === 'Yellow' || event.type === 'Red') &&
-              this.playerNameMatches(event.player?.name || event.nameStr, playerName)) {
-            const cardType = event.card === 'Red' || event.type === 'Red' ? 'red' : 'yellow'
-            matchInfo.events.push({ type: cardType, minute: event.time })
-          }
         }
+        matchInfo.events.push(...this.parseGoalAssistCardEvents(savedMatchEvents, playerName))
       } else {
         // Fallback: no match detail events available, use counts without minutes
         for (let i = 0; i < matchInfo.goals; i++) {
@@ -827,36 +817,12 @@ class FotMobService {
       }
     }
 
-    // Get goals, assists, and cards from match events (with proper minutes)
+    // Goals, assists, and cards from match events (with proper minutes)
     const matchEvents = match.content?.matchFacts?.events?.events || []
-
-    // Count goals
-    const goalEvents = matchEvents.filter(e =>
-      e.type === 'Goal' &&
-      eventMatchesPlayer(e.player?.id ?? e.playerId, e.player?.name || e.nameStr)
-    )
-    result.goals = goalEvents.length
-    for (const goal of goalEvents) {
-      result.events.push({ type: 'goal', minute: goal.time })
-    }
-
-    // Count assists (assistPlayerId available in FotMob events)
-    for (const event of matchEvents) {
-      if (event.type === 'Goal' && eventMatchesPlayer(event.assistPlayerId, event.assistInput)) {
-        result.assists++
-        result.events.push({ type: 'assist', minute: event.time })
-      }
-    }
-
-    // Get cards
-    const cardEvents = matchEvents.filter(e =>
-      (e.type === 'Card' || e.type === 'Yellow' || e.type === 'Red') &&
-      eventMatchesPlayer(e.player?.id ?? e.playerId, e.player?.name || e.nameStr)
-    )
-    for (const card of cardEvents) {
-      const cardType = card.card === 'Red' || card.type === 'Red' ? 'red' : 'yellow'
-      result.events.push({ type: cardType, minute: card.time })
-    }
+    const goalAssistCards = this.parseGoalAssistCardEvents(matchEvents, playerName, fotmobPlayerId)
+    result.events.push(...goalAssistCards)
+    result.goals   = goalAssistCards.filter(e => e.type === 'goal').length
+    result.assists = goalAssistCards.filter(e => e.type === 'assist').length
 
     return result
   }
@@ -950,19 +916,7 @@ class FotMobService {
       }
 
       if (matchDetailEvents.length > 0) {
-        for (const event of matchDetailEvents) {
-          if (event.type === 'Goal' && this.playerNameMatches(event.player?.name || event.nameStr, playerName)) {
-            events.push({ type: 'goal', minute: event.time })
-          }
-          if (event.type === 'Goal' && this.playerNameMatches(event.assistInput, playerName)) {
-            events.push({ type: 'assist', minute: event.time })
-          }
-          if ((event.type === 'Card' || event.type === 'Yellow' || event.type === 'Red') &&
-              this.playerNameMatches(event.player?.name || event.nameStr, playerName)) {
-            const cardType = event.card === 'Red' || event.type === 'Red' ? 'red' : 'yellow'
-            events.push({ type: cardType, minute: event.time })
-          }
-        }
+        events.push(...this.parseGoalAssistCardEvents(matchDetailEvents, playerName))
       } else if (perf.events) {
         // Fallback: parse from performance events without minutes
         for (const evt of perf.events) {
@@ -1134,6 +1088,32 @@ class FotMobService {
       console.error(`FotMob: Error getting expanded stats for match ${matchId}:`, error.message)
       return null
     }
+  }
+
+  // Parse goal, assist, and card events for a player from a FotMob match events array.
+  // Extracted to avoid repeating the same loop in getPlayerStatsFromMatch,
+  // getPlayerStatsFromTeamLineup, and getPlayerRecentMatches.
+  // Uses fotmobPlayerId for ID-first matching when available; falls back to name matching.
+  parseGoalAssistCardEvents(events, playerName, fotmobPlayerId = null) {
+    const matches = (id, name) => fotmobPlayerId
+      ? (id === fotmobPlayerId || id === Number(fotmobPlayerId) || String(id) === String(fotmobPlayerId) || this.playerNameMatches(name, playerName))
+      : this.playerNameMatches(name, playerName)
+
+    const result = []
+    for (const event of events) {
+      if (event.type === 'Goal') {
+        if (matches(event.player?.id ?? event.playerId, event.player?.name || event.nameStr))
+          result.push({ type: 'goal', minute: event.time })
+        if (matches(event.assistPlayerId, event.assistInput))
+          result.push({ type: 'assist', minute: event.time })
+      } else if (event.type === 'Card' || event.type === 'Yellow' || event.type === 'Red') {
+        if (matches(event.player?.id ?? event.playerId, event.player?.name || event.nameStr)) {
+          const cardType = event.card === 'Red' || event.type === 'Red' ? 'red' : 'yellow'
+          result.push({ type: cardType, minute: event.time })
+        }
+      }
+    }
+    return result
   }
 
   // Clear caches

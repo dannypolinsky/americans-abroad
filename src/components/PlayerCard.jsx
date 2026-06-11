@@ -1,58 +1,20 @@
-import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useEffect } from 'react'
 import { fetchPlayerMatchStats } from '../services/api'
+import { abbrevPosition, getRatingClass } from '../utils/playerUtils'
+import TodayMatchSection from './TodayMatchSection'
+import LastGameSection from './LastGameSection'
 import './PlayerCard.css'
 
 function PlayerCard({ player, matchData, showLastGame = false }) {
   const [expanded, setExpanded] = useState(false)
   const [detailedStats, setDetailedStats] = useState(null)
-  const sheetRef = useRef(null)
-  const dragStartY = useRef(null)
-  const currentDragY = useRef(0)
 
-  const onDragStart = (clientY) => {
-    dragStartY.current = clientY
-    currentDragY.current = 0
-    if (sheetRef.current) sheetRef.current.style.transition = 'none'
-  }
-
-  const onDragMove = (clientY) => {
-    if (dragStartY.current === null) return
-    const delta = Math.max(0, clientY - dragStartY.current)
-    currentDragY.current = delta
-    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${delta}px)`
-  }
-
-  const onDragEnd = () => {
-    if (dragStartY.current === null) return
-    const y = currentDragY.current
-    dragStartY.current = null
-    currentDragY.current = 0
-    if (y > 120) {
-      setExpanded(false)
-    } else if (sheetRef.current) {
-      sheetRef.current.style.transition = ''
-      sheetRef.current.style.transform = ''
-    }
-  }
-
-  const onMouseDown = (e) => {
-    onDragStart(e.clientY)
-    const onMove = (e) => onDragMove(e.clientY)
-    const onUp = () => {
-      onDragEnd()
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
-
-  const isLive = matchData?.status === 'live'
+  const isLive       = matchData?.status === 'live'
   const hasTodayMatch = matchData !== null && matchData.status !== 'no_match_today'
-  const lastGame = matchData?.lastGame
-  const nextGame = matchData?.nextGame
+  const lastGame     = matchData?.lastGame
+  const nextGame     = matchData?.nextGame
 
+  // Only fetch expanded stats when a fixture the player participated in is available
   const fixtureId = hasTodayMatch
     ? (matchData?.participated && matchData?.fixtureId) || null
     : (lastGame?.participated && lastGame?.fixtureId) || null
@@ -63,193 +25,6 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
       .then(r => setDetailedStats(r.stats || null))
       .catch(() => {})
   }, [fixtureId, player.id])
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
-
-  const abbrevPosition = (pos) => {
-    const map = {
-      'Goalkeeper': 'GK', 'Defender': 'DF', 'Center Back': 'CB', 'Centre Back': 'CB',
-      'Left Back': 'LB', 'Right Back': 'RB', 'Wing Back': 'WB',
-      'Midfielder': 'MF', 'Central Midfielder': 'CM', 'Defensive Midfielder': 'DM',
-      'Attacking Midfielder': 'AM', 'Left Midfielder': 'LM', 'Right Midfielder': 'RM',
-      'Forward': 'FW', 'Left Wing': 'LW', 'Right Wing': 'RW',
-      'Striker': 'ST', 'Centre Forward': 'CF', 'Center Forward': 'CF', 'Winger': 'W',
-    }
-    return map[pos] || pos
-  }
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return ''
-    const date = new Date(dateStr)
-    const now = new Date()
-    if (date.toDateString() === now.toDateString()) return 'Today'
-    const tomorrow = new Date(now)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  }
-
-  const formatTimeOnly = (dateStr) => {
-    if (!dateStr) return ''
-    return new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  }
-
-  const formatKickoff = (dateStr) => {
-    if (!dateStr) return ''
-    const date = new Date(dateStr)
-    const now = new Date()
-    const isToday = date.toDateString() === now.toDateString()
-    const tomorrow = new Date(now)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const isTomorrow = date.toDateString() === tomorrow.toDateString()
-    const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    if (isToday) return `Today ${time}`
-    if (isTomorrow) return `Tomorrow ${time}`
-    return `${formatDate(dateStr)} ${time}`
-  }
-
-  const renderScore = (homeScore, awayScore, fId) => {
-    const scoreContent = (
-      <>
-        <span className="score-num">{homeScore}</span>
-        <span className="score-colon">·</span>
-        <span className="score-num">{awayScore}</span>
-      </>
-    )
-    if (fId) {
-      return (
-        <a href={`https://www.fotmob.com/match/${fId}`} target="_blank" rel="noopener noreferrer"
-          className="score-link" onClick={e => e.stopPropagation()}>
-          {scoreContent}
-        </a>
-      )
-    }
-    return scoreContent
-  }
-
-  const getRatingClass = (rating) => {
-    const r = parseFloat(rating)
-    if (isNaN(r)) return ''
-    if (r >= 8) return 'rating-dark-green'
-    if (r >= 7) return 'rating-light-green'
-    if (r >= 6) return 'rating-yellow'
-    return 'rating-red'
-  }
-
-  const getResult = (isHome, homeScore, awayScore) => {
-    if (homeScore == null || awayScore == null) return null
-    const playerScore = isHome ? homeScore : awayScore
-    const oppScore    = isHome ? awayScore : homeScore
-    if (playerScore > oppScore) return 'W'
-    if (playerScore < oppScore) return 'L'
-    return 'D'
-  }
-
-  const getStatusClass = (started, participated, onBench, minutesPlayed) => {
-    if (!participated && onBench) return 'status-bench'
-    if (!participated) return ''
-    if (!started && !minutesPlayed && onBench) return 'status-bench'
-    return started ? 'status-started' : 'status-sub'
-  }
-
-  const getUpcomingStatusClass = (lineupStatus) => {
-    if (lineupStatus === 'starting') return 'status-started'
-    if (lineupStatus === 'bench') return 'status-bench'
-    return ''
-  }
-
-  // Unified stats strip — same pill style for all badge types, left-aligned
-  // source: 'today' (events have minutes + sub_in/sub_out) | 'lastGame' (only goals/assists/cards, no minutes)
-  const renderStatsStrip = (data, source, isLive = false) => {
-    const events = data.events || []
-    const subOutEvent = events.find(e => e.type === 'sub_out')
-    const subInEvent  = events.find(e => e.type === 'sub_in')
-
-    // Prefer actual event minute; for lastGame starters without a sub_out event, infer from minutesPlayed
-    const subOutMinute = subOutEvent?.minute ??
-      (source !== 'today' && data.started && data.minutesPlayed != null && data.minutesPlayed < 90
-        ? data.minutesPlayed : null)
-
-    const subInMinute = subInEvent?.minute ?? null
-
-    // Completed game where player started and played the full 90
-    const isFullGame = !isLive && data.started === true && data.minutesPlayed >= 90
-
-    return (
-      <div className="stats-strip">
-        {data.started === true && !isFullGame && (
-          <span className="badge badge-start">{isLive ? 'START' : '▶ START'}</span>
-        )}
-        {isFullGame && <span className="badge badge-full90">Full 90</span>}
-        {data.started === false && data.minutesPlayed > 0 && (
-          <span className="badge badge-sub-in">
-            ↑ SUB{subInMinute ? ` ${subInMinute}'` : ''}
-          </span>
-        )}
-{data.started === true && subOutMinute && (
-          <span className="badge badge-sub-out">↓ Out {subOutMinute}'</span>
-        )}
-        {events.filter(e => e.type === 'goal').map((e, i) => (
-          <span key={`g${i}`} className="badge badge-goal">⚽{e.minute ? ` ${e.minute}'` : ''}</span>
-        ))}
-        {events.filter(e => e.type === 'assist').map((e, i) => (
-          <span key={`a${i}`} className="badge badge-assist">🅰️{e.minute ? ` ${e.minute}'` : ''}</span>
-        ))}
-        {events.some(e => e.type === 'yellow') && <span className="badge badge-card">🟨</span>}
-        {events.some(e => e.type === 'red')    && <span className="badge badge-card">🟥</span>}
-      </div>
-    )
-  }
-
-  const renderStatsModal = (canExpand, title) => {
-    if (!canExpand || !expanded) return null
-    return createPortal(
-      <div className="stats-modal-backdrop" onClick={() => setExpanded(false)}>
-        <div
-          className="stats-modal-sheet"
-          ref={sheetRef}
-          onClick={e => e.stopPropagation()}
-        >
-          <div
-            className="stats-modal-handle"
-            onTouchStart={e => onDragStart(e.touches[0].clientY)}
-            onTouchMove={e => onDragMove(e.touches[0].clientY)}
-            onTouchEnd={onDragEnd}
-            onMouseDown={onMouseDown}
-          />
-          <div
-            className="stats-modal-header"
-            onTouchStart={e => onDragStart(e.touches[0].clientY)}
-            onTouchMove={e => onDragMove(e.touches[0].clientY)}
-            onTouchEnd={onDragEnd}
-            onMouseDown={onMouseDown}
-          >
-            <span className="stats-modal-title">{title}</span>
-            <button className="stats-modal-close" onClick={() => setExpanded(false)}>✕</button>
-          </div>
-          <div className="stats-modal-body">
-            {!detailedStats
-              ? <div className="stats-loading">Loading stats…</div>
-              : detailedStats.map(group => (
-                  <div key={group.key} className="stats-group">
-                    <div className="stats-group-header">{group.label}</div>
-                    {group.stats.map(stat => (
-                      <div key={stat.key} className="stat-row">
-                        <span className="stat-label">{stat.label}</span>
-                        <span className="stat-value">{stat.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                ))
-            }
-          </div>
-        </div>
-      </div>,
-      document.body
-    )
-  }
-
-  // ── Render ─────────────────────────────────────────────────────────────────
 
   const rating = hasTodayMatch
     ? (matchData?.participated && matchData?.rating)
@@ -284,233 +59,23 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
         </div>
       </div>
 
-      {/* Today's match */}
-      {hasTodayMatch && (() => {
-        const canExpand = (matchData.status === 'finished' || matchData.status === 'live')
-          && matchData.participated && matchData.fixtureId
-        const isNotInSquad = (matchData.status === 'finished' || matchData.status === 'live')
-          && matchData.participated === false && !matchData.onBench
-        const isUnusedSub = (matchData.status === 'finished' || matchData.status === 'live')
-          && matchData.participated === false && matchData.onBench
+      {hasTodayMatch && (
+        <TodayMatchSection
+          matchData={matchData}
+          expanded={expanded}
+          setExpanded={setExpanded}
+          detailedStats={detailedStats}
+        />
+      )}
 
-        return (
-          <>
-            <div
-              className={[
-                'match-info',
-                isNotInSquad ? 'not-in-squad-highlight' : '',
-                isUnusedSub  ? 'unused-sub-highlight'  : '',
-                (matchData.status === 'live' || matchData.status === 'finished')
-                  ? getStatusClass(matchData.started, matchData.participated, matchData.onBench, matchData.minutesPlayed) : '',
-                matchData.status === 'upcoming' ? getUpcomingStatusClass(matchData.lineupStatus) : '',
-                canExpand ? 'expandable' : ''
-              ].filter(Boolean).join(' ')}
-              onClick={canExpand ? () => setExpanded(e => !e) : undefined}
-            >
-              <div className="match-body">
-              <div className="match-teams">
-                <div className="match-teams-names">
-                  <span className="player-team">
-                    {matchData.isHome ? matchData.homeTeam : matchData.awayTeam}
-                  </span>
-                  <span className="opponent-team">
-                    {matchData.isHome ? 'vs ' : 'at '}{matchData.isHome ? matchData.awayTeam : matchData.homeTeam}
-                  </span>
-                </div>
-              </div>
-
-              {/* Date/time · competition on one line */}
-              <div className="match-time">
-                {matchData.status === 'upcoming' && matchData.competition}
-                {matchData.status === 'finished' && (matchData.legInfo ? `FT · ${matchData.legInfo}` : 'FT')}
-                {matchData.status !== 'upcoming' && matchData.competition && (
-                  <span className="time-comp-sep">
-                    {matchData.status === 'live' ? matchData.competition : ` · ${matchData.competition}`}
-                  </span>
-                )}
-              </div>
-
-              {matchData.aggregateScore && (
-                <div className="aggregate-score">
-                  Agg: {matchData.aggregateScore}{matchData.aggregateWinner && ` (${matchData.aggregateWinner} advance)`}
-                </div>
-              )}
-
-              {/* Participation */}
-              {matchData.status === 'upcoming' && matchData.lineupStatus && (
-                <div className="stats-strip">
-                  {matchData.lineupStatus === 'starting' && <span className="badge badge-start">STARTING</span>}
-                  {matchData.lineupStatus === 'bench'    && <span className="badge badge-bench">BENCH</span>}
-                  {matchData.lineupStatus === 'not_in_squad' && <span className="badge badge-dnp">Not in squad</span>}
-                </div>
-              )}
-
-              {matchData.status === 'live' && (
-                (matchData.participated === false || (!matchData.started && !matchData.minutesPlayed))
-                  ? <div className="stats-strip">
-                      <span className={`badge ${matchData.onBench ? 'badge-bench' : 'badge-dnp'}`}>
-                        {matchData.onBench ? 'On bench' : 'Not in squad'}
-                      </span>
-                    </div>
-                  : renderStatsStrip(matchData, 'today', true)
-              )}
-
-              {matchData.status === 'finished' && (
-                matchData.participated === false
-                  ? <div className="stats-strip">
-                      <span className={`badge ${matchData.onBench ? 'badge-bench' : 'badge-dnp'}`}>
-                        {matchData.onBench ? 'Unused sub' : 'Not in squad'}
-                      </span>
-                    </div>
-                  : matchData.minutesPlayed === 0 && matchData.started === false && !matchData.events?.some(e => e.type === 'sub_in')
-                    ? <div className="stats-strip"><span className="badge badge-bench">Unused sub</span></div>
-                    : renderStatsStrip(matchData, 'today')
-              )}
-
-            </div>
-
-            {renderStatsModal(canExpand, `${matchData.homeTeam} vs ${matchData.awayTeam}`)}
-
-            <div className="match-score-col">
-              {isLive && <span className="live-minute">{matchData.minute === 'HT' ? 'HT' : `${matchData.minute}'`}</span>}
-              {matchData.status === 'upcoming' ? (
-                <div className="kickoff-display">
-                  <span className="kickoff-label">KO</span>
-                  <span className="kickoff-time">{formatTimeOnly(matchData.kickoff)}</span>
-                </div>
-              ) : (
-                <span className="score">
-                  {renderScore(matchData.homeScore, matchData.awayScore, matchData.fixtureId)}
-                </span>
-              )}
-              {matchData.status === 'finished' && (() => {
-                const result = getResult(matchData.isHome, matchData.homeScore, matchData.awayScore)
-                return result ? <span className={`result-badge result-${result.toLowerCase()}`}>{result}</span> : null
-              })()}
-            </div>
-            </div>
-
-            {nextGame && new Date(nextGame.kickoff) > new Date() && (matchData.status === 'finished' || matchData.status === 'live') && (
-              <div className="next-game-line">
-                <span className="next-game-label">Next:</span>{' '}
-                {nextGame.isHome ? 'vs' : 'at'} {nextGame.isHome ? nextGame.awayTeam : nextGame.homeTeam}
-                {nextGame.competition ? ` · ${nextGame.competition}` : ''} · {formatKickoff(nextGame.kickoff)}
-              </div>
-            )}
-          </>
-        )
-      })()}
-
-      {/* Recently played */}
       {!hasTodayMatch && showLastGame && (lastGame || nextGame) && (
-        <div className="game-info-section">
-
-          {lastGame && (() => {
-            const mg = lastGame.missedGame
-            if (mg) {
-              // Main box: team's most recent game (player didn't participate)
-              return (
-                <div className={['last-game-info', getStatusClass(false, false, mg.onBench, 0)].filter(Boolean).join(' ')}>
-                  <div className="match-body">
-                    <div className="last-game-header">
-                      Last Game: {formatDate(mg.date)}
-                      {mg.competition && ` · ${mg.competition}`}
-                    </div>
-                    <div className="match-teams">
-                      <div className="match-teams-names">
-                        <span className="player-team">
-                          {mg.isHome ? mg.homeTeam : mg.awayTeam}
-                        </span>
-                        <span className="opponent-team">
-                          {mg.isHome ? 'vs ' : 'at '}{mg.isHome ? mg.awayTeam : mg.homeTeam}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="stats-strip">
-                      <span className={`badge ${mg.onBench ? 'badge-bench' : 'badge-dnp'}`}>
-                        {mg.onBench ? 'Not in squad' : 'Did not play'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="match-score-col">
-                    <span className="score">{renderScore(mg.homeScore, mg.awayScore, null)}</span>
-                    {(() => {
-                      const result = getResult(mg.isHome, mg.homeScore, mg.awayScore)
-                      return result ? <span className={`result-badge result-${result.toLowerCase()}`}>{result}</span> : null
-                    })()}
-                  </div>
-                </div>
-              )
-            }
-
-            // No missedGame — show lastGame as usual
-            const canExpand = lastGame.participated && lastGame.fixtureId
-            return (
-              <div
-                className={[
-                  'last-game-info',
-                  lastGame.participated ? getStatusClass(lastGame.started, lastGame.participated, false) : '',
-                  canExpand ? 'expandable' : ''
-                ].filter(Boolean).join(' ')}
-                onClick={canExpand ? () => setExpanded(e => !e) : undefined}
-              >
-                <div className="match-body">
-                  <div className="last-game-header">
-                    Last Game: {formatDate(lastGame.date)}
-                    {lastGame.competition && ` · ${lastGame.competition}`}
-                  </div>
-
-                  <div className="match-teams">
-                    <div className="match-teams-names">
-                      <span className="player-team">
-                        {lastGame.isHome ? lastGame.homeTeam : lastGame.awayTeam}
-                      </span>
-                      <span className="opponent-team">
-                        {lastGame.isHome ? 'vs ' : 'at '}{lastGame.isHome ? lastGame.awayTeam : lastGame.homeTeam}
-                      </span>
-                    </div>
-                  </div>
-
-                  {lastGame.participated
-                    ? lastGame.minutesPlayed === 0 && lastGame.started === false && !lastGame.events?.some(e => e.type === 'sub_in')
-                      ? <div className="stats-strip"><span className="badge badge-bench">Unused sub</span></div>
-                      : renderStatsStrip(lastGame, 'lastGame')
-                    : <div className="stats-strip"><span className="badge badge-dnp">Did not play</span></div>
-                  }
-
-                </div>
-
-                {renderStatsModal(canExpand, `${lastGame.homeTeam} vs ${lastGame.awayTeam}`)}
-
-                <div className="match-score-col">
-                  <span className="score">{renderScore(lastGame.homeScore, lastGame.awayScore, lastGame.fixtureId)}</span>
-                  {(() => {
-                    const result = getResult(lastGame.isHome, lastGame.homeScore, lastGame.awayScore)
-                    return result ? <span className={`result-badge result-${result.toLowerCase()}`}>{result}</span> : null
-                  })()}
-                </div>
-              </div>
-            )
-          })()}
-
-          {/* Compact line: last game player actually played (only when missedGame is shown above) */}
-          {lastGame?.missedGame && (
-            <div className="missed-game-line">
-              <span className="missed-label">Last played:</span>
-              {' '}{formatDate(lastGame.date)}
-              {lastGame.competition && ` · ${lastGame.competition}`}
-              {(lastGame.homeScore != null && lastGame.awayScore != null) && ` · ${lastGame.homeTeam} ${lastGame.homeScore}·${lastGame.awayScore} ${lastGame.awayTeam}`}
-            </div>
-          )}
-
-          {nextGame && new Date(nextGame.kickoff) > new Date() && (
-            <div className="next-game-line">
-              <span className="next-game-label">Next:</span>{' '}
-              {nextGame.isHome ? 'vs' : 'at'} {nextGame.isHome ? nextGame.awayTeam : nextGame.homeTeam}
-              {nextGame.competition ? ` · ${nextGame.competition}` : ''} · {formatKickoff(nextGame.kickoff)}
-            </div>
-          )}
-        </div>
+        <LastGameSection
+          lastGame={lastGame}
+          nextGame={nextGame}
+          expanded={expanded}
+          setExpanded={setExpanded}
+          detailedStats={detailedStats}
+        />
       )}
 
       {!hasTodayMatch && !showLastGame && (
