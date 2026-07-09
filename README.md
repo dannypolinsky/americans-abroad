@@ -1,23 +1,23 @@
 # Americans Abroad
 
-A mobile-responsive web app that tracks 100+ American soccer players playing across the world, showing real-time match data including scores, goals, assists, and substitutions.
+A mobile-responsive web app that tracks American soccer players playing abroad, showing live match data including scores, goals, assists, substitutions, cards, and ratings — plus each player's last game and next fixture.
 
 **Live Site:** https://americansabroad.midnightllamas.com
 
 ## Features
 
-- **100+ American Players** tracked across 11 leagues (Premier League, Serie A, Bundesliga, La Liga, Ligue 1, Eredivisie, Championship, Scottish Premiership, Liga MX, Belgian Pro League, MLS)
-- **Live Match Tracking** with 5-minute updates during games
-- **Mobile-Responsive Design** works on all screen sizes
-- **Search & Filter** by player name, team, or league
-- **Match Events** including goals, assists, substitutions, and cards
+- **49 American players** tracked across 15 competitions (Premier League, Serie A, Bundesliga, La Liga, Ligue 1, Eredivisie, Championship, Scottish Premiership, Liga MX, Belgian Pro League, MLS, Serie B, 2. Bundesliga, UEFA Youth League, MLS Next Pro)
+- **Live match tracking** — polls every 60 seconds during live matches, every 5 minutes otherwise
+- **Last game & next fixture** for every player, with match events and ratings
+- **Automatic transfer detection** — flags when a player's club changes and, after a few days' confirmation, updates the roster automatically
+- **Mobile-responsive design**, plus search & filter by player, team, or league
 
 ## Tech Stack
 
 - **Frontend:** React + Vite
-- **Backend:** Node.js + Express
-- **Data Source:** API-Football
-- **Hosting:** IONOS (frontend) + Render (backend)
+- **Backend:** Node.js + Express (Dockerized)
+- **Data source:** FotMob (unofficial — reads the server-rendered `__NEXT_DATA__` from FotMob pages; no API key)
+- **Hosting:** IONOS (frontend static build) + QNAP NAS (backend container, primary). Render is an optional cold-start fallback.
 
 ## Project Structure
 
@@ -25,11 +25,11 @@ A mobile-responsive web app that tracks 100+ American soccer players playing acr
 americans-abroad/
 ├── src/                    # React frontend
 │   ├── components/         # UI components
-│   ├── data/               # Player database (JSON)
+│   ├── data/               # Player roster (JSON, bundled)
 │   └── services/           # API client
 ├── backend/                # Node.js backend
-│   ├── services/           # API-Football integration
-│   └── data/               # Player database
+│   ├── services/           # FotMob integration + match tracker
+│   └── data/               # Player roster + on-disk caches
 └── dist/                   # Production build
 ```
 
@@ -45,48 +45,36 @@ npm run dev
 ```bash
 cd backend
 npm install
-cp .env.example .env
-# Add your API_FOOTBALL_KEY to .env
-npm run dev
+npm run dev            # PORT defaults to 3001; no API key required
 ```
 
 ## Deployment
 
-### Frontend (Static Hosting)
+Deploys are scripted in `deploy.sh` (see `CLAUDE.md` for infrastructure details):
 
-Build with the backend API URL:
 ```bash
-VITE_API_URL=https://your-backend-url.com/api npm run build
+./deploy.sh nas         # backend -> QNAP NAS (Docker), home network or Tailscale
+./deploy.sh frontend    # build + rsync dist/ -> IONOS
 ```
-
-Upload the `dist/` folder to your static hosting provider.
-
-### Backend (Node.js Hosting)
-
-Deploy to Render, Railway, or any Node.js host:
-
-1. Set root directory to `backend`
-2. Build command: `npm install`
-3. Start command: `npm start`
-4. Environment variable: `API_FOOTBALL_KEY=your_api_key`
 
 ## API Endpoints
 
-- `GET /api/players` - List all tracked players
-- `GET /api/leagues` - List all tracked leagues
-- `GET /api/matches` - Get current match data for all players
-- `GET /api/matches/:playerId` - Get match data for specific player
-- `GET /api/status` - API status and configuration
-- `GET /api/health` - Health check
+- `GET /api/players` — list all tracked players
+- `GET /api/leagues` — list all tracked leagues
+- `GET /api/matches` — current match data for all players (today's match, last game, next game)
+- `GET /api/matches/:playerId` — match data for a specific player
+- `GET /api/player/:id/match-stats?fixtureId=…` — expanded per-match stats for a player
+- `POST /api/matches/refresh` — force a data refresh
+- `GET /api/status` — API status and configuration
+- `GET /api/health` — health check, including FotMob scrape freshness and pending/applied roster transfers
 
 ## Environment Variables
 
 ### Frontend
-- `VITE_API_URL` - Backend API URL (optional, falls back to demo mode)
+- `VITE_API_URL` — backend API base URL (e.g. `https://PolinskyNAS.myqnapcloud.com/api`)
 
 ### Backend
-- `API_FOOTBALL_KEY` - API-Football API key (get free key at https://api-football.com)
-- `PORT` - Server port (default: 3001)
+- `PORT` — server port (optional, default: 3001)
 
 ## License
 
