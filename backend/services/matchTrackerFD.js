@@ -5,39 +5,169 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import FotMobService, { TEAM_IDS } from './fotmobService.js'
+import FotMobService from './fotmobService.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
+// Number of consecutive daily drift checks a player must show the same new club
+// before we auto-apply the transfer to players.json. Debounces loan-window noise
+// and brief FotMob data glitches.
+const TRANSFER_APPLY_THRESHOLD_DAYS = 3
+
 class MatchTrackerFD {
   constructor() {
     this.fotmob = new FotMobService()
+    this.playersFile = join(__dirname, '../data/players.json')
+    // The frontend bundles its own copy of the roster (src/data/players.json) rather
+    // than calling /api/players, so an auto-applied transfer must be written to both
+    // files to keep the displayed club label in sync on the next frontend deploy.
+    this.frontendPlayersFile = join(__dirname, '../../src/data/players.json')
     this.players = this.loadPlayers()
     this.matchData = new Map() // playerId -> today's match data
     this.lastGameData = new Map() // playerId -> last game data
     this.nextGameData = new Map() // playerId -> next upcoming game (cached)
     this.manualStats = new Map() // playerId -> manually entered stats
+    this.rosterDrift = new Map() // playerId -> transfer-drift state
+    this.lastDriftCheckDay = null
     this.isPolling = false
-    this.pollInterval = null
+    this.pollTimer = null
+    this.pollRunning = false
     const cacheDir = join(__dirname, '../data/cache')
     mkdirSync(cacheDir, { recursive: true })
     this.cacheFile = join(cacheDir, 'nextGamesCache.json')
     this.lastGameCacheFile = join(cacheDir, 'lastGameCache.json')
+    // rosterDrift + transferLog live in the cache dir, which is the only Docker volume
+    // that survives image rebuilds. players.json is baked into the image and reverts on
+    // every rebuild, so the volume-backed drift state — not players.json — is the durable
+    // record of an applied transfer (re-applied to the in-memory roster on startup).
+    this.driftFile = join(cacheDir, 'rosterDrift.json')
+    this.transferLogFile = join(cacheDir, 'transferLog.json')
     this.manualStatsFile = join(__dirname, '../data/playerStats.json')
+
+    // Register roster-sourced team IDs so FotMob can resolve clubs by ID (not just by
+    // the hand-maintained TEAM_IDS name map). Also backfills any missing teamFotmobId.
+    this.seedTeamFotmobIds()
+    this.registerRosterTeamIds()
+
     this.loadNextGamesCache()
     this.loadLastGameCache()
+    this.loadDriftState()
+    // Re-apply transfers confirmed in a previous run so a rebuild (which reverts the
+    // baked-in players.json to the old club) doesn't undo them.
+    this.reapplyConfirmedTransfers()
     this.loadManualStats()
+  }
+
+  // Re-apply any transfers marked applied in the persisted drift state onto the
+  // in-memory roster. The in-memory roster drives all match discovery, so this keeps
+  // a player pointed at their new club even after players.json reverts on rebuild.
+  reapplyConfirmedTransfers() {
+    let reapplied = 0
+    for (const entry of this.rosterDrift.values()) {
+      if (!entry.applied || !entry.toTeamId) continue
+      const player = this.players.find(p => p.id === entry.playerId)
+      if (!player) continue
+      if (player.teamFotmobId === entry.toTeamId) continue // already current
+      player.team = entry.toTeam || player.team
+      if (entry.toLeague) player.league = entry.toLeague
+      player.teamFotmobId = entry.toTeamId
+      this.fotmob.registerTeamIds({ [player.team]: player.teamFotmobId })
+      reapplied++
+    }
+    if (reapplied > 0) console.log(`Re-applied ${reapplied} confirmed transfer(s) from persisted drift state`)
   }
 
   loadPlayers() {
     try {
-      const data = readFileSync(join(__dirname, '../data/players.json'), 'utf-8')
+      const data = readFileSync(this.playersFile, 'utf-8')
       const parsed = JSON.parse(data)
       return parsed.players
     } catch (error) {
       console.error('Error loading players:', error)
       return []
+    }
+  }
+
+  // Register each player's teamFotmobId with the FotMob service so clubs resolve by ID.
+  registerRosterTeamIds() {
+    const map = {}
+    for (const p of this.players) {
+      if (p.team && p.teamFotmobId) map[p.team] = p.teamFotmobId
+    }
+    this.fotmob.registerTeamIds(map)
+  }
+
+  // Ensure every player has a teamFotmobId (the baseline for transfer detection).
+  // Seeds from the static TEAM_IDS name map where the player's declared team is known;
+  // this establishes "what players.json currently claims" as the drift baseline.
+  // Players whose club isn't in the map are left unseeded here and get their baseline
+  // from live FotMob data on the first drift check.
+  seedTeamFotmobIds() {
+    let seeded = 0
+    for (const p of this.players) {
+      if (!p.teamFotmobId) {
+        const id = this.fotmob.resolveTeamId(p.team)
+        if (id) { p.teamFotmobId = id; seeded++ }
+      }
+    }
+    if (seeded > 0) {
+      this.persistRoster()
+      console.log(`Seeded teamFotmobId for ${seeded} players`)
+    }
+  }
+
+  // Write the current this.players array back to both roster files, preserving the
+  // rest of each file's structure (leagues array, etc.).
+  persistRoster() {
+    for (const file of [this.playersFile, this.frontendPlayersFile]) {
+      try {
+        if (!existsSync(file)) continue
+        const parsed = JSON.parse(readFileSync(file, 'utf-8'))
+        const byId = new Map(this.players.map(p => [p.id, p]))
+        parsed.players = parsed.players.map(p => byId.get(p.id) || p)
+        writeFileSync(file, JSON.stringify(parsed, null, 2) + '\n')
+      } catch (error) {
+        console.error(`Error persisting roster to ${file}:`, error.message)
+      }
+    }
+  }
+
+  // Load persisted roster-drift state (survives restarts so the day-count isn't lost).
+  loadDriftState() {
+    try {
+      if (existsSync(this.driftFile)) {
+        const data = JSON.parse(readFileSync(this.driftFile, 'utf-8'))
+        for (const [playerId, entry] of Object.entries(data)) {
+          this.rosterDrift.set(parseInt(playerId), entry)
+        }
+        if (this.rosterDrift.size > 0) console.log(`Loaded ${this.rosterDrift.size} roster-drift entries`)
+      }
+    } catch (error) {
+      console.error('Error loading drift state:', error)
+    }
+  }
+
+  saveDriftState() {
+    try {
+      writeFileSync(this.driftFile, JSON.stringify(Object.fromEntries(this.rosterDrift), null, 2))
+    } catch (error) {
+      console.error('Error saving drift state:', error)
+    }
+  }
+
+  // Append an applied transfer to the on-disk audit log.
+  appendTransferLog(entry) {
+    try {
+      let log = []
+      if (existsSync(this.transferLogFile)) {
+        log = JSON.parse(readFileSync(this.transferLogFile, 'utf-8'))
+        if (!Array.isArray(log)) log = []
+      }
+      log.push(entry)
+      writeFileSync(this.transferLogFile, JSON.stringify(log, null, 2))
+    } catch (error) {
+      console.error('Error appending transfer log:', error.message)
     }
   }
 
@@ -111,32 +241,6 @@ class MatchTrackerFD {
     }
   }
 
-  // Get manual stats for a specific date and player
-  findManualMatchForDate(playerId, matchDate) {
-    const playerStats = this.manualStats.get(playerId)
-    if (!playerStats || !playerStats.recentMatches) return null
-
-    const targetDate = new Date(matchDate).toISOString().split('T')[0]
-
-    for (const match of playerStats.recentMatches) {
-      if (match.date === targetDate) {
-        return {
-          opponent: match.opponent,
-          isHome: match.isHome,
-          homeScore: match.homeScore,
-          awayScore: match.awayScore,
-          result: match.result,
-          minutesPlayed: match.minutesPlayed,
-          started: match.started,
-          participated: match.minutesPlayed > 0,
-          events: match.events || []
-        }
-      }
-    }
-
-    return null
-  }
-
   // Get all players grouped by team
   getPlayersByTeam() {
     const byTeam = {}
@@ -161,26 +265,6 @@ class MatchTrackerFD {
     const date = new Date()
     date.setDate(date.getDate() + daysOffset)
     return date.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-  }
-
-  // Check if a lineup player name matches our player's full name.
-  // Uses last name as primary key but validates first initial to avoid
-  // collisions between teammates with the same surname (e.g. Quinn vs Cavan Sullivan).
-  lineupNameMatches(lineupName, ourPlayerName) {
-    if (!lineupName || !ourPlayerName) return false
-    const normalize = s => s.toLowerCase().replace(/[^a-z\s]/g, '').trim()
-    const ln = normalize(lineupName)
-    const our = normalize(ourPlayerName)
-    if (ln === our || ln.includes(our) || our.includes(ln)) return true
-    const lnParts = ln.split(' ')
-    const ourParts = our.split(' ')
-    const lnLast = lnParts.pop()
-    const ourLast = ourParts.pop()
-    if (lnLast !== ourLast || lnLast.length <= 3) return false
-    const lnFirst = lnParts[0]
-    const ourFirst = ourParts[0]
-    if (lnFirst && ourFirst && lnFirst[0] !== ourFirst[0]) return false
-    return true
   }
 
   // Check if a team name matches (fuzzy matching)
@@ -237,83 +321,6 @@ class MatchTrackerFD {
     return ourWords.every(ourWord =>
       apiWords.some(apiWord => apiWord === ourWord || apiWord.startsWith(ourWord) || ourWord.startsWith(apiWord))
     )
-  }
-
-  // Parse player events from match details
-  // Check if match details have any event data (goals, subs, bookings)
-  hasEventData(matchDetails) {
-    return (matchDetails.goals && matchDetails.goals.length > 0) ||
-           (matchDetails.substitutions && matchDetails.substitutions.length > 0) ||
-           (matchDetails.bookings && matchDetails.bookings.length > 0)
-  }
-
-  parsePlayerEvents(matchDetails, playerName, isHome) {
-    const events = []
-    const teamSide = isHome ? 'HOME_TEAM' : 'AWAY_TEAM'
-    const playerLastName = playerName.split(' ').pop().toLowerCase()
-
-    // Parse goals
-    if (matchDetails.goals) {
-      for (const goal of matchDetails.goals) {
-        const scorerName = goal.scorer?.name?.toLowerCase() || ''
-        const assistName = goal.assist?.name?.toLowerCase() || ''
-
-        if (scorerName.includes(playerLastName)) {
-          events.push({ type: 'goal', minute: goal.minute })
-        }
-        if (assistName.includes(playerLastName)) {
-          events.push({ type: 'assist', minute: goal.minute })
-        }
-      }
-    }
-
-    // Parse substitutions
-    if (matchDetails.substitutions) {
-      for (const sub of matchDetails.substitutions) {
-        const playerOutName = sub.playerOut?.name?.toLowerCase() || ''
-        const playerInName = sub.playerIn?.name?.toLowerCase() || ''
-
-        if (playerOutName.includes(playerLastName)) {
-          events.push({ type: 'sub_out', minute: sub.minute })
-        }
-        if (playerInName.includes(playerLastName)) {
-          events.push({ type: 'sub_in', minute: sub.minute })
-        }
-      }
-    }
-
-    // Parse bookings (cards)
-    if (matchDetails.bookings) {
-      for (const booking of matchDetails.bookings) {
-        const bookedPlayerName = booking.player?.name?.toLowerCase() || ''
-        if (bookedPlayerName.includes(playerLastName)) {
-          const cardType = booking.card === 'YELLOW_CARD' ? 'yellow' : 'red'
-          events.push({ type: cardType, minute: booking.minute })
-        }
-      }
-    }
-
-    return events
-  }
-
-  // Calculate minutes played from events
-  calculateMinutesPlayed(events, matchMinute = 90) {
-    const subIn = events.find(e => e.type === 'sub_in')
-    const subOut = events.find(e => e.type === 'sub_out')
-
-    if (subIn && subOut) {
-      return subOut.minute - subIn.minute
-    } else if (subIn) {
-      return matchMinute - subIn.minute
-    } else if (subOut) {
-      return subOut.minute
-    }
-    // No sub events - either played full match or didn't play
-    // If they have other events, assume they played
-    if (events.length > 0) {
-      return matchMinute
-    }
-    return matchMinute // Default to full match
   }
 
   // Check if we need to refresh next game for a team
@@ -433,7 +440,7 @@ class MatchTrackerFD {
           }
 
           // Determine if player's team is home or away
-          const teamId = TEAM_IDS[teamName] || this.getTeamIdFromFotMob(teamName, teamData)
+          const teamId = this.fotmob.resolveTeamId(teamName) || this.getTeamIdFromFotMob(teamName, teamData)
 
           const homeTeam = matchToUse.home?.name || 'Unknown'
           const awayTeam = matchToUse.away?.name || 'Unknown'
@@ -527,7 +534,7 @@ class MatchTrackerFD {
             // For upcoming games within 45 minutes, check lineup
             if (isLineupWindow) {
               try {
-                const lineupInfo = await this.fotmob.getPlayerLineupStatus(matchToUse.id, player.name, isHome)
+                const lineupInfo = await this.fotmob.getPlayerLineupStatus(matchToUse.id, player.name, isHome, player.fotmobId)
                 if (lineupInfo) {
                   playerStats.lineupStatus = lineupInfo.status // 'starting', 'bench', or 'not_in_squad'
                   console.log(`FotMob: ${player.name} lineup status: ${lineupInfo.status} (${Math.round(minutesUntilKickoff)} min to kickoff)`)
@@ -590,8 +597,8 @@ class MatchTrackerFD {
   getTeamIdFromFotMob(teamName, teamData) {
     // Try to extract from team data
     if (teamData?.details?.id) return teamData.details.id
-    // Fallback to TEAM_IDS mapping (imported at top of file)
-    return TEAM_IDS[teamName] || null
+    // Fallback to the resolver (roster overrides + static TEAM_IDS map)
+    return this.fotmob.resolveTeamId(teamName) || null
   }
 
   // Update last game data
@@ -679,7 +686,7 @@ class MatchTrackerFD {
           const lastMatch = teamData.overview.lastMatch
           if (!lastMatch) continue
 
-          const teamId = TEAM_IDS[teamName]
+          const teamId = this.fotmob.resolveTeamId(teamName)
           const isHome = lastMatch.home?.id === teamId
           const matchDate = lastMatch.status?.utcTime || null
 
@@ -962,7 +969,7 @@ class MatchTrackerFD {
             if (new Date(kickoff) > new Date()) {
               const homeTeam = nextMatch.home?.name || 'TBD'
               const awayTeam = nextMatch.away?.name || 'TBD'
-              const teamId = TEAM_IDS[teamName]
+              const teamId = this.fotmob.resolveTeamId(teamName)
               const isHome = nextMatch.home?.id === teamId
               const players = playersByTeam[teamName]
               for (const player of players) {
@@ -989,6 +996,168 @@ class MatchTrackerFD {
     } catch (error) {
       console.error('Error updating next game data:', error)
       return false
+    }
+  }
+
+  // Detect (and, after a debounce, apply) player transfers.
+  // Compares each player's declared club (teamFotmobId in players.json) against the
+  // club FotMob currently reports on their profile (primaryTeam.teamId). A mismatch
+  // is silent decay today: the player's new-club matches get filtered out and they
+  // look permanently benched at their old club. Here we surface it and, once the same
+  // new club shows up on TRANSFER_APPLY_THRESHOLD_DAYS consecutive daily checks,
+  // rewrite the roster automatically.
+  async checkRosterDrift() {
+    const today = this.getTodayDate()
+    let changed = false
+
+    for (const player of this.players) {
+      if (!player.fotmobId) continue
+
+      let primary = null
+      try {
+        primary = await this.fotmob.getPlayerPrimaryTeam(player.fotmobId)
+      } catch (err) {
+        // Couldn't read the profile this round — leave any existing drift state intact.
+        continue
+      }
+      // Small delay to avoid hammering FotMob (profiles are cached, so this is cheap).
+      await new Promise(resolve => setTimeout(resolve, 50))
+
+      if (!primary?.teamId) continue
+
+      // Baseline backfill: a player whose club wasn't in TEAM_IDS has no teamFotmobId
+      // yet. Adopt the live club as the baseline rather than treating it as a transfer.
+      if (!player.teamFotmobId) {
+        player.teamFotmobId = primary.teamId
+        this.fotmob.registerTeamIds({ [player.team]: primary.teamId })
+        this.persistRoster()
+        this.rosterDrift.delete(player.id)
+        continue
+      }
+
+      // No drift: club matches baseline. Clear any stale drift entry.
+      if (primary.teamId === player.teamFotmobId) {
+        if (this.rosterDrift.has(player.id)) {
+          this.rosterDrift.delete(player.id)
+          changed = true
+        }
+        continue
+      }
+
+      // Drift detected.
+      const existing = this.rosterDrift.get(player.id)
+      let entry
+      if (existing && existing.toTeamId === primary.teamId) {
+        // Same new club as before. Count one confirmation per calendar day.
+        entry = { ...existing }
+        if (entry.lastSeenDay !== today) {
+          entry.consecutiveDays = (entry.consecutiveDays || 0) + 1
+          entry.lastSeenDay = today
+          entry.lastSeen = new Date().toISOString()
+        }
+      } else {
+        // First sighting, or the target club changed — (re)start the count.
+        entry = {
+          playerId: player.id,
+          playerName: player.name,
+          fromTeam: player.team,
+          fromTeamId: player.teamFotmobId,
+          toTeam: primary.teamName,
+          toTeamId: primary.teamId,
+          toLeague: primary.leagueName,
+          onLoan: primary.onLoan,
+          consecutiveDays: 1,
+          firstSeen: new Date().toISOString(),
+          firstSeenDay: today,
+          lastSeen: new Date().toISOString(),
+          lastSeenDay: today,
+          applied: false
+        }
+      }
+      entry.onLoan = primary.onLoan
+      entry.toTeam = primary.teamName
+      entry.toLeague = primary.leagueName
+
+      console.log(`TRANSFER DETECTED: ${player.name} — players.json says "${player.team}" (${player.teamFotmobId}), FotMob says "${primary.teamName}" (${primary.teamId})${primary.onLoan ? ' [on loan]' : ''} — day ${entry.consecutiveDays}/${TRANSFER_APPLY_THRESHOLD_DAYS}`)
+
+      if (!entry.applied && entry.consecutiveDays >= TRANSFER_APPLY_THRESHOLD_DAYS) {
+        this.applyTransfer(player, entry)
+        entry.applied = true
+        entry.appliedAt = new Date().toISOString()
+      }
+
+      this.rosterDrift.set(player.id, entry)
+      changed = true
+    }
+
+    this.lastDriftCheckDay = today
+    if (changed) this.saveDriftState()
+  }
+
+  // Apply a confirmed transfer: update the in-memory player and both roster files,
+  // re-register the club's FotMob ID, and record an audit-log entry.
+  applyTransfer(player, entry) {
+    const before = { team: player.team, league: player.league, teamFotmobId: player.teamFotmobId }
+    player.team = entry.toTeam || player.team
+    if (entry.toLeague) player.league = entry.toLeague
+    player.teamFotmobId = entry.toTeamId
+
+    // Register the (possibly brand-new) club so match discovery resolves it by ID.
+    this.fotmob.registerTeamIds({ [player.team]: player.teamFotmobId })
+    this.persistRoster()
+
+    // A transfer invalidates cached match/last-game/next-game data tied to the old club.
+    this.matchData.delete(player.id)
+    this.lastGameData.delete(player.id)
+    this.nextGameData.delete(player.id)
+
+    this.appendTransferLog({
+      appliedAt: new Date().toISOString(),
+      playerId: player.id,
+      playerName: player.name,
+      from: before,
+      to: { team: player.team, league: player.league, teamFotmobId: player.teamFotmobId },
+      onLoan: entry.onLoan,
+      confirmedOverDays: entry.consecutiveDays
+    })
+
+    console.log(`TRANSFER APPLIED: ${player.name} — "${before.team}" → "${player.team}" (${player.teamFotmobId})`)
+  }
+
+  // Health snapshot for /api/health: FotMob scrape freshness + any pending/applied drift.
+  getHealth() {
+    const scrape = this.fotmob.getScrapeHealth()
+    const now = Date.now()
+    const lastSuccessMs = scrape.lastSuccessAt ? now - new Date(scrape.lastSuccessAt).getTime() : null
+    // Consider scraping stale if we haven't extracted usable FotMob data in >45 min.
+    // (Normal cycles refresh every 5 min, and every cycle produces many successes.)
+    const stale = lastSuccessMs === null ? true : lastSuccessMs > 45 * 60 * 1000
+
+    const drift = []
+    for (const entry of this.rosterDrift.values()) {
+      drift.push({
+        player: entry.playerName,
+        from: entry.fromTeam,
+        to: entry.toTeam,
+        onLoan: entry.onLoan,
+        consecutiveDays: entry.consecutiveDays,
+        threshold: TRANSFER_APPLY_THRESHOLD_DAYS,
+        applied: entry.applied,
+        firstSeen: entry.firstSeen
+      })
+    }
+
+    return {
+      scrape: {
+        lastSuccessAt: scrape.lastSuccessAt,
+        minutesSinceSuccess: lastSuccessMs === null ? null : Math.round(lastSuccessMs / 60000),
+        consecutiveFailures: scrape.consecutiveFailures,
+        lastFailureAt: scrape.lastFailureAt,
+        lastFailureReason: scrape.lastFailureReason,
+        stale
+      },
+      rosterDrift: drift,
+      lastDriftCheckDay: this.lastDriftCheckDay
     }
   }
 
@@ -1038,7 +1207,10 @@ class MatchTrackerFD {
     return false
   }
 
-  // Start polling for live match updates
+  // Start polling for live match updates.
+  // Uses a self-rescheduling setTimeout chain (not setInterval) so a slow poll cycle
+  // can never overlap with the next one — overlapping runs would duplicate FotMob
+  // traffic (rate-limit/block risk) and interleave writes to shared state.
   async startPolling(intervalMs = 5 * 60 * 1000) {
     if (this.isPolling) {
       console.log('Already polling')
@@ -1048,24 +1220,30 @@ class MatchTrackerFD {
     this.isPolling = true
     console.log(`Starting match polling every ${intervalMs / 1000} seconds`)
 
+    const liveIntervalMs = 60 * 1000 // 60 seconds when live matches
+    const normalIntervalMs = intervalMs // 5 minutes otherwise
+
     // Initial update from FotMob
     await this.updateMatchDataFromFotMob()
     await this.updateLastGameData()
     await this.updateNextGameData()
+    // Establish the transfer-detection baseline on startup.
+    await this.checkRosterDrift().catch(err => console.error('checkRosterDrift error:', err))
 
-    // Polling intervals
-    const liveIntervalMs = 60 * 1000 // 60 seconds when live matches
-    const normalIntervalMs = intervalMs // 5 minutes otherwise
-    let currentInterval = normalIntervalMs
-    let isLive = this.hasLiveMatches()
-
-    // Polling function that adjusts interval based on live status
     let pollCount = 0
-    const pollForUpdates = async () => {
+    const scheduleNext = () => {
+      if (!this.isPolling) return
+      const interval = this.hasLiveMatches() ? liveIntervalMs : normalIntervalMs
+      this.pollTimer = setTimeout(runPoll, interval)
+    }
+
+    const runPoll = async () => {
+      // Belt-and-suspenders: the setTimeout chain already prevents overlap, but guard anyway.
+      if (this.pollRunning) return
+      this.pollRunning = true
       try {
         pollCount++
-        // Always update with fresh data to detect status changes
-        isLive = this.hasLiveMatches()
+        const isLive = this.hasLiveMatches()
         await this.updateMatchDataFromFotMob(isLive)
 
         // Every 6 polls (~30 min at normal interval), refresh last game and next game data
@@ -1074,37 +1252,30 @@ class MatchTrackerFD {
           await this.updateNextGameData()
         }
 
-        if (isLive) {
-          console.log('Live matches detected - using fresh FotMob data')
-        } else {
-          console.log('No live matches')
+        // Transfer drift: check at most once per calendar day (profiles are cached, so
+        // if a data refresh just ran this is cheap). Isolated so it can't break polling.
+        if (this.lastDriftCheckDay !== this.getTodayDate()) {
+          await this.checkRosterDrift().catch(err => console.error('checkRosterDrift error:', err))
         }
 
-        // Adjust polling interval if live status changed
-        const newInterval = isLive ? liveIntervalMs : normalIntervalMs
-        if (newInterval !== currentInterval) {
-          currentInterval = newInterval
-          clearInterval(this.pollInterval)
-          this.pollInterval = setInterval(pollForUpdates, currentInterval)
-          console.log(`Polling interval changed to ${currentInterval / 1000} seconds`)
-        }
+        console.log(isLive ? 'Live matches detected - using fresh FotMob data' : 'No live matches')
       } catch (err) {
         // Catch any unexpected error so an unhandled rejection can't kill the process
         console.error('pollForUpdates unexpected error:', err)
+      } finally {
+        this.pollRunning = false
+        scheduleNext()
       }
     }
 
-    // Set up initial interval
-    currentInterval = isLive ? liveIntervalMs : normalIntervalMs
-    console.log(`Initial polling interval: ${currentInterval / 1000} seconds`)
-    this.pollInterval = setInterval(pollForUpdates, currentInterval)
+    scheduleNext()
   }
 
   // Stop polling
   stopPolling() {
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval)
-      this.pollInterval = null
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer)
+      this.pollTimer = null
     }
     this.isPolling = false
     console.log('Stopped match polling')

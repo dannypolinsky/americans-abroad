@@ -13,6 +13,7 @@ const __dirname = dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3001
+const SERVER_VERSION = '2.7.0' // Transfer-drift detection, scrape-health, fetch timeouts, poll-overlap guard
 
 // Middleware
 app.use(cors())
@@ -105,13 +106,14 @@ app.post('/api/stats/reload', async (req, res) => {
   }
 })
 
-// Health check
+// Health check — includes FotMob scrape freshness and any pending/applied roster drift
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     version: SERVER_VERSION,
     mode: 'live',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    ...matchTracker.getHealth()
   })
 })
 
@@ -129,7 +131,6 @@ app.get('/api/status', (req, res) => {
 
 
 // Start server
-const SERVER_VERSION = '2.6.0' // Remove dead updateFotMobData pass; persist lastGameData to disk
 app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗

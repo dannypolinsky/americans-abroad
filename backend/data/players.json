@@ -13,7 +13,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/USMNT_vs._Trinidad_and_Tobago_%2848125059622%29_%28cropped%29.jpg/330px-USMNT_vs._Trinidad_and_Tobago_%2848125059622%29_%28cropped%29.jpg",
       "fbrefId": "1bf33a9a",
       "fbrefSlug": "Christian-Pulisic",
-      "fotmobId": 688295
+      "fotmobId": 688295,
+      "teamFotmobId": 8564
     },
     {
       "id": 2,
@@ -28,7 +29,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/USAvVEN_2019-06-09_-_Weston_McKennie_%2851170534993%29_%28close-up%29.jpg/330px-USAvVEN_2019-06-09_-_Weston_McKennie_%2851170534993%29_%28close-up%29.jpg",
       "fbrefId": "b8ed4d56",
       "fbrefSlug": "Weston-McKennie",
-      "fotmobId": 848266
+      "fotmobId": 848266,
+      "teamFotmobId": 9885
     },
     {
       "id": 3,
@@ -43,7 +45,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/d/dc/2022_FIFA_World_Cup_United_States_1%E2%80%931_Wales_-_%2813%29_%28cropped%29.jpg",
       "fbrefId": "7b4e534c",
       "fbrefSlug": "Yunus-Musah",
-      "fotmobId": 1137272
+      "fotmobId": 1137272,
+      "teamFotmobId": 8524
     },
     {
       "id": 4,
@@ -58,7 +61,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/9/9e/2022_FIFA_World_Cup_United_States_1%E2%80%931_Wales_-_%2817%29_%28cropped%29.jpg",
       "fbrefId": "b9689b73",
       "fbrefSlug": "Timothy-Weah",
-      "fotmobId": 889536
+      "fotmobId": 889536,
+      "teamFotmobId": 8592
     },
     {
       "id": 6,
@@ -73,7 +77,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/0/05/Antonee_Robinson_WC2022_%28cropped%29.jpg",
       "fbrefId": "b72d7c38",
       "fbrefSlug": "Antonee-Robinson",
-      "fotmobId": 662428
+      "fotmobId": 662428,
+      "teamFotmobId": 9879
     },
     {
       "id": 7,
@@ -88,7 +93,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/2021-11-06_Fu%C3%9Fball%2C_M%C3%A4nner%2C_1._Bundesliga%2C_RB_Leipzig_-_Borussia_Dortmund_1DX_1527_by_Stepro_%28cropped2%29.jpg/330px-2021-11-06_Fu%C3%9Fball%2C_M%C3%A4nner%2C_1._Bundesliga%2C_RB_Leipzig_-_Borussia_Dortmund_1DX_1527_by_Stepro_%28cropped2%29.jpg",
       "fbrefId": "fc878d71",
       "fbrefSlug": "Tyler-Adams",
-      "fotmobId": 729769
+      "fotmobId": 729769,
+      "teamFotmobId": 8678
     },
     {
       "id": 8,
@@ -101,7 +107,8 @@
       "age": 24,
       "caps": 15,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Chris_Richards%2C_2025_CONCACAF_Gold_Cup%2C_02_%28cropped%29.jpg/330px-Chris_Richards%2C_2025_CONCACAF_Gold_Cup%2C_02_%28cropped%29.jpg",
-      "fotmobId": 950829
+      "fotmobId": 950829,
+      "teamFotmobId": 9826
     },
     {
       "id": 9,
@@ -114,7 +121,8 @@
       "age": 30,
       "caps": 25,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/CINvRIC_2017-07-09_-_Matt_Turner_%2840983917805%29_%28cropped%29.jpg/330px-CINvRIC_2017-07-09_-_Matt_Turner_%2840983917805%29_%28cropped%29.jpg",
-      "fotmobId": 729988
+      "fotmobId": 729988,
+      "teamFotmobId": 6580
     },
     {
       "id": 10,
@@ -129,7 +137,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/FC_RB_Salzburg_gegen_WSG_Tirol_%28_mit_Meisterteller%C3%BCbergabe_22._Mai_2021%29_15.jpg/330px-FC_RB_Salzburg_gegen_WSG_Tirol_%28_mit_Meisterteller%C3%BCbergabe_22._Mai_2021%29_15.jpg",
       "fbrefId": "12230b85",
       "fbrefSlug": "Brenden-Aaronson",
-      "fotmobId": 952322
+      "fotmobId": 952322,
+      "teamFotmobId": 8463
     },
     {
       "id": 11,
@@ -144,7 +153,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/2022_FIFA_World_Cup_United_States_1%E2%80%931_Wales_-_%2820%29_%28cropped%29.jpg/330px-2022_FIFA_World_Cup_United_States_1%E2%80%931_Wales_-_%2820%29_%28cropped%29.jpg",
       "fbrefId": "6929b052",
       "fbrefSlug": "Josh-Sargent",
-      "fotmobId": 848011
+      "fotmobId": 848011,
+      "teamFotmobId": 56453
     },
     {
       "id": 12,
@@ -159,7 +169,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Balogun_asse_asm_2425.png/330px-Balogun_asse_asm_2425.png",
       "fbrefId": "1f10fc05",
       "fbrefSlug": "Folarin-Balogun",
-      "fotmobId": 982677
+      "fotmobId": 982677,
+      "teamFotmobId": 9829
     },
     {
       "id": 13,
@@ -172,7 +183,8 @@
       "age": 36,
       "caps": 55,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Tim_Ream_NYCFC_v_Charlotte_20_Sep_2025-021_%28cropped%29.jpg/330px-Tim_Ream_NYCFC_v_Charlotte_20_Sep_2025-021_%28cropped%29.jpg",
-      "fotmobId": 198444
+      "fotmobId": 198444,
+      "teamFotmobId": 1323940
     },
     {
       "id": 14,
@@ -187,7 +199,8 @@
       "image": "/images/scally_joe.png",
       "fbrefId": "fb8c72af",
       "fbrefSlug": "Joe-Scally",
-      "fotmobId": 959696
+      "fotmobId": 959696,
+      "teamFotmobId": 9788
     },
     {
       "id": 15,
@@ -200,7 +213,8 @@
       "age": 21,
       "caps": 10,
       "image": "/images/paredes_kevin.jpg",
-      "fotmobId": 1136099
+      "fotmobId": 1136099,
+      "teamFotmobId": 8721
     },
     {
       "id": 16,
@@ -215,7 +229,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/GAE_-_FC_Groningen_-_52877441697_%28Ricardo_Pepi%29.jpg/330px-GAE_-_FC_Groningen_-_52877441697_%28Ricardo_Pepi%29.jpg",
       "fbrefId": "02e0a0d0",
       "fbrefSlug": "Ricardo-Pepi",
-      "fotmobId": 1036401
+      "fotmobId": 1036401,
+      "teamFotmobId": 8640
     },
     {
       "id": 17,
@@ -230,7 +245,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Malik_Tillman_2025_CONCACAF_Gold_Cup_final_%28cropped%29.jpg/330px-Malik_Tillman_2025_CONCACAF_Gold_Cup_final_%28cropped%29.jpg",
       "fbrefId": "17b66ae1",
       "fbrefSlug": "Malik-Tillman",
-      "fotmobId": 1126058
+      "fotmobId": 1126058,
+      "teamFotmobId": 8178
     },
     {
       "id": 18,
@@ -243,7 +259,8 @@
       "age": 26,
       "caps": 20,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Cameron_Carter-Vickers_USA-Columbia%2C_FIFA_U20_World_Cup_%2818684217745%29_%28cropped%29.jpg/330px-Cameron_Carter-Vickers_USA-Columbia%2C_FIFA_U20_World_Cup_%2818684217745%29_%28cropped%29.jpg",
-      "fotmobId": 643589
+      "fotmobId": 643589,
+      "teamFotmobId": 9925
     },
     {
       "id": 19,
@@ -256,7 +273,8 @@
       "age": 26,
       "caps": 20,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Luca_de_la_Torre%2C_2025_CONCACAF_Gold_Cup%2C_01_%28cropped%29.jpg/330px-Luca_de_la_Torre%2C_2025_CONCACAF_Gold_Cup%2C_01_%28cropped%29.jpg",
-      "fotmobId": 780418
+      "fotmobId": 780418,
+      "teamFotmobId": 1323940
     },
     {
       "id": 20,
@@ -271,7 +289,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Johnny_Cardoso_Pr%C3%A9-Temporada_2023.jpg/330px-Johnny_Cardoso_Pr%C3%A9-Temporada_2023.jpg",
       "fbrefId": "d8c0ce81",
       "fbrefSlug": "Johnny-Cardoso",
-      "fotmobId": 1173678
+      "fotmobId": 1173678,
+      "teamFotmobId": 9906
     },
     {
       "id": 21,
@@ -286,7 +305,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Sergino_Dest.jpg/330px-Sergino_Dest.jpg",
       "fbrefId": "01e85b8a",
       "fbrefSlug": "Sergino-Dest",
-      "fotmobId": 892816
+      "fotmobId": 892816,
+      "teamFotmobId": 8640
     },
     {
       "id": 22,
@@ -299,7 +319,8 @@
       "age": 25,
       "caps": 10,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/McKenzie_asse_tfc_2425.png/330px-McKenzie_asse_tfc_2425.png",
-      "fotmobId": 924485
+      "fotmobId": 924485,
+      "teamFotmobId": 9941
     },
     {
       "id": 24,
@@ -314,7 +335,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Haji_Wright_at_Antalyaspor_vs_Trabzonspor_20211211_%282%29_%28cropped%29_%28cropped%29.jpg/330px-Haji_Wright_at_Antalyaspor_vs_Trabzonspor_20211211_%282%29_%28cropped%29_%28cropped%29.jpg",
       "fbrefId": "09bc9a92",
       "fbrefSlug": "Haji-Wright",
-      "fotmobId": 848268
+      "fotmobId": 848268,
+      "teamFotmobId": 8669
     },
     {
       "id": 29,
@@ -327,7 +349,8 @@
       "age": 22,
       "caps": 15,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Gianluca_Busio.jpg/330px-Gianluca_Busio.jpg",
-      "fotmobId": 924431
+      "fotmobId": 924431,
+      "teamFotmobId": 7881
     },
     {
       "id": 30,
@@ -340,7 +363,8 @@
       "age": 23,
       "caps": 5,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Tessmann_asse_ol_2425.png/330px-Tessmann_asse_ol_2425.png",
-      "fotmobId": 1057433
+      "fotmobId": 1057433,
+      "teamFotmobId": 9748
     },
     {
       "id": 31,
@@ -353,7 +377,8 @@
       "age": 23,
       "caps": 2,
       "image": "/images/reynolds_bryan.webp",
-      "fotmobId": 924446
+      "fotmobId": 924446,
+      "teamFotmobId": 10001
     },
     {
       "id": 32,
@@ -366,7 +391,8 @@
       "age": 34,
       "caps": 15,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Terrence_Boyd_-_Aufstiegsfeier_RB_Leipzig_2016.JPG/330px-Terrence_Boyd_-_Aufstiegsfeier_RB_Leipzig_2016.JPG",
-      "fotmobId": 293560
+      "fotmobId": 293560,
+      "teamFotmobId": 9743
     },
     {
       "id": 36,
@@ -379,7 +405,8 @@
       "age": 25,
       "caps": 5,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Alejandro_Zendejas.png/330px-Alejandro_Zendejas.png",
-      "fotmobId": 621882
+      "fotmobId": 621882,
+      "teamFotmobId": 6576
     },
     {
       "id": 38,
@@ -392,7 +419,8 @@
       "age": 24,
       "caps": 10,
       "image": "/images/dike_daryl.jpg",
-      "fotmobId": 1136396
+      "fotmobId": 1136396,
+      "teamFotmobId": 8659
     },
     {
       "id": 48,
@@ -405,7 +433,8 @@
       "age": 22,
       "caps": 3,
       "image": "/images/aaronson_paxten.png",
-      "fotmobId": 1171008
+      "fotmobId": 1171008,
+      "teamFotmobId": 8314
     },
     {
       "id": 49,
@@ -418,7 +447,8 @@
       "age": 23,
       "caps": 5,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Aidan_Morris_16082025_%282%29.jpg/330px-Aidan_Morris_16082025_%282%29.jpg",
-      "fotmobId": 1136097
+      "fotmobId": 1136097,
+      "teamFotmobId": 8549
     },
     {
       "id": 56,
@@ -431,7 +461,8 @@
       "age": 26,
       "caps": 3,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Dsc_5720_29430463257_o_%2850120746293%29_%28cropped%29.jpg/330px-Dsc_5720_29430463257_o_%2850120746293%29_%28cropped%29.jpg",
-      "fotmobId": 688271
+      "fotmobId": 688271,
+      "teamFotmobId": 9925
     },
     {
       "id": 57,
@@ -446,7 +477,8 @@
       "image": "https://upload.wikimedia.org/wikipedia/commons/3/31/Giovanni_Reyna_2020.jpg",
       "fbrefId": "9da4cc3d",
       "fbrefSlug": "Giovanni-Reyna",
-      "fotmobId": 1071179
+      "fotmobId": 1071179,
+      "teamFotmobId": 9788
     },
     {
       "id": 74,
@@ -459,7 +491,8 @@
       "age": 21,
       "caps": 0,
       "image": "/images/pukstas_rokas.png",
-      "fotmobId": 1377897
+      "fotmobId": 1377897,
+      "teamFotmobId": 10154
     },
     {
       "id": 79,
@@ -472,7 +505,8 @@
       "age": 26,
       "caps": 10,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Djordje_Mihailovic_crop.jpg/330px-Djordje_Mihailovic_crop.jpg",
-      "fotmobId": 830601
+      "fotmobId": 830601,
+      "teamFotmobId": 56453
     },
     {
       "id": 82,
@@ -485,7 +519,8 @@
       "age": 28,
       "caps": 30,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Miles_Robinson%2C_2025_CONCACAF_Gold_Cup.jpg/330px-Miles_Robinson%2C_2025_CONCACAF_Gold_Cup.jpg",
-      "fotmobId": 825623
+      "fotmobId": 825623,
+      "teamFotmobId": 722265
     },
     {
       "id": 85,
@@ -498,7 +533,8 @@
       "age": 30,
       "caps": 30,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Zack-Steffen-08-2019.jpg/330px-Zack-Steffen-08-2019.jpg",
-      "fotmobId": 533127
+      "fotmobId": 533127,
+      "teamFotmobId": 8314
     },
     {
       "id": 103,
@@ -511,7 +547,8 @@
       "age": 19,
       "caps": 0,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Noahkai_Banks.jpg/330px-Noahkai_Banks.jpg",
-      "fotmobId": 1641063
+      "fotmobId": 1641063,
+      "teamFotmobId": 8406
     },
     {
       "id": 104,
@@ -524,7 +561,8 @@
       "age": 16,
       "caps": 0,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Cavan_Sullivan_Philadelphia_Union_New_York_City_FC_Nov_23_2025-016_%28cropped%29.jpg/330px-Cavan_Sullivan_Philadelphia_Union_New_York_City_FC_Nov_23_2025-016_%28cropped%29.jpg",
-      "fotmobId": 1630736
+      "fotmobId": 1630736,
+      "teamFotmobId": 191716
     },
     {
       "id": 105,
@@ -537,7 +575,8 @@
       "age": 25,
       "caps": 0,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Patrick_Agyemang_USMNT_Debut.jpg/330px-Patrick_Agyemang_USMNT_Debut.jpg",
-      "fotmobId": 1439800
+      "fotmobId": 1439800,
+      "teamFotmobId": 10170
     },
     {
       "id": 106,
@@ -549,7 +588,8 @@
       "age": 21,
       "caps": 13,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Alex_Freeman_2025_Gold_Cup_final_%28cropped%29.jpg/330px-Alex_Freeman_2025_Gold_Cup_final_%28cropped%29.jpg",
-      "fotmobId": 1338696
+      "fotmobId": 1338696,
+      "teamFotmobId": 10205
     },
     {
       "id": 107,
@@ -561,7 +601,8 @@
       "age": 19,
       "caps": 0,
       "image": "/images/gozo_zavier.png",
-      "fotmobId": 1455818
+      "fotmobId": 1455818,
+      "teamFotmobId": 6606
     },
     {
       "id": 108,
@@ -573,7 +614,8 @@
       "age": 19,
       "caps": 0,
       "image": "/images/dettoni_grayson.jpg",
-      "fotmobId": 1668657
+      "fotmobId": 1668657,
+      "teamFotmobId": 8262
     },
     {
       "id": 109,
@@ -585,7 +627,8 @@
       "age": 21,
       "caps": 0,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Diego_Luna_during_2025_Gold_Cup_final_%28cropped%29.jpg/330px-Diego_Luna_during_2025_Gold_Cup_final_%28cropped%29.jpg",
-      "fotmobId": 1252636
+      "fotmobId": 1252636,
+      "teamFotmobId": 6606
     },
     {
       "id": 111,
@@ -597,7 +640,8 @@
       "age": 16,
       "caps": 0,
       "image": "/images/albert_mathis.jpg",
-      "fotmobId": 1692797
+      "fotmobId": 1692797,
+      "teamFotmobId": 394130
     },
     {
       "id": 112,
@@ -609,7 +653,8 @@
       "age": 20,
       "caps": 0,
       "image": "/images/habroune_taha.png",
-      "fotmobId": 1482266
+      "fotmobId": 1482266,
+      "teamFotmobId": 6001
     },
     {
       "id": 117,
@@ -621,7 +666,8 @@
       "age": 17,
       "caps": 0,
       "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Julian_Hill_photo_by_Djuradj_Vujcic_%28cropped%29.jpg/330px-Julian_Hill_photo_by_Djuradj_Vujcic_%28cropped%29.jpg",
-      "fotmobId": 1489675
+      "fotmobId": 1489675,
+      "teamFotmobId": 6514
     },
     {
       "id": 120,
@@ -633,7 +679,8 @@
       "age": 16,
       "caps": 0,
       "image": "/images/mehmeti_adri.jpg",
-      "fotmobId": 1715268
+      "fotmobId": 1715268,
+      "teamFotmobId": 6514
     },
     {
       "id": 121,
@@ -646,7 +693,8 @@
       "age": 20,
       "caps": 0,
       "image": "/images/tsakiris_niko.png",
-      "fotmobId": 1339609
+      "fotmobId": 1339609,
+      "teamFotmobId": 6603
     },
     {
       "id": 122,
@@ -658,7 +706,8 @@
       "age": 18,
       "caps": 0,
       "image": "/images/hezarkhani_aiden.png",
-      "fotmobId": 1643328
+      "fotmobId": 1643328,
+      "teamFotmobId": 6606
     }
   ],
   "leagues": [

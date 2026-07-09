@@ -3,6 +3,15 @@
 
 const FOTMOB_API_BASE = 'https://www.fotmob.com/api'
 
+// Node's default fetch sends no User-Agent, which is an easy bot-flag for Cloudflare.
+// Send a browser-like UA on every request to look less like an automated scraper.
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+
+// A single hung FotMob connection would otherwise stall the whole poll cycle
+// indefinitely (there is no default timeout on fetch). Abort any request that
+// takes longer than this.
+const FETCH_TIMEOUT_MS = 15000
+
 // Team name to FotMob ID mapping
 const TEAM_IDS = {
   // Serie A
@@ -165,7 +174,103 @@ class FotMobService {
     this.cacheExpiry = 60 * 60 * 1000 // 1 hour for general data
     this.liveCacheExpiry = 45 * 1000 // 45 seconds for live match data
     this.teamDataCache = new Map()
-    this.playerIdCache = new Map() // playerName -> fotmobId
+
+    // Runtime team name -> FotMob ID overrides, registered from players.json
+    // (each player carries a teamFotmobId). This lets us resolve a club by ID even
+    // when it isn't in the hand-maintained TEAM_IDS map above — important after an
+    // auto-applied transfer moves a player to a club we've never scraped before.
+    this.teamIdOverrides = new Map()
+
+    // Scrape-health tracking. lastSuccessAt records when we last extracted usable
+    // data from FotMob; consecutiveFailures counts genuine connectivity/block/shape
+    // failures (not per-team "no data" quirks). Surfaced via /api/health so a silent
+    // FotMob block (site keeps serving yesterday's data) becomes visible.
+    this.lastSuccessAt = null
+    this.lastFailureAt = null
+    this.lastFailureReason = null
+    this.consecutiveFailures = 0
+  }
+
+  // Register team name -> FotMob ID mappings sourced from the roster (players.json).
+  registerTeamIds(nameToId) {
+    for (const [name, id] of Object.entries(nameToId)) {
+      if (name && id) this.teamIdOverrides.set(name, id)
+    }
+  }
+
+  // Resolve a team name to its FotMob ID, preferring roster-sourced overrides
+  // over the static TEAM_IDS map.
+  resolveTeamId(teamName) {
+    return this.teamIdOverrides.get(teamName) || TEAM_IDS[teamName] || null
+  }
+
+  recordScrapeSuccess() {
+    this.lastSuccessAt = Date.now()
+    this.consecutiveFailures = 0
+  }
+
+  recordScrapeFailure(reason) {
+    this.consecutiveFailures++
+    this.lastFailureAt = Date.now()
+    this.lastFailureReason = reason
+  }
+
+  getScrapeHealth() {
+    return {
+      lastSuccessAt: this.lastSuccessAt ? new Date(this.lastSuccessAt).toISOString() : null,
+      lastFailureAt: this.lastFailureAt ? new Date(this.lastFailureAt).toISOString() : null,
+      lastFailureReason: this.lastFailureReason,
+      consecutiveFailures: this.consecutiveFailures
+    }
+  }
+
+  // fetch() with a hard timeout and a browser-like User-Agent. Used for every
+  // outbound FotMob request so one hung connection can't stall the poll cycle.
+  async fetchWithTimeout(url) {
+    return fetch(url, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: { 'User-Agent': BROWSER_UA }
+    })
+  }
+
+  // Fetch a FotMob page and extract its __NEXT_DATA__ JSON blob (server-side rendered
+  // data that bypasses the Turnstile API block). Centralizes timeout handling and
+  // scrape-health recording for all three HTML scrape paths (team/match/player).
+  // Throws on failure; records the failure reason for health reporting first.
+  async fetchNextData(url, label) {
+    let response
+    try {
+      response = await this.fetchWithTimeout(url)
+    } catch (err) {
+      // Network error, DNS failure, or timeout (AbortError) — a real connectivity problem.
+      this.recordScrapeFailure(`network:${label}:${err.name === 'TimeoutError' ? 'timeout' : err.message}`)
+      throw err
+    }
+
+    if (!response.ok) {
+      // A 403 challenge page is FotMob/Cloudflare actively blocking us — count it.
+      // Other non-OK statuses (e.g. 404 for a team with no page) are per-request
+      // quirks, not systemic failures, so they don't touch scrape health.
+      if (response.status === 403) {
+        this.recordScrapeFailure(`blocked:${label}:403`)
+      }
+      throw new Error(`FotMob ${label} page returned ${response.status}`)
+    }
+
+    const html = await response.text()
+    const match = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s)
+    if (!match) {
+      // 200 OK but no __NEXT_DATA__ — the most likely cause is FotMob migrating away
+      // from Next.js pages-router, which would break every scrape path at once.
+      // Emit a distinct, greppable signal.
+      this.recordScrapeFailure(`FOTMOB_PAYLOAD_SHAPE_CHANGED:${label}`)
+      console.error(`FotMob: FOTMOB_PAYLOAD_SHAPE_CHANGED — no __NEXT_DATA__ in ${label} page (${url})`)
+      throw new Error(`Could not find __NEXT_DATA__ in ${label} page`)
+    }
+
+    const nextData = JSON.parse(match[1])
+    this.recordScrapeSuccess()
+    return nextData
   }
 
   async fetchFromApi(endpoint, bypassCache = false) {
@@ -176,7 +281,7 @@ class FotMobService {
     }
 
     try {
-      const response = await fetch(`${FOTMOB_API_BASE}${endpoint}`)
+      const response = await this.fetchWithTimeout(`${FOTMOB_API_BASE}${endpoint}`)
 
       if (!response.ok) {
         // Detect Cloudflare Turnstile / challenge responses
@@ -226,6 +331,7 @@ class FotMobService {
         timestamp: Date.now()
       })
 
+      this.recordScrapeSuccess()
       return data
     } catch (error) {
       if (error.message.includes('Turnstile')) {
@@ -240,7 +346,7 @@ class FotMobService {
   // Get team data including squad and recent matches
   // FotMob removed their /api/teams endpoint — now scrapes __NEXT_DATA__ from the team overview page
   async getTeamData(teamName, forLiveData = false) {
-    const teamId = TEAM_IDS[teamName]
+    const teamId = this.resolveTeamId(teamName)
     if (!teamId) {
       console.log(`FotMob: No team ID mapping for ${teamName}`)
       return null
@@ -254,16 +360,7 @@ class FotMobService {
     }
 
     try {
-      const response = await fetch(`https://www.fotmob.com/teams/${teamId}/overview`)
-      if (!response.ok) {
-        throw new Error(`FotMob team page returned ${response.status}`)
-      }
-      const html = await response.text()
-      const match = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s)
-      if (!match) {
-        throw new Error('Could not find __NEXT_DATA__ in team page')
-      }
-      const nextData = JSON.parse(match[1])
+      const nextData = await this.fetchNextData(`https://www.fotmob.com/teams/${teamId}/overview`, 'team')
       const fallback = nextData?.props?.pageProps?.fallback
       if (!fallback) {
         throw new Error('No fallback data in team __NEXT_DATA__')
@@ -303,18 +400,7 @@ class FotMobService {
     }
 
     try {
-      const response = await fetch(`https://www.fotmob.com/match/${matchId}`)
-      if (!response.ok) {
-        throw new Error(`FotMob page returned ${response.status}`)
-      }
-
-      const html = await response.text()
-      const match = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s)
-      if (!match) {
-        throw new Error('Could not find __NEXT_DATA__ in page')
-      }
-
-      const nextData = JSON.parse(match[1])
+      const nextData = await this.fetchNextData(`https://www.fotmob.com/match/${matchId}`, 'match')
       const pageProps = nextData.props?.pageProps
       if (!pageProps) {
         throw new Error('No pageProps in __NEXT_DATA__')
@@ -359,18 +445,7 @@ class FotMobService {
     }
 
     try {
-      const response = await fetch(`https://www.fotmob.com/players/${fotmobPlayerId}`)
-      if (!response.ok) {
-        throw new Error(`FotMob player page returned ${response.status}`)
-      }
-
-      const html = await response.text()
-      const match = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s)
-      if (!match) {
-        throw new Error('Could not find __NEXT_DATA__ in player page')
-      }
-
-      const nextData = JSON.parse(match[1])
+      const nextData = await this.fetchNextData(`https://www.fotmob.com/players/${fotmobPlayerId}`, 'player')
       const pageProps = nextData.props?.pageProps
       if (!pageProps) {
         throw new Error('No pageProps in player __NEXT_DATA__')
@@ -389,6 +464,23 @@ class FotMobService {
     } catch (error) {
       console.error(`FotMob: Player HTML scrape failed for ${fotmobPlayerId}:`, error.message)
       return null
+    }
+  }
+
+  // Get a player's current club straight from their FotMob profile.
+  // Used for transfer-drift detection: primaryTeam reflects where the player plays
+  // right now, independent of whatever team string is stored in players.json.
+  // Returns { teamId, teamName, onLoan, leagueId, leagueName } or null.
+  async getPlayerPrimaryTeam(fotmobPlayerId) {
+    const playerData = await this.getPlayerData(fotmobPlayerId)
+    const primary = playerData?.primaryTeam
+    if (!primary?.teamId) return null
+    return {
+      teamId: primary.teamId,
+      teamName: primary.teamName || null,
+      onLoan: !!primary.onLoan,
+      leagueId: playerData.mainLeague?.leagueId ?? null,
+      leagueName: playerData.mainLeague?.leagueName ?? null
     }
   }
 
@@ -442,10 +534,16 @@ class FotMobService {
           if (matchDetails?.content?.lineup) {
             const teamLineup = isHome ? matchDetails.content.lineup.homeTeam : matchDetails.content.lineup.awayTeam
             if (teamLineup) {
+              // ID-first matching handles players whose FotMob name differs from our
+              // display name (e.g. Julian Hall = "Julian Zakrzewski" on FotMob).
+              const matchesPlayer = (id, name) => fotmobPlayerId
+                ? (id === fotmobPlayerId || id === Number(fotmobPlayerId) || String(id) === String(fotmobPlayerId) || this.playerNameMatches(name, playerName))
+                : this.playerNameMatches(name, playerName)
+
               // Check if player is in starters
-              const inStarters = teamLineup.starters?.some(p => this.playerNameMatches(p.name, playerName))
+              const inStarters = teamLineup.starters?.some(p => matchesPlayer(p.id, p.name))
               // Check if player is in subs
-              const inSubs = teamLineup.subs?.some(p => this.playerNameMatches(p.name, playerName))
+              const inSubs = teamLineup.subs?.some(p => matchesPlayer(p.id, p.name))
 
               if (inStarters) {
                 started = true
@@ -456,10 +554,10 @@ class FotMobService {
               // Get accurate minutes from match events
               const events = savedMatchEvents
               if (started === true) {
-                // Starter - check if subbed out
+                // Starter - check if subbed out (swap[1] = player going off)
                 const subOut = events.find(e =>
                   e.type === 'Substitution' &&
-                  this.playerNameMatches(e.swap?.[1]?.name, playerName)
+                  matchesPlayer(e.swap?.[1]?.id, e.swap?.[1]?.name)
                 )
                 if (subOut) {
                   actualMinutesPlayed = subOut.time || minutesPlayed
@@ -467,10 +565,10 @@ class FotMobService {
                   actualMinutesPlayed = 90
                 }
               } else if (started === false) {
-                // Sub - check when they came on
+                // Sub - check when they came on (swap[0] = player coming on)
                 const subIn = events.find(e =>
                   e.type === 'Substitution' &&
-                  this.playerNameMatches(e.swap?.[0]?.name, playerName)
+                  matchesPlayer(e.swap?.[0]?.id, e.swap?.[0]?.name)
                 )
                 if (subIn) {
                   actualMinutesPlayed = 90 - (subIn.time || 0)
@@ -511,15 +609,18 @@ class FotMobService {
 
       // Add all player events with minutes when match detail events are available
       if (savedMatchEvents.length > 0) {
-        // Substitutions use name-only matching (swap IDs are from a different player set)
+        // ID-first matching so a name mismatch (e.g. Julian Hall) doesn't drop sub events
+        const matchesPlayer = (id, name) => fotmobPlayerId
+          ? (id === fotmobPlayerId || id === Number(fotmobPlayerId) || String(id) === String(fotmobPlayerId) || this.playerNameMatches(name, playerName))
+          : this.playerNameMatches(name, playerName)
         for (const event of savedMatchEvents) {
           if (event.type !== 'Substitution') continue
-          if (this.playerNameMatches(event.swap?.[0]?.name, playerName))
+          if (matchesPlayer(event.swap?.[0]?.id, event.swap?.[0]?.name))
             matchInfo.events.push({ type: 'sub_in', minute: event.time })
-          if (this.playerNameMatches(event.swap?.[1]?.name, playerName))
+          if (matchesPlayer(event.swap?.[1]?.id, event.swap?.[1]?.name))
             matchInfo.events.push({ type: 'sub_out', minute: event.time })
         }
-        matchInfo.events.push(...this.parseGoalAssistCardEvents(savedMatchEvents, playerName))
+        matchInfo.events.push(...this.parseGoalAssistCardEvents(savedMatchEvents, playerName, fotmobPlayerId))
       } else {
         // Fallback: no match detail events available, use counts without minutes
         for (let i = 0; i < matchInfo.goals; i++) {
@@ -539,35 +640,6 @@ class FotMobService {
     }
 
     return recentMatches
-  }
-
-  // Find a player's FotMob ID from team squad data
-  async getPlayerFotMobId(playerName, teamName) {
-    const cacheKey = `${playerName}:${teamName}`
-    if (this.playerIdCache.has(cacheKey)) {
-      return this.playerIdCache.get(cacheKey)
-    }
-
-    const teamData = await this.getTeamData(teamName)
-    if (!teamData) return null
-
-    // Search through squad sections
-    const squad = teamData.squad?.squad || teamData.squad
-    if (!squad) return null
-
-    const sections = Array.isArray(squad) ? squad : []
-    for (const section of sections) {
-      if (!section.members) continue
-
-      for (const player of section.members) {
-        if (this.playerNameMatches(player.name, playerName)) {
-          this.playerIdCache.set(cacheKey, player.id)
-          return player.id
-        }
-      }
-    }
-
-    return null
   }
 
   // Check if player names match (fuzzy matching)
@@ -605,21 +677,13 @@ class FotMobService {
     return false
   }
 
-  // Get the most recent match for a team
-  async getLastMatchId(teamName) {
-    const teamData = await this.getTeamData(teamName)
-    if (!teamData?.overview?.lastMatch) return null
-
-    return teamData.overview.lastMatch.id
-  }
-
   // Get the team's last match with full details (for checking missed games)
   async getTeamLastMatch(teamName) {
     const teamData = await this.getTeamData(teamName)
     if (!teamData?.overview?.lastMatch) return null
 
     const lastMatch = teamData.overview.lastMatch
-    const teamId = TEAM_IDS[teamName]
+    const teamId = this.resolveTeamId(teamName)
     const isHome = lastMatch.home?.id === teamId
 
     // Get full match details to get the date and competition
@@ -947,7 +1011,7 @@ class FotMobService {
 
   // Get player's lineup status for an upcoming match (within ~45 min of kickoff)
   // Returns { status: 'starting' | 'bench' | 'not_in_squad' } or null if lineup not available
-  async getPlayerLineupStatus(matchId, playerName, isHome) {
+  async getPlayerLineupStatus(matchId, playerName, isHome, fotmobPlayerId = null) {
     try {
       const match = await this.getMatchDetails(matchId, true) // Always fetch fresh for lineup
       if (!match) return null
@@ -961,9 +1025,16 @@ class FotMobService {
       const teamLineup = isHome ? lineup.homeTeam : lineup.awayTeam
       if (!teamLineup) return null
 
+      // ID-first matching handles players whose FotMob name differs from our display
+      // name (e.g. Julian Hall = "Julian Zakrzewski"), which would otherwise show
+      // not_in_squad in the pre-kickoff lineup window even when starting.
+      const matchesPlayer = (p) => fotmobPlayerId
+        ? (p.id === fotmobPlayerId || p.id === Number(fotmobPlayerId) || String(p.id) === String(fotmobPlayerId) || this.playerNameMatches(p.name, playerName))
+        : this.playerNameMatches(p.name, playerName)
+
       // Check if player is in starters
       if (teamLineup.starters) {
-        const inStarters = teamLineup.starters.some(p => this.playerNameMatches(p.name, playerName))
+        const inStarters = teamLineup.starters.some(matchesPlayer)
         if (inStarters) {
           return { status: 'starting' }
         }
@@ -971,7 +1042,7 @@ class FotMobService {
 
       // Check if player is on bench
       if (teamLineup.subs) {
-        const onBench = teamLineup.subs.some(p => this.playerNameMatches(p.name, playerName))
+        const onBench = teamLineup.subs.some(matchesPlayer)
         if (onBench) {
           return { status: 'bench' }
         }
@@ -981,37 +1052,6 @@ class FotMobService {
       return { status: 'not_in_squad' }
     } catch (error) {
       console.error(`FotMob: Error getting lineup status for ${playerName}:`, error.message)
-      return null
-    }
-  }
-
-  // Get last match stats for a player
-  async getPlayerLastMatchStats(playerName, teamName, isHome = null) {
-    try {
-      const matchId = await this.getLastMatchId(teamName)
-      if (!matchId) {
-        console.log(`FotMob: No last match found for ${teamName}`)
-        return null
-      }
-
-      // If isHome is not provided, determine from team data
-      if (isHome === null) {
-        const teamData = await this.getTeamData(teamName)
-        if (teamData?.overview?.lastMatch) {
-          const teamId = TEAM_IDS[teamName]
-          isHome = teamData.overview.lastMatch.home?.id === teamId
-        }
-      }
-
-      const stats = await this.getPlayerStatsFromMatch(matchId, playerName, isHome)
-
-      if (stats) {
-        console.log(`FotMob: ${playerName} - ${stats.minutesPlayed}min, ${stats.goals}g, ${stats.assists}a, rating: ${stats.rating}`)
-      }
-
-      return stats
-    } catch (error) {
-      console.error(`FotMob: Error getting stats for ${playerName}:`, error.message)
       return null
     }
   }
@@ -1120,7 +1160,6 @@ class FotMobService {
   clearCache() {
     this.cache.clear()
     this.teamDataCache.clear()
-    this.playerIdCache.clear()
   }
 }
 

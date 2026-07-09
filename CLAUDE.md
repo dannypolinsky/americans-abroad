@@ -67,9 +67,12 @@ The deploy script doesn't sync `.env` (gitignored). It lives at:
 
 Content:
 ```
-FOOTBALL_DATA_KEY=5ab892d85c385306440c7a6395947c86
 PORT=3001
 ```
+
+> The former `FOOTBALL_DATA_KEY` (football-data.org) is retired — the integration was
+> removed (data is FotMob-only now). The old key was exposed in git history here and
+> should be deactivated in the football-data.org account.
 
 #### Verify
 ```bash
