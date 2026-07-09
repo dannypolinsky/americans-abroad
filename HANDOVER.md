@@ -108,7 +108,15 @@ loaded-but-unused.
 
 ## Next Steps
 
-- Nothing explicitly queued — ask what's next
+- **Treat a played-but-unrated match as suspect, not "upstream is just late."** Danny's stance:
+  if a player has `participated: true` but `rating: null`, assume something may be broken and
+  investigate rather than shrugging it off. Worth building: a QA/health check that flags any
+  player with `participated && rating === null`, so these surface automatically.
+  - Current example (2026-07-09): Rokas Pukstas (id 74) played 90' in Hajduk Split 2–0 Žilina
+    (Europa League qualifier, fixture 5786501) with `rating: null`. Verified this time it's a
+    genuine FotMob gap — **0 of 44 players in that match were rated** — and the today-match path
+    re-fetches each poll, so it should fill in when FotMob rates it. But per the stance above,
+    re-check it filled in, and don't assume the next null is also upstream.
 - Render fallback still not deployed (low priority, has cold starts)
 
 ---
