@@ -5,6 +5,32 @@
 
 ---
 
+## Current State (as of 2026-07-26)
+
+**Site is healthy.** All 8 QA checks pass. Backend v2.7.0, live mode, fresh scrape, 49 players,
+no roster drift, container up 2 weeks. Public endpoint HTTP 200.
+
+### 2026-07-26 — Public TLS cert had expired → site looked dead (RESOLVED)
+
+- **Symptom**: site showed no data. **Cause**: the myQNAPcloud Let's Encrypt cert for
+  `PolinskyNAS.myqnapcloud.com` **expired Jul 22, 2026** (~4 days). Browsers rejected the TLS
+  handshake, so the Ionos frontend couldn't reach the NAS backend. The backend itself was fine
+  the whole time (localhost:3001 healthy).
+- **Monitor blind spot (now fixed)**: the NAS cron monitor checks the backend from *inside* the
+  NAS (localhost:3001), which bypasses the public cert — so it read PASS while users saw a dead
+  site. Added a public-cert-expiry check to **both** `monitor.sh` (step 5, logs `cert=ok |
+  expiring<14d | EXPIRED | unreachable`) and the QA skill's `qa-check.sh` (new "TLS cert" check,
+  warns <14 days out). QA is now 8 checks.
+- **Fix**: myQNAPcloud app → SSL Certificate → **Install 90-day SSL** (Let's Encrypt, free).
+  Status showed "Not Installed" (expired cert was dropped) — there is **no renew button, you
+  reinstall**. New cert valid **Jul 26 → Oct 24, 2026**.
+- **Recurrence risk**: QNAP's Let's Encrypt auto-renewal has now lapsed at expiry twice. Do NOT
+  rely on it. Watch for `cert=expiring<14d` in monitor.log before **Oct 24, 2026**; reinstall
+  the 90-day SSL when it warns. (Or buy the 3-year myQNAPcloud cert to stop the cycle.)
+- **SSH-alias gotcha hit this session**: `ssh nas` resolves to the Tailscale IP (100.84.253.80),
+  which was unreachable. On home network, SSH directly:
+  `ssh -i ~/.ssh/nas_deploy admin@192.168.4.61`.
+
 ## Current State (as of 2026-07-09)
 
 **Pre-season hardening v2.7.0 DEPLOYED to NAS and healthy.** Confirmed live:
