@@ -5,10 +5,14 @@
 
 ---
 
-## Current State (as of 2026-07-26)
+## Current State (as of 2026-07-27)
 
-**Site is healthy.** All 8 QA checks pass. Backend v2.7.0, live mode, fresh scrape, 49 players,
-no roster drift, container up 2 weeks. Public endpoint HTTP 200.
+**Site is healthy.** All 8 QA checks pass (last run 2026-07-26). Backend v2.7.0, live mode,
+fresh scrape, 49 players, container up 2 weeks. Public endpoint HTTP 200, new TLS cert valid
+to **Oct 24, 2026**.
+- The 5 transfers detected 2026-07-09 have **applied cleanly** — `/api/health` now reports
+  `rosterDrift: []` (in-memory roster matches the FotMob baseline), so no pending/wrong drift.
+- Only open follow-up: the `participated && rating===null` QA check (see Next Steps).
 
 ### 2026-07-26 — Public TLS cert had expired → site looked dead (RESOLVED)
 
@@ -31,7 +35,7 @@ no roster drift, container up 2 weeks. Public endpoint HTTP 200.
   which was unreachable. On home network, SSH directly:
   `ssh -i ~/.ssh/nas_deploy admin@192.168.4.61`.
 
-## Current State (as of 2026-07-09)
+## Background — v2.7.0 pre-season hardening (2026-07-09)
 
 **Pre-season hardening v2.7.0 DEPLOYED to NAS and healthy.** Confirmed live:
 `/api/health` → v2.7.0, scrape fresh, 0 failures, drift check ran (5 detected, day 1/3).
@@ -130,6 +134,13 @@ loaded-but-unused.
   ```
   Then hard-restart Apache (see `CLAUDE.md` for the kill command).
 
+- **Public TLS cert lapses at expiry (recurring)**: QNAP's myQNAPcloud Let's Encrypt cert has
+  expired twice now without auto-renewing. When it lapses, the site looks dead to users while
+  the backend stays healthy (checks that hit localhost pass). Both `qa-check.sh` and NAS
+  `monitor.sh` now flag it (`cert=expiring<14d | EXPIRED`). Fix: myQNAPcloud app → SSL
+  Certificate → **Install 90-day SSL** (no renew button — reinstall). **Next expiry: Oct 24,
+  2026.** A paid 3-year myQNAPcloud cert would end the cycle.
+
 ---
 
 ## Next Steps
@@ -144,12 +155,19 @@ loaded-but-unused.
     re-fetches each poll, so it should fill in when FotMob rates it. But per the stance above,
     re-check it filled in, and don't assume the next null is also upstream.
 - Render fallback still not deployed (low priority, has cold starts)
+- **Before Oct 24, 2026**: reinstall the 90-day SSL cert when `monitor.log` shows
+  `cert=expiring<14d` (see Known Issues). Auto-renewal cannot be trusted.
+
+### Done this session (2026-07-26)
+- Added public-cert-expiry monitoring to `qa-check.sh` (new "TLS cert" check, QA now 8 checks)
+  and NAS `monitor.sh` (step 5, logs `cert=`; old script backed up to `monitor.sh.bak`).
 
 ---
 
 ## Key Reminders
 
 - **NAS deploy**: `./deploy.sh nas` — works on home network (192.168.4.61) *or* over Tailscale (auto-falls back to 100.84.253.80 when the local IP is unreachable; disconnect NordVPN first)
+- **`ssh nas` alias points to Tailscale (100.84.253.80)** — unreachable on home network without Tailscale up. For ad-hoc NAS commands on home network, SSH directly: `ssh -i ~/.ssh/nas_deploy admin@192.168.4.61`
 - **Force client cache clear**: bump `CACHE_VERSION` in `src/App.jsx` (currently `'4'`)
 - **Do NOT use the global deploy skill** — it syncs project root and corrupts the container; always use project-local `./deploy.sh nas`
 - Lineup status only shows for upcoming games within 45 min of kickoff
