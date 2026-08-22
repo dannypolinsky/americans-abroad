@@ -59,6 +59,15 @@ separate faults stopped them from reaching the screen:
 QA grew from 8 to 12 checks (added Drift coverage, Transfers to review, Alert channel,
 Player ratings).
 
+**Email path** (config: `/share/Container/americans-abroad/alert.conf`, chmod 600, not in git):
+sends **to `danny@polinsky.com`** through Gmail SMTP using the same account and app password
+the **abc-lottery** container uses (`/share/Container/abc-lottery/src/mailer.js`). Verified
+end-to-end 2026-08-22 — Gmail returned `250 OK` and the mail arrived. It sends with `curl`
+rather than reusing that Node mailer because `monitor.sh` is a **host cron** and must be able
+to alert when the container is down. QNAP's `/usr/sbin/sendmail` is only a fallback and
+currently fails (`Get AuthPass failed` — Notification Center has no SMTP account).
+**Rotating the app password requires updating both projects.**
+
 > **Fixed a QA bug in passing**: three checks used `echo "$JSON" | python3 - <<'PYEOF'`, where
 > the heredoc consumes stdin and the piped JSON is discarded. Those checks had been silently
 > passing on empty input (that's why "upcoming games" always printed `?`). Now passed by env
@@ -66,16 +75,23 @@ Player ratings).
 
 ## ⚠ Open items from this session
 
-1. **Email alerting is built but cannot send yet.** QNAP Notification Center has no SMTP
-   account — `sendmail` fails with `Get AuthPass failed`. **Danny needs to do this once**:
-   Control Panel → Notification Center → Service Account and Device Pairing → Email → add an
-   account (Gmail works). Nothing else to change: `ALERT_TO` is already set in
-   `/share/Container/americans-abroad/alert.conf` (chmod 600, not in git). A commented-out
-   `SMTP_URL`/`SMTP_USER`/`SMTP_PASS` block in that file is the fallback path if the built-in
-   route stays broken. Until then QA warns `alert=untested`.
-2. **Terrence Boyd played 8' on 2026-08-21 with `rating: null`** (fixture 5750700). Per the
-   missing-rating-is-suspect stance this was checked: FotMob rated **nobody** in that match,
-   so it is a genuine upstream gap, not broken player matching.
+1. **Rotate the Gmail app password.** During setup on 2026-08-22 a `curl -v` SMTP trace
+   printed the base64 AUTH line, which decodes to the app password — it is in that session's
+   scrollback. Rotate at <https://myaccount.google.com/apppasswords>, then update **both**
+   `/share/Container/abc-lottery/.env` (`GMAIL_APP_PASSWORD`) and
+   `/share/Container/americans-abroad/alert.conf` (`SMTP_PASS`, spaces stripped).
+2. **Known unrated-match pattern: FotMob does not rate some competitions.** Two confirmed on
+   2026-08-22, both genuine upstream gaps rather than broken player matching:
+   - Terrence Boyd, 8' on 2026-08-21, 3. Liga (fixture 5750700) — FotMob rated **nobody** in
+     that match.
+   - Zavier Gozo, 72' on 2026-08-22, **Premier League 2** (Arsenal U21 v Crystal Palace U21,
+     fixture 1000019092) — PL2 appears to carry no player ratings at all. Note this fixture
+     id comes from the player-profile feed (`source: fotmob_player_api`) and does **not**
+     resolve at `fotmob.com/matches/x/<id>`, so the usual "was anyone rated?" cross-check
+     isn't available for U21 games.
+
+   Expect the "Player ratings" QA check to warn routinely while Gozo features for the U21s.
+   Still triage each one — the stance is suspect-by-default; only the *reason* is now known.
 3. **Two players sit in leagues the site doesn't list**: Boyd (3. Liga) and Pukstas (Croatian
    First League). They are invisible under every league filter — only "all" shows them. This
    predates this session. Adding both to the `leagues` array in **both** players.json files
