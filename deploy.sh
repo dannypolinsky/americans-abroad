@@ -13,17 +13,21 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 usage() {
-    echo "Usage: ./deploy.sh [frontend|backend|nas|both]"
+    echo "Usage: ./deploy.sh [both|nas|frontend|push]"
     echo ""
-    echo "  frontend  - Build and deploy frontend to Ionos via SSH"
-    echo "  backend   - Push to GitHub (triggers Render auto-deploy)"
+    echo "  both      - Deploy backend to NAS + frontend to Ionos (default)"
     echo "  nas       - Sync backend to QNAP NAS and restart Docker container"
-    echo "  both      - Deploy both frontend and backend (Render)"
+    echo "  frontend  - Build and deploy frontend to Ionos via SSH"
+    echo "  push      - Push commits to GitHub (source control only; deploys nothing)"
     exit 1
 }
 
-deploy_backend() {
-    echo -e "${YELLOW}Deploying backend to Render...${NC}"
+# Source control only. This deploys NOTHING: the backend runs on the NAS (./deploy.sh nas)
+# and the frontend on Ionos (./deploy.sh frontend). Nothing auto-deploys from GitHub.
+# (This used to be `backend`, which pushed to GitHub for a Render service that was retired
+# when the backend moved to the NAS — the name made a push look like a backend deploy.)
+push_to_github() {
+    echo -e "${YELLOW}Pushing commits to GitHub...${NC}"
 
     # Check for uncommitted changes
     if [[ -n $(git status -s) ]]; then
@@ -33,7 +37,7 @@ deploy_backend() {
     fi
 
     git push origin main
-    echo -e "${GREEN}Backend deployed! Render will auto-deploy from GitHub.${NC}"
+    echo -e "${GREEN}Pushed to GitHub. Nothing was deployed — use 'nas' and/or 'frontend' for that.${NC}"
 }
 
 deploy_nas() {
@@ -168,15 +172,22 @@ case "${1:-both}" in
     frontend)
         deploy_frontend
         ;;
-    backend)
-        deploy_backend
+    push)
+        push_to_github
         ;;
     nas)
         deploy_nas
         ;;
     both)
-        deploy_backend
+        # The two things that actually serve the site. Previously this ran a GitHub push
+        # plus the frontend, which silently left the backend un-deployed.
+        deploy_nas
         deploy_frontend
+        ;;
+    backend)
+        echo -e "${RED}'backend' is gone — it pushed to GitHub for the retired Render service.${NC}"
+        echo -e "${YELLOW}Use './deploy.sh nas' to deploy the backend, or './deploy.sh push' to push commits.${NC}"
+        exit 1
         ;;
     *)
         usage

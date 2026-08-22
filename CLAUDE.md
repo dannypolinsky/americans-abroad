@@ -86,10 +86,15 @@ curl https://PolinskyNAS.myqnapcloud.com/api/health
 ./deploy.sh frontend
 ```
 
-### Backend → Render (fallback only, has cold starts)
+### Push to GitHub (source control only)
 ```bash
-./deploy.sh backend   # pushes to GitHub, Render auto-deploys
+./deploy.sh push   # git push origin main — deploys NOTHING
 ```
+
+> **There is no fallback backend.** The QNAP NAS is the only place the backend runs. Render
+> hosted the backend before the NAS migration and has not been used since; it was removed from
+> the docs and `deploy.sh` on 2026-08-22. Nothing auto-deploys from GitHub, so a push is never
+> a deploy. The repo is **public** — assume anything committed is world-readable.
 
 ---
 

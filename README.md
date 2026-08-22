@@ -17,7 +17,7 @@ A mobile-responsive web app that tracks American soccer players playing abroad, 
 - **Frontend:** React + Vite
 - **Backend:** Node.js + Express (Dockerized)
 - **Data source:** FotMob (unofficial — reads the server-rendered `__NEXT_DATA__` from FotMob pages; no API key)
-- **Hosting:** IONOS (frontend static build) + QNAP NAS (backend container, primary). Render is an optional cold-start fallback.
+- **Hosting:** IONOS (frontend static build) + QNAP NAS (backend container — the only backend).
 
 ## Project Structure
 

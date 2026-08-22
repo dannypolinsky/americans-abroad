@@ -27,6 +27,10 @@ _Last updated: 2026-08-22_
 
 ## Recent changes
 
+- **2026-08-22** — Retired Render from the docs and `deploy.sh`. `backend` (a GitHub push
+  mislabelled as a deploy) became `push`; **`both` — the default — now runs `nas` + `frontend`**,
+  where it previously pushed to GitHub and deployed the frontend while silently skipping the
+  backend entirely. `./deploy.sh backend` now exits with a pointer instead of running.
 - **2026-08-22** — Pushed `main` to GitHub (24 commits, remote was stale since March). Checked
   first that no `.env` is tracked and nothing secret-shaped was in the outgoing diff.
 - **2026-08-22** — Fixed seven players stuck on wrong clubs for six weeks. Drift detection had
@@ -60,13 +64,12 @@ _Last updated: 2026-08-22_
 4. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
    `cert=expiring<14d`. There is no renew button — you reinstall. Auto-renewal has now
    lapsed twice.
-5. **Render fallback state is unknown — verify or retire it.** CLAUDE.md says a GitHub push
-   auto-deploys Render, and `main` was pushed 2026-08-22, so Render *should* now be building
-   v2.8.0 after ~5 months of drift. But there is **no `render.yaml` and no Render URL anywhere
-   in the repo**, so this could not be verified from the machine, and the service may no longer
-   be connected. Either confirm it in the Render dashboard and record the URL here, or drop
-   the Render references from `CLAUDE.md` / `deploy.sh` so the fallback stops looking real.
-   Note it would deploy against Render's own env vars, which have never held the v2.8.0 config.
+5. ~~Render fallback~~ **SETTLED 2026-08-22 — there is no Render fallback.** Danny confirmed
+   Render hosted the backend *before* the NAS migration and has not been used since; the NAS
+   is the only backend. Every Render reference was removed from `README.md`, `CLAUDE.md` and
+   `deploy.sh`. Do not reintroduce "fallback backend" language — earlier handovers describe a
+   Render fallback that never existed post-migration, and that stale claim cost a session's
+   worth of chasing.
 6. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
    between incidents (it currently only proves itself when something actually changes); and
    `TRANSFER_APPLY_THRESHOLD_DAYS` is still 3, so a deadline-day move applies three days later
@@ -188,6 +191,8 @@ currently fails (`Get AuthPass failed` — Notification Center has no SMTP accou
 - NAS (primary backend): ✅ v2.7.0 live, healthy
 - Ionos (frontend): ✅ redeployed (fresh bundle, HTTP 200) — now ships the `teamFotmobId` roster
 - Render (fallback backend): ⏳ not deployed (low priority)
+  > **AMENDED 2026-08-22:** there is no Render fallback. Render hosted the backend before the
+  > NAS migration and has not been used since; the NAS is the only backend.
 - **5 real transfers detected on the live backend** (below). They auto-apply after 3 consecutive
   daily checks — **review in `/api/health` before then** if any are wrong.
 
@@ -316,6 +321,8 @@ loaded-but-unused.
   - Confirmed genuine gaps so far: Pukstas (2026-07-09, fixture 5786501, 0 of 44 rated) and
     Boyd (2026-08-21, fixture 5750700, 0 rated). Do not assume the next null is also upstream.
 - Render fallback still not deployed (low priority, has cold starts)
+  > **AMENDED 2026-08-22:** wrong — no Render fallback exists. See `## Open questions /
+  > Next steps` item 5 at the top of the file.
 - **Before Oct 24, 2026**: reinstall the 90-day SSL cert when `monitor.log` shows
   `cert=expiring<14d` (see Known Issues). Auto-renewal cannot be trusted.
 
