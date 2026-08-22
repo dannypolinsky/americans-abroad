@@ -10,8 +10,11 @@ _Last updated: 2026-08-22_
 ## Current state
 
 - **Backend v2.8.0 live on the NAS, frontend live on Ionos — both deployed and verified.**
-  Nothing is committed-but-undeployed. Commits `7ce70b2` and `422249a` are on `main` **local
-  only — not pushed to GitHub** (Render fallback therefore still runs old code; low priority).
+  Nothing is committed-but-undeployed. `main` is **pushed and in sync with `origin/main`**
+  (2026-08-22) — the remote had been stale since 2026-03-03, so that push carried 24 commits.
+- **The GitHub repo is PUBLIC** (`dannypolinsky/americans-abroad`). Assume anything committed
+  is world-readable. The retired `FOOTBALL_DATA_KEY` is in already-public history — deactivate
+  it in the football-data.org account if that was never done.
 - **Roster is correct and self-correcting.** All 49 players verified against FotMob today.
   `/api/players` now serves the live in-memory roster and the frontend reads it at runtime,
   so a confirmed transfer reaches the site with no redeploy.
@@ -24,6 +27,8 @@ _Last updated: 2026-08-22_
 
 ## Recent changes
 
+- **2026-08-22** — Pushed `main` to GitHub (24 commits, remote was stale since March). Checked
+  first that no `.env` is tracked and nothing secret-shaped was in the outgoing diff.
 - **2026-08-22** — Fixed seven players stuck on wrong clubs for six weeks. Drift detection had
   worked all along; four delivery faults hid the result (boot-time roster snapshot, frontend
   reading its bundle, pruned drift state, blind-sweep-looks-clean). Also stopped call-ups
@@ -55,7 +60,13 @@ _Last updated: 2026-08-22_
 4. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
    `cert=expiring<14d`. There is no renew button — you reinstall. Auto-renewal has now
    lapsed twice.
-5. **Push to GitHub if the Render fallback should be current** — it is two commits behind.
+5. **Render fallback state is unknown — verify or retire it.** CLAUDE.md says a GitHub push
+   auto-deploys Render, and `main` was pushed 2026-08-22, so Render *should* now be building
+   v2.8.0 after ~5 months of drift. But there is **no `render.yaml` and no Render URL anywhere
+   in the repo**, so this could not be verified from the machine, and the service may no longer
+   be connected. Either confirm it in the Render dashboard and record the URL here, or drop
+   the Render references from `CLAUDE.md` / `deploy.sh` so the fallback stops looking real.
+   Note it would deploy against Render's own env vars, which have never held the v2.8.0 config.
 6. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
    between incidents (it currently only proves itself when something actually changes); and
    `TRANSFER_APPLY_THRESHOLD_DAYS` is still 3, so a deadline-day move applies three days later
