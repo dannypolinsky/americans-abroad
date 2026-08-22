@@ -1,11 +1,77 @@
-# Americans Abroad — Session Handover
+# Handover — Americans Abroad
+_Last updated: 2026-08-22_
 
 > **How to use**: Read this first at the start of every session. Update it at the end.
 > Static architecture and deployment docs live in `CLAUDE.md`.
+> Recurring gotchas (proxy wipes, cert lapses, SSH aliases, FotMob API retirement) live in
+> **Known Issues / Gotchas** and **Key Reminders** in the archive below — check there before
+> debugging anything infrastructural.
+
+## Current state
+
+- **Backend v2.8.0 live on the NAS, frontend live on Ionos — both deployed and verified.**
+  Nothing is committed-but-undeployed. Commits `7ce70b2` and `422249a` are on `main` **local
+  only — not pushed to GitHub** (Render fallback therefore still runs old code; low priority).
+- **Roster is correct and self-correcting.** All 49 players verified against FotMob today.
+  `/api/players` now serves the live in-memory roster and the frontend reads it at runtime,
+  so a confirmed transfer reaches the site with no redeploy.
+- **Drift sweeps are provably complete**, not just quiet: `/api/health` → `driftCheck`
+  reports `49/49 complete: true`. An unverifiable sweep can no longer look like a clean one.
+- **Email alerting works end-to-end**, to `danny@polinsky.com` via the Gmail account
+  abc-lottery uses. Verified by real delivery, confirmed received.
+- **QA: 11 pass / 1 warning.** The warning is the expected unrated-U21-match case (see
+  Next Steps #2). QA grew 8 → 12 checks.
+
+## Recent changes
+
+- **2026-08-22** — Fixed seven players stuck on wrong clubs for six weeks. Drift detection had
+  worked all along; four delivery faults hid the result (boot-time roster snapshot, frontend
+  reading its bundle, pruned drift state, blind-sweep-looks-clean). Also stopped call-ups
+  (MLS All-Stars) and reserve-league moves being auto-applied as transfers, and fixed the
+  transfer league being read from the player's lagging `mainLeague`. `7ce70b2`
+- **2026-08-22** — Monitor now emails via Gmail SMTP (same credentials as abc-lottery) instead
+  of QNAP Notification Center, which has no SMTP account. Sends via `curl` from host cron so
+  it still alerts when the container is down. `422249a`
+- **2026-08-22** — QA: added Drift coverage, Transfers to review, Alert channel, Player
+  ratings checks; fixed three pre-existing checks that silently passed on discarded stdin.
+- **2026-07-26** — Public TLS cert expiry monitoring added after the cert lapsed unnoticed.
+
+## Open questions / Next steps
+
+1. **Rotate the Gmail app password.** A `curl -v` trace during setup printed the base64 AUTH
+   line, which decodes to the password — it is in the 2026-08-22 session scrollback. Rotate at
+   <https://myaccount.google.com/apppasswords>, then update **both**
+   `/share/Container/abc-lottery/.env` (`GMAIL_APP_PASSWORD`) and
+   `/share/Container/americans-abroad/alert.conf` (`SMTP_PASS`, spaces stripped).
+   The Ionos SSH password was also printed in that session; both are local-only, neither left
+   the machine.
+2. **Expect routine "Player ratings" warnings while Gozo features for the U21s.** FotMob
+   publishes no player ratings for Premier League 2 or 3. Liga. Still triage each one —
+   suspect-by-default stands, only the *reason* is now known. Detail in the archive.
+3. **Two players sit in leagues the site doesn't list** — Boyd (3. Liga), Pukstas (Croatian
+   First League) — so they appear only under "all", never a league filter. Pre-existing.
+   Fixing means adding both to `leagues` in *both* players.json files; adds two filter chips.
+   Left for Danny to decide.
+4. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
+   `cert=expiring<14d`. There is no renew button — you reinstall. Auto-renewal has now
+   lapsed twice.
+5. **Push to GitHub if the Render fallback should be current** — it is two commits behind.
+6. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
+   between incidents (it currently only proves itself when something actually changes); and
+   `TRANSFER_APPLY_THRESHOLD_DAYS` is still 3, so a deadline-day move applies three days later
+   (automatically, and visible as pending in `/api/health` meanwhile).
 
 ---
 
+# 📚 ARCHIVE
+
+_Everything below is the historical record, newest first. Current status lives above._
+
 ## Current State (as of 2026-08-22)
+
+> **AMENDED 2026-08-22:** this is the 2026-08-22 session's detailed write-up, kept for the
+> root-cause analysis below. **Live status lives in `## Current state` at the top of the file** —
+> the QA figure here (10 pass / 2 warnings) was taken before email alerting was working.
 
 **Backend v2.8.0 live on the NAS. Site healthy.** QA: 10 pass / 2 warnings (both known and
 explained below). Drift sweep verifies **49/49** players daily. Cert valid to Oct 24, 2026.
@@ -74,6 +140,10 @@ currently fails (`Get AuthPass failed` — Notification Center has no SMTP accou
 > var. The script's own comment at check 1b warns about exactly this.
 
 ## ⚠ Open items from this session
+
+> **AMENDED 2026-08-22:** superseded by `## Open questions / Next steps` at the top of the
+> file. Item 1 below (QNAP Notification Center SMTP) was **abandoned** — alerting now goes
+> through the abc-lottery Gmail account instead. Kept for the reasoning.
 
 1. **Rotate the Gmail app password.** During setup on 2026-08-22 a `curl -v` SMTP trace
    printed the base64 AUTH line, which decodes to the app password — it is in that session's
@@ -221,6 +291,9 @@ loaded-but-unused.
 ---
 
 ## Next Steps
+
+> **AMENDED 2026-08-22:** superseded by `## Open questions / Next steps` at the top. Kept for
+> the unrated-match triage procedure, which is still the right method.
 
 - **Treat a played-but-unrated match as suspect, not "upstream is just late."** Danny's stance:
   if a player has `participated: true` but `rating: null`, assume something may be broken and
