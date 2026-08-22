@@ -35,7 +35,7 @@
     {
       "id": 3,
       "name": "Yunus Musah",
-      "team": "Atalanta",
+      "team": "AC Milan",
       "league": "Serie A",
       "country": "Italy",
       "position": "Midfielder",
@@ -46,7 +46,7 @@
       "fbrefId": "7b4e534c",
       "fbrefSlug": "Yunus-Musah",
       "fotmobId": 1137272,
-      "teamFotmobId": 8524
+      "teamFotmobId": 8564
     },
     {
       "id": 4,
@@ -205,8 +205,8 @@
     {
       "id": 15,
       "name": "Kevin Paredes",
-      "team": "Wolfsburg",
-      "league": "Bundesliga",
+      "team": "FC Utrecht",
+      "league": "Eredivisie",
       "country": "Germany",
       "position": "Left Winger",
       "number": 17,
@@ -214,7 +214,7 @@
       "caps": 10,
       "image": "/images/paredes_kevin.jpg",
       "fotmobId": 1136099,
-      "teamFotmobId": 8721
+      "teamFotmobId": 9908
     },
     {
       "id": 16,
@@ -369,8 +369,8 @@
     {
       "id": 31,
       "name": "Bryan Reynolds",
-      "team": "Westerlo",
-      "league": "Belgian Pro League",
+      "team": "Rennes",
+      "league": "Ligue 1",
       "country": "Belgium",
       "position": "Right Back",
       "number": 14,
@@ -378,7 +378,7 @@
       "caps": 2,
       "image": "/images/reynolds_bryan.webp",
       "fotmobId": 924446,
-      "teamFotmobId": 10001
+      "teamFotmobId": 9851
     },
     {
       "id": 32,
@@ -411,8 +411,8 @@
     {
       "id": 38,
       "name": "Daryl Dike",
-      "team": "West Bromwich Albion",
-      "league": "Championship",
+      "team": "Orlando City",
+      "league": "MLS",
       "country": "England",
       "position": "Striker",
       "number": 9,
@@ -420,7 +420,7 @@
       "caps": 10,
       "image": "/images/dike_daryl.jpg",
       "fotmobId": 1136396,
-      "teamFotmobId": 8659
+      "teamFotmobId": 267810
     },
     {
       "id": 48,
@@ -467,8 +467,8 @@
     {
       "id": 57,
       "name": "Gio Reyna",
-      "team": "Borussia Monchengladbach",
-      "league": "Bundesliga",
+      "team": "Strasbourg",
+      "league": "Ligue 1",
       "country": "Germany",
       "position": "Attacking Midfielder",
       "number": 7,
@@ -478,7 +478,7 @@
       "fbrefId": "9da4cc3d",
       "fbrefSlug": "Giovanni-Reyna",
       "fotmobId": 1071179,
-      "teamFotmobId": 9788
+      "teamFotmobId": 9848
     },
     {
       "id": 74,
@@ -594,15 +594,15 @@
     {
       "id": 107,
       "name": "Zavier Gozo",
-      "team": "Real Salt Lake",
-      "league": "MLS",
+      "team": "Crystal Palace",
+      "league": "Premier League",
       "country": "USA",
       "position": "Right Winger",
       "age": 19,
       "caps": 0,
       "image": "/images/gozo_zavier.png",
       "fotmobId": 1455818,
-      "teamFotmobId": 6606
+      "teamFotmobId": 9826
     },
     {
       "id": 108,
@@ -633,15 +633,15 @@
     {
       "id": 111,
       "name": "Mathis Albert",
-      "team": "Borussia Dortmund U19",
-      "league": "UEFA Youth League",
+      "team": "Borussia Dortmund",
+      "league": "Bundesliga",
       "country": "Germany",
       "position": "Winger",
       "age": 16,
       "caps": 0,
       "image": "/images/albert_mathis.jpg",
       "fotmobId": 1692797,
-      "teamFotmobId": 394130
+      "teamFotmobId": 9789
     },
     {
       "id": 112,

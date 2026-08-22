@@ -15,6 +15,28 @@ const __dirname = dirname(__filename)
 // and brief FotMob data glitches.
 const TRANSFER_APPLY_THRESHOLD_DAYS = 3
 
+// FotMob's league names don't all match the names the roster (and the frontend's league
+// filter) use. App.jsx filters with an exact `player.league === league.name` comparison,
+// so writing an unmapped name silently drops the player out of every league view.
+// Anything not resolvable through here is treated as unknown rather than guessed at.
+const LEAGUE_ALIASES = {
+  'major league soccer': 'MLS',
+  'laliga': 'La Liga',
+  'laliga ea sports': 'La Liga',
+  'premiership': 'Scottish Premiership',
+  'scottish premiership': 'Scottish Premiership',
+  'pro league': 'Belgian Pro League',
+  'jupiler pro league': 'Belgian Pro League',
+  'efl championship': 'Championship',
+  'ligue 1 mcdonald\'s': 'Ligue 1'
+}
+
+// Suffixes FotMob puts on reserve/academy sides. A player's primaryTeam flips between the
+// senior side and one of these depending on where they last featured (Zavier Gozo flipped
+// between Crystal Palace and Crystal Palace U21), which would otherwise register as a
+// transfer every time it changed.
+const YOUTH_TEAM_SUFFIX = /\s+(u\d{2}|ii|b|reserves?|academy)$/i
+
 class MatchTrackerFD {
   constructor() {
     this.fotmob = new FotMobService()
@@ -24,12 +46,17 @@ class MatchTrackerFD {
     // files to keep the displayed club label in sync on the next frontend deploy.
     this.frontendPlayersFile = join(__dirname, '../../src/data/players.json')
     this.players = this.loadPlayers()
+    this.leagueNames = this.loadLeagueNames() // valid league labels for transfer writes
     this.matchData = new Map() // playerId -> today's match data
     this.lastGameData = new Map() // playerId -> last game data
     this.nextGameData = new Map() // playerId -> next upcoming game (cached)
     this.manualStats = new Map() // playerId -> manually entered stats
     this.rosterDrift = new Map() // playerId -> transfer-drift state
     this.lastDriftCheckDay = null
+    // Coverage of the last drift sweep. Without this, a sweep that failed to read every
+    // profile is indistinguishable from one that found a clean roster — both report
+    // `rosterDrift: []`. Anything less than full coverage must be visible.
+    this.lastDriftCheckStats = null
     this.isPolling = false
     this.pollTimer = null
     this.pollRunning = false
@@ -56,6 +83,9 @@ class MatchTrackerFD {
     // Re-apply transfers confirmed in a previous run so a rebuild (which reverts the
     // baked-in players.json to the old club) doesn't undo them.
     this.reapplyConfirmedTransfers()
+    // Second safety net, in case a drift entry was pruned before this run: replay the
+    // append-only transfer log over the freshly-loaded roster.
+    this.reconcileFromTransferLog()
     this.loadManualStats()
   }
 
@@ -78,6 +108,54 @@ class MatchTrackerFD {
     if (reapplied > 0) console.log(`Re-applied ${reapplied} confirmed transfer(s) from persisted drift state`)
   }
 
+  // Replay the append-only transfer log onto the in-memory roster, oldest first. A log
+  // entry only fires when the player is still sitting on that transfer's *origin* club,
+  // which makes the replay idempotent: once a move has been hand-corrected in
+  // players.json (or already re-applied above), its entry no longer matches and is
+  // skipped, so this can never double-apply or resurrect a superseded club.
+  reconcileFromTransferLog() {
+    if (!existsSync(this.transferLogFile)) return
+    let log
+    try {
+      log = JSON.parse(readFileSync(this.transferLogFile, 'utf-8'))
+    } catch (error) {
+      console.error('Error reading transfer log:', error.message)
+      return
+    }
+    if (!Array.isArray(log)) return
+
+    // Remember where each player started so a round trip in the log (out on a call-up and
+    // back again, e.g. NY Red Bulls -> MLS All-Stars -> NY Red Bulls) leaves the roster
+    // exactly as it was, rather than adopting the log's spelling of the same club.
+    const before = new Map(this.players.map(p => [p.id, { team: p.team, league: p.league, teamFotmobId: p.teamFotmobId }]))
+
+    let replayed = 0
+    for (const entry of log) {
+      const player = this.players.find(p => p.id === entry.playerId)
+      if (!player || !entry.to?.teamFotmobId) continue
+      if (player.teamFotmobId !== entry.from?.teamFotmobId) continue // superseded or already current
+      player.team = entry.to.team || player.team
+      if (entry.to.league) player.league = entry.to.league
+      player.teamFotmobId = entry.to.teamFotmobId
+      replayed++
+    }
+
+    let net = 0
+    for (const player of this.players) {
+      const original = before.get(player.id)
+      if (player.teamFotmobId === original.teamFotmobId) {
+        // Ended up back where it started — restore the roster's own labels verbatim.
+        player.team = original.team
+        player.league = original.league
+        continue
+      }
+      this.fotmob.registerTeamIds({ [player.team]: player.teamFotmobId })
+      net++
+      console.log(`Reconciled from transfer log: ${player.name} — "${original.team}" → "${player.team}" (${player.teamFotmobId})`)
+    }
+    if (replayed > 0) console.log(`Transfer log: replayed ${replayed} entr(ies), ${net} net roster change(s)`)
+  }
+
   loadPlayers() {
     try {
       const data = readFileSync(this.playersFile, 'utf-8')
@@ -87,6 +165,45 @@ class MatchTrackerFD {
       console.error('Error loading players:', error)
       return []
     }
+  }
+
+  // The league names the roster and the frontend filter actually use.
+  loadLeagueNames() {
+    try {
+      const parsed = JSON.parse(readFileSync(this.playersFile, 'utf-8'))
+      return (parsed.leagues || []).map(l => l.name).filter(Boolean)
+    } catch (error) {
+      console.error('Error loading leagues:', error)
+      return []
+    }
+  }
+
+  // Map a FotMob league name onto a roster league name, or null if it isn't one we show.
+  // Null is meaningful: it means "don't write this", not "no league".
+  mapLeagueName(fotmobLeagueName) {
+    if (!fotmobLeagueName) return null
+    const key = fotmobLeagueName.trim().toLowerCase()
+    const exact = this.leagueNames.find(n => n.toLowerCase() === key)
+    if (exact) return exact
+    const aliased = LEAGUE_ALIASES[key]
+    return this.leagueNames.includes(aliased) ? aliased : null
+  }
+
+  // "Crystal Palace U21" -> "crystalpalace", so a senior side and its reserve/academy
+  // side compare equal.
+  baseClubName(name) {
+    if (!name) return ''
+    return name.replace(YOUTH_TEAM_SUFFIX, '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '')
+  }
+
+  // True when two club names refer to the same club, ignoring a reserve/academy suffix.
+  isSameClub(a, b) {
+    const na = this.baseClubName(a)
+    const nb = this.baseClubName(b)
+    return !!na && !!nb && na === nb
   }
 
   // Register each player's teamFotmobId with the FotMob service so clubs resolve by ID.
@@ -239,6 +356,13 @@ class MatchTrackerFD {
     } catch (error) {
       console.error('Error loading manual stats:', error)
     }
+  }
+
+  // The live in-memory roster. This — not the copy server.js read at boot — is the only
+  // view that reflects transfers applied by checkRosterDrift at runtime, so /api/players
+  // must serve this. (A boot-time snapshot served stale clubs for six weeks in Aug 2026.)
+  getPlayers() {
+    return this.players
   }
 
   // Get all players grouped by team
@@ -1009,21 +1133,38 @@ class MatchTrackerFD {
   async checkRosterDrift() {
     const today = this.getTodayDate()
     let changed = false
+    const stats = { day: today, total: 0, checked: 0, skipped: 0, skippedPlayers: [] }
 
     for (const player of this.players) {
-      if (!player.fotmobId) continue
+      stats.total++
+      if (!player.fotmobId) {
+        stats.skipped++
+        stats.skippedPlayers.push(`${player.name} (no fotmobId)`)
+        continue
+      }
 
       let primary = null
       try {
         primary = await this.fotmob.getPlayerPrimaryTeam(player.fotmobId)
       } catch (err) {
-        // Couldn't read the profile this round — leave any existing drift state intact.
+        // Couldn't read the profile this round — leave any existing drift state intact,
+        // but record the gap so a blind sweep can't masquerade as a clean roster.
+        stats.skipped++
+        stats.skippedPlayers.push(`${player.name} (${err.message})`)
         continue
       }
       // Small delay to avoid hammering FotMob (profiles are cached, so this is cheap).
       await new Promise(resolve => setTimeout(resolve, 50))
 
-      if (!primary?.teamId) continue
+      // Profile loaded but lists no club (retired, unattached, between moves). Nothing to
+      // compare against, so this player is unverified rather than confirmed-clean.
+      if (!primary?.teamId) {
+        stats.skipped++
+        stats.skippedPlayers.push(`${player.name} (no primaryTeam)`)
+        continue
+      }
+
+      stats.checked++
 
       // Baseline backfill: a player whose club wasn't in TEAM_IDS has no teamFotmobId
       // yet. Adopt the live club as the baseline rather than treating it as a transfer.
@@ -1031,16 +1172,23 @@ class MatchTrackerFD {
         player.teamFotmobId = primary.teamId
         this.fotmob.registerTeamIds({ [player.team]: primary.teamId })
         this.persistRoster()
-        this.rosterDrift.delete(player.id)
+        this.clearDrift(player.id)
         continue
       }
 
       // No drift: club matches baseline. Clear any stale drift entry.
       if (primary.teamId === player.teamFotmobId) {
-        if (this.rosterDrift.has(player.id)) {
-          this.rosterDrift.delete(player.id)
-          changed = true
-        }
+        if (this.clearDrift(player.id)) changed = true
+        continue
+      }
+
+      // Same club, different side (senior <-> U21/II/reserves). FotMob moves primaryTeam
+      // to whichever side the player last featured for, so treating this as a transfer
+      // would flip the roster back and forth indefinitely. The club label is already
+      // right, and teamNamesMatch() resolves "Crystal Palace U21" against "Crystal
+      // Palace" for match discovery, so leave the roster alone.
+      if (this.isSameClub(primary.teamName, player.team)) {
+        if (this.clearDrift(player.id)) changed = true
         continue
       }
 
@@ -1076,11 +1224,35 @@ class MatchTrackerFD {
       }
       entry.onLoan = primary.onLoan
       entry.toTeam = primary.teamName
-      entry.toLeague = primary.leagueName
+
+      // Resolve the destination league from the *club's* page, not the player's
+      // mainLeague field — mainLeague trails a transfer by weeks, which is how a move to
+      // FC Utrecht was once recorded as "Bundesliga". Fall back to mainLeague only if the
+      // club page can't be read. An unmappable name is left null and flagged rather than
+      // written, because the frontend's league filter matches on the exact string.
+      const clubLeague = await this.fotmob.getTeamLeagueById(primary.teamId)
+      const rawLeague = clubLeague?.leagueName || primary.leagueName
+      entry.toLeagueRaw = rawLeague
+      entry.toLeague = this.mapLeagueName(rawLeague)
+      entry.leagueUnmapped = !entry.toLeague
 
       console.log(`TRANSFER DETECTED: ${player.name} — players.json says "${player.team}" (${player.teamFotmobId}), FotMob says "${primary.teamName}" (${primary.teamId})${primary.onLoan ? ' [on loan]' : ''} — day ${entry.consecutiveDays}/${TRANSFER_APPLY_THRESHOLD_DAYS}`)
 
-      if (!entry.applied && entry.consecutiveDays >= TRANSFER_APPLY_THRESHOLD_DAYS) {
+      // A destination whose league we don't recognise is never auto-applied — it is held
+      // for review instead. This is the guard that would have stopped the July 2026 mess:
+      // FotMob briefly reports call-ups as the player's primaryTeam, so Ream, Gozo and
+      // Hall were all "transferred" to MLS All-Stars (a club with no league at all) and
+      // back, and Dettoni to Bayern München II (Regionalliga Bayern, a league the site
+      // doesn't carry). Applying the club but not the league would still have written
+      // those nonsense entries, so the whole transfer waits for a human.
+      if (entry.leagueUnmapped) {
+        entry.needsReview = `destination league ${rawLeague ? `"${rawLeague}"` : '(none reported)'} is not one of the roster's leagues`
+        console.log(`  HELD FOR REVIEW: ${player.name} → "${primary.teamName}" — ${entry.needsReview}. Not auto-applying.`)
+      } else {
+        entry.needsReview = null
+      }
+
+      if (!entry.applied && !entry.needsReview && entry.consecutiveDays >= TRANSFER_APPLY_THRESHOLD_DAYS) {
         this.applyTransfer(player, entry)
         entry.applied = true
         entry.appliedAt = new Date().toISOString()
@@ -1091,7 +1263,25 @@ class MatchTrackerFD {
     }
 
     this.lastDriftCheckDay = today
+    this.lastDriftCheckStats = { ...stats, completedAt: new Date().toISOString() }
+    if (stats.skipped > 0) {
+      console.log(`ROSTER DRIFT SWEEP INCOMPLETE: verified ${stats.checked}/${stats.total} players, ${stats.skipped} unverified — ${stats.skippedPlayers.slice(0, 10).join(', ')}`)
+    } else {
+      console.log(`Roster drift sweep: verified ${stats.checked}/${stats.total} players`)
+    }
     if (changed) this.saveDriftState()
+  }
+
+  // Drop a pending drift entry. Applied entries are deliberately kept: players.json is
+  // baked into the Docker image and reverts on every rebuild, so the volume-backed drift
+  // state is the only durable record that re-applies a confirmed transfer on startup.
+  // Deleting them on the next clean check is what let six weeks of transfers silently
+  // revert. Returns true if anything was removed.
+  clearDrift(playerId) {
+    const entry = this.rosterDrift.get(playerId)
+    if (!entry || entry.applied) return false
+    this.rosterDrift.delete(playerId)
+    return true
   }
 
   // Apply a confirmed transfer: update the in-memory player and both roster files,
@@ -1133,9 +1323,14 @@ class MatchTrackerFD {
     // (Normal cycles refresh every 5 min, and every cycle produces many successes.)
     const stale = lastSuccessMs === null ? true : lastSuccessMs > 45 * 60 * 1000
 
+    // Pending drift only. Applied entries are retained in rosterDrift as the durable
+    // re-apply record (see clearDrift), but they are settled and would otherwise pile up
+    // here forever and make a healthy roster look permanently unresolved.
     const drift = []
+    const needsReview = []
     for (const entry of this.rosterDrift.values()) {
-      drift.push({
+      if (entry.applied) continue
+      const item = {
         player: entry.playerName,
         from: entry.fromTeam,
         to: entry.toTeam,
@@ -1144,10 +1339,29 @@ class MatchTrackerFD {
         threshold: TRANSFER_APPLY_THRESHOLD_DAYS,
         applied: entry.applied,
         firstSeen: entry.firstSeen
-      })
+      }
+      drift.push(item)
+      if (entry.needsReview) needsReview.push({ ...item, reason: entry.needsReview })
     }
 
+    // Coverage of the last sweep. `complete: false` means the roster was NOT fully
+    // verified, which is a different (and quieter) failure than finding no transfers.
+    const s = this.lastDriftCheckStats
+    const driftCheck = s
+      ? {
+          day: s.day,
+          completedAt: s.completedAt,
+          total: s.total,
+          checked: s.checked,
+          skipped: s.skipped,
+          complete: s.skipped === 0,
+          skippedPlayers: s.skippedPlayers.slice(0, 20)
+        }
+      : { day: null, completedAt: null, total: this.players.length, checked: 0, skipped: null, complete: false, skippedPlayers: [] }
+
     return {
+      driftCheck,
+      rosterNeedsReview: needsReview,
       scrape: {
         lastSuccessAt: scrape.lastSuccessAt,
         minutesSinceSuccess: lastSuccessMs === null ? null : Math.round(lastSuccessMs / 60000),

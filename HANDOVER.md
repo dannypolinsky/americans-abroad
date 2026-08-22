@@ -5,35 +5,84 @@
 
 ---
 
-## Current State (as of 2026-07-27)
+## Current State (as of 2026-08-22)
 
-**Site is healthy.** All 8 QA checks pass (last run 2026-07-26). Backend v2.7.0, live mode,
-fresh scrape, 49 players, container up 2 weeks. Public endpoint HTTP 200, new TLS cert valid
-to **Oct 24, 2026**.
-- The 5 transfers detected 2026-07-09 have **applied cleanly** — `/api/health` now reports
-  `rosterDrift: []` (in-memory roster matches the FotMob baseline), so no pending/wrong drift.
-- Only open follow-up: the `participated && rating===null` QA check (see Next Steps).
+**Backend v2.8.0 live on the NAS. Site healthy.** QA: 10 pass / 2 warnings (both known and
+explained below). Drift sweep verifies **49/49** players daily. Cert valid to Oct 24, 2026.
 
-### 2026-07-26 — Public TLS cert had expired → site looked dead (RESOLVED)
+### 2026-08-22 — Seven players were on the wrong clubs for six weeks (RESOLVED)
 
-- **Symptom**: site showed no data. **Cause**: the myQNAPcloud Let's Encrypt cert for
-  `PolinskyNAS.myqnapcloud.com` **expired Jul 22, 2026** (~4 days). Browsers rejected the TLS
-  handshake, so the Ionos frontend couldn't reach the NAS backend. The backend itself was fine
-  the whole time (localhost:3001 healthy).
-- **Monitor blind spot (now fixed)**: the NAS cron monitor checks the backend from *inside* the
-  NAS (localhost:3001), which bypasses the public cert — so it read PASS while users saw a dead
-  site. Added a public-cert-expiry check to **both** `monitor.sh` (step 5, logs `cert=ok |
-  expiring<14d | EXPIRED | unreachable`) and the QA skill's `qa-check.sh` (new "TLS cert" check,
-  warns <14 days out). QA is now 8 checks.
-- **Fix**: myQNAPcloud app → SSL Certificate → **Install 90-day SSL** (Let's Encrypt, free).
-  Status showed "Not Installed" (expired cert was dropped) — there is **no renew button, you
-  reinstall**. New cert valid **Jul 26 → Oct 24, 2026**.
-- **Recurrence risk**: QNAP's Let's Encrypt auto-renewal has now lapsed at expiry twice. Do NOT
-  rely on it. Watch for `cert=expiring<14d` in monitor.log before **Oct 24, 2026**; reinstall
-  the 90-day SSL when it warns. (Or buy the 3-year myQNAPcloud cert to stop the cycle.)
-- **SSH-alias gotcha hit this session**: `ssh nas` resolves to the Tailscale IP (100.84.253.80),
-  which was unreachable. On home network, SSH directly:
-  `ssh -i ~/.ssh/nas_deploy admin@192.168.4.61`.
+**Symptom**: Zavier Gozo still listed at Real Salt Lake after moving to Crystal Palace.
+A full audit of all 49 players against FotMob found **7 wrong**: Musah (Atalanta→AC Milan),
+Paredes (Wolfsburg→FC Utrecht), Reynolds (Westerlo→Rennes), Dike (West Brom→Orlando City),
+Reyna (Gladbach→Strasbourg), Gozo (Real Salt Lake→Crystal Palace), Albert (BVB U19→BVB).
+
+**Drift detection was working.** It caught these in July and wrote the corrections. Four
+separate faults stopped them from reaching the screen:
+
+1. `server.js` read `players.json` once at boot and served that snapshot from `/api/players`
+   forever. Container had been up since Jul 9; the transfers applied Jul 11. **Fixed**: the
+   route now serves `matchTracker.getPlayers()` (the live roster).
+2. `App.jsx` imported the bundled `src/data/players.json` and never called the API, so clubs
+   could only change on a frontend redeploy. **Fixed**: the app fetches `/api/players` on
+   mount and hourly; the bundle is now only first-paint/offline fallback.
+3. Applied transfers were dropped from `rosterDrift.json` on the next clean sweep, so the
+   "re-apply after rebuild" safety net had nothing to replay, and every deploy silently
+   reverted them. **Fixed**: applied entries are retained (`clearDrift`), plus a new
+   `reconcileFromTransferLog()` replays the append-only log on startup (idempotent — verified
+   it produces 0 net changes against a hand-corrected roster).
+4. A sweep that could not read *any* profile reported `rosterDrift: []` — identical to a clean
+   roster. **Fixed**: `getPlayerPrimaryTeam` now throws on fetch failure instead of returning
+   null, and `/api/health` reports `driftCheck: {checked, skipped, total, complete}`.
+
+### Two bug classes found in the transfer log while fixing the above
+
+- **Call-ups were being applied as transfers.** Ream, Gozo and Hall were each "transferred"
+  to *MLS All-Stars* (a club FotMob reports with **no league at all**) and back; Dettoni to
+  Bayern München II (Regionalliga Bayern). **Fixed**: a destination whose league doesn't map
+  to the roster's `leagues` list is **never auto-applied** — it is held and surfaced in
+  `/api/health` → `rosterNeedsReview`.
+- **The league written on a transfer was taken from the player's `mainLeague`, which lags a
+  move by weeks** — that's how Paredes got recorded as "Bundesliga" at FC Utrecht. **Fixed**:
+  the league now comes from the destination *club's* page (`getTeamLeagueById` →
+  `details.primaryLeagueName`), which is correct immediately, then is mapped through
+  `LEAGUE_ALIASES` (FotMob says "Major League Soccer", the roster says "MLS").
+- **Senior↔U21 flapping**: FotMob moves `primaryTeam` to whichever side a player last featured
+  for, so Gozo oscillated between Crystal Palace and Crystal Palace U21. **Fixed**:
+  `isSameClub()` treats a reserve/academy suffix as the same club — no drift, no flapping.
+
+### Monitoring: the log was PASS every 6 hours through all of it
+
+`monitor.sh` now also checks the drift sweep (`drift=ok(49/49)`), the review queue
+(`review=N`), and **its own alert channel** (`alert=ok|FAILED|unconfigured|untested`), and it
+**emails** on any change in the problem set, plus one daily reminder while unresolved.
+QA grew from 8 to 12 checks (added Drift coverage, Transfers to review, Alert channel,
+Player ratings).
+
+> **Fixed a QA bug in passing**: three checks used `echo "$JSON" | python3 - <<'PYEOF'`, where
+> the heredoc consumes stdin and the piped JSON is discarded. Those checks had been silently
+> passing on empty input (that's why "upcoming games" always printed `?`). Now passed by env
+> var. The script's own comment at check 1b warns about exactly this.
+
+## ⚠ Open items from this session
+
+1. **Email alerting is built but cannot send yet.** QNAP Notification Center has no SMTP
+   account — `sendmail` fails with `Get AuthPass failed`. **Danny needs to do this once**:
+   Control Panel → Notification Center → Service Account and Device Pairing → Email → add an
+   account (Gmail works). Nothing else to change: `ALERT_TO` is already set in
+   `/share/Container/americans-abroad/alert.conf` (chmod 600, not in git). A commented-out
+   `SMTP_URL`/`SMTP_USER`/`SMTP_PASS` block in that file is the fallback path if the built-in
+   route stays broken. Until then QA warns `alert=untested`.
+2. **Terrence Boyd played 8' on 2026-08-21 with `rating: null`** (fixture 5750700). Per the
+   missing-rating-is-suspect stance this was checked: FotMob rated **nobody** in that match,
+   so it is a genuine upstream gap, not broken player matching.
+3. **Two players sit in leagues the site doesn't list**: Boyd (3. Liga) and Pukstas (Croatian
+   First League). They are invisible under every league filter — only "all" shows them. This
+   predates this session. Adding both to the `leagues` array in **both** players.json files
+   would fix it (and let those leagues be valid transfer destinations); it adds two filter
+   chips to the UI, so it was left for Danny to decide.
+4. **Alerting is only proven when it fires.** A quiet channel stays `untested`. A weekly
+   heartbeat email would prove it end-to-end; not built, since it means routine mail.
 
 ## Background — v2.7.0 pre-season hardening (2026-07-09)
 
@@ -134,6 +183,18 @@ loaded-but-unused.
   ```
   Then hard-restart Apache (see `CLAUDE.md` for the kill command).
 
+- **FotMob's JSON API is fully retired — everything runs on HTML scraping.** As of 2026-08-22
+  `/api/playerData` and `/api/matchDetails` return **404 for every id**; the logs are full of
+  `playerData API failed ... trying HTML scrape`, which is now the normal path, not a fallback.
+  All player/match data depends on `__NEXT_DATA__` in the page HTML. If FotMob changes that
+  page structure, everything stops at once — the QA "FotMob team/player scrape" checks and
+  `monitor.sh` step 4 are the early warning.
+
+- **A green monitor does not mean correct data.** Every localhost-based check passed for the
+  six weeks seven players sat on wrong clubs, and again during the July cert expiry. When
+  something looks wrong on the site, verify the *content* (`/api/players`, `driftCheck`
+  coverage), not just that the service responds.
+
 - **Public TLS cert lapses at expiry (recurring)**: QNAP's myQNAPcloud Let's Encrypt cert has
   expired twice now without auto-renewing. When it lapses, the site looks dead to users while
   the backend stays healthy (checks that hit localhost pass). Both `qa-check.sh` and NAS
@@ -147,20 +208,28 @@ loaded-but-unused.
 
 - **Treat a played-but-unrated match as suspect, not "upstream is just late."** Danny's stance:
   if a player has `participated: true` but `rating: null`, assume something may be broken and
-  investigate rather than shrugging it off. Worth building: a QA/health check that flags any
-  player with `participated && rating === null`, so these surface automatically.
-  - Current example (2026-07-09): Rokas Pukstas (id 74) played 90' in Hajduk Split 2–0 Žilina
-    (Europa League qualifier, fixture 5786501) with `rating: null`. Verified this time it's a
-    genuine FotMob gap — **0 of 44 players in that match were rated** — and the today-match path
-    re-fetches each poll, so it should fill in when FotMob rates it. But per the stance above,
-    re-check it filled in, and don't assume the next null is also upstream.
+  investigate rather than shrugging it off. **Now automated** — QA's "Player ratings" check
+  flags every such player by name (built 2026-08-22).
+  - How to triage one: open the fixture on FotMob. If **nobody** in the match is rated it's a
+    genuine upstream gap (common in lower divisions). If everyone else is rated, player
+    matching is broken — check `fotmobId` matching in `getPlayerStatsFromMatch`.
+  - Confirmed genuine gaps so far: Pukstas (2026-07-09, fixture 5786501, 0 of 44 rated) and
+    Boyd (2026-08-21, fixture 5750700, 0 rated). Do not assume the next null is also upstream.
 - Render fallback still not deployed (low priority, has cold starts)
 - **Before Oct 24, 2026**: reinstall the 90-day SSL cert when `monitor.log` shows
   `cert=expiring<14d` (see Known Issues). Auto-renewal cannot be trusted.
 
-### Done this session (2026-07-26)
-- Added public-cert-expiry monitoring to `qa-check.sh` (new "TLS cert" check, QA now 8 checks)
-  and NAS `monitor.sh` (step 5, logs `cert=`; old script backed up to `monitor.sh.bak`).
+### Done this session (2026-08-22)
+- Corrected 7 players in both `players.json` files; deployed backend (v2.8.0) + frontend.
+- `/api/players` serves the live roster; the frontend now reads it instead of its bundle.
+- Transfers to an unrecognised league are held for review, never auto-applied.
+- Drift-sweep coverage is reported and asserted (`driftCheck.complete`).
+- `monitor.sh` gained drift/review/alert checks and **email alerting** (needs SMTP set up).
+- QA: 8 → 12 checks; fixed 3 checks that were silently passing on discarded stdin.
+
+### Done previously (2026-07-26)
+- Added public-cert-expiry monitoring to `qa-check.sh` ("TLS cert" check) and NAS
+  `monitor.sh` (step 5, logs `cert=`; old script backed up to `monitor.sh.bak`).
 
 ---
 

@@ -31,6 +31,9 @@ function App() {
     return saved || 'all'
   })
   const [searchTerm, setSearchTerm] = useState('')
+  // Seeded from the bundled roster so the first paint has data, then replaced by the
+  // backend's live roster (see the loadRoster effect below).
+  const [roster, setRoster] = useState(playersData.players)
   const [matchData, setMatchData] = useState(() => {
     // Load cached match data from localStorage on initial render
     const cached = localStorage.getItem('americansAbroad_matchData')
@@ -125,6 +128,34 @@ function App() {
     loadMatchData()
   }, [loadMatchData])
 
+  // Pull the roster from the backend, which applies confirmed transfers at runtime.
+  // The bundled players.json is only the offline fallback / first paint: relying on it
+  // alone meant a detected transfer stayed invisible here until someone rebuilt and
+  // redeployed the frontend, so clubs were wrong on the site for weeks at a time.
+  useEffect(() => {
+    if (!API_BASE) return
+    let cancelled = false
+
+    const loadRoster = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/players`)
+        if (!response.ok) throw new Error('API error')
+        const livePlayers = await response.json()
+        // Ignore an empty/garbled response rather than blanking the whole page.
+        if (!cancelled && Array.isArray(livePlayers) && livePlayers.length > 0) {
+          setRoster(livePlayers)
+        }
+      } catch {
+        // Offline or backend down — the bundled roster stays on screen.
+      }
+    }
+
+    loadRoster()
+    // Transfers apply on a daily sweep, so an hourly re-check is ample for long-lived tabs.
+    const rosterInterval = setInterval(loadRoster, 60 * 60 * 1000)
+    return () => { cancelled = true; clearInterval(rosterInterval) }
+  }, [])
+
   // Fast refresh (60s) when matches are live or kicking off soon
   useEffect(() => {
     const hasLiveMatches = Object.values(matchData).some(m => m?.status === 'live')
@@ -166,12 +197,12 @@ function App() {
   // Remove duplicates from players
   const uniquePlayers = useMemo(() => {
     const seen = new Set()
-    return playersData.players.filter(player => {
+    return roster.filter(player => {
       if (seen.has(player.name)) return false
       seen.add(player.name)
       return true
     })
-  }, [])
+  }, [roster])
 
   // Calculate player counts per league
   const playerCounts = useMemo(() => {

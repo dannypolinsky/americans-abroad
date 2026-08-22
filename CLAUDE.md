@@ -97,9 +97,12 @@ curl https://PolinskyNAS.myqnapcloud.com/api/health
 
 ### Backend
 - `backend/server.js` - Express API server
-- `backend/services/matchTrackerFD.js` - Main match tracking and polling logic
-- `backend/services/footballData.js` - Football-Data.org API integration
-- `backend/services/fotmobService.js` - FotMob API integration
+- `backend/services/matchTrackerFD.js` - Match tracking, polling, and transfer-drift detection
+- `backend/services/fotmobService.js` - FotMob scraping (the only data source)
+- `backend/data/players.json` - Roster source of truth. `src/data/players.json` is a mirror
+  the frontend bundles as an offline fallback; `persistRoster()` writes both. The site reads
+  the roster from `/api/players` at runtime, so a confirmed transfer shows up without a
+  frontend deploy.
 - `backend/Dockerfile` - Docker image definition
 - `backend/docker-compose.yml` - Backend service
 

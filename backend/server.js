@@ -13,14 +13,16 @@ const __dirname = dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3001
-const SERVER_VERSION = '2.7.0' // Transfer-drift detection, scrape-health, fetch timeouts, poll-overlap guard
+const SERVER_VERSION = '2.8.0' // Live roster over /api/players, drift-sweep coverage, review-gated transfers
 
 // Middleware
 app.use(cors())
 app.use(express.json())
 app.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next() })
 
-// Load players data
+// Loaded once at boot. Only `leagues` is served from here — it is static config.
+// The player roster is NOT served from this snapshot: matchTracker rewrites clubs in
+// memory when it confirms a transfer, and a boot-time copy never sees those updates.
 const playersData = JSON.parse(
   readFileSync(join(__dirname, 'data/players.json'), 'utf-8')
 )
@@ -31,9 +33,9 @@ const matchTracker = new MatchTrackerFD()
 
 // Routes
 
-// Get all players
+// Get all players — from the live roster so confirmed transfers appear without a restart
 app.get('/api/players', (req, res) => {
-  res.json(playersData.players)
+  res.json(matchTracker.getPlayers())
 })
 
 // Get all leagues

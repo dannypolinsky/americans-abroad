@@ -471,8 +471,15 @@ class FotMobService {
   // Used for transfer-drift detection: primaryTeam reflects where the player plays
   // right now, independent of whatever team string is stored in players.json.
   // Returns { teamId, teamName, onLoan, leagueId, leagueName } or null.
+  // Throws when the profile could not be read at all, and returns null only when the
+  // profile loaded but carries no club. The caller counts those separately: a fetch that
+  // silently returned null used to be indistinguishable from "no transfer", which let a
+  // fully blind drift check report a clean roster.
   async getPlayerPrimaryTeam(fotmobPlayerId) {
     const playerData = await this.getPlayerData(fotmobPlayerId)
+    if (!playerData) {
+      throw new Error(`profile unavailable for player ${fotmobPlayerId}`)
+    }
     const primary = playerData?.primaryTeam
     if (!primary?.teamId) return null
     return {
@@ -481,6 +488,40 @@ class FotMobService {
       onLoan: !!primary.onLoan,
       leagueId: playerData.mainLeague?.leagueId ?? null,
       leagueName: playerData.mainLeague?.leagueName ?? null
+    }
+  }
+
+  // Resolve a club's current league straight from its FotMob team page, by ID.
+  // Used when applying a transfer: the *player's* mainLeague field lags a move by weeks
+  // (a player newly at Rennes still reported "Belgian Pro League"), which is how a
+  // transfer to FC Utrecht once got written to players.json as "Bundesliga". The club's
+  // own primaryLeagueName is correct immediately.
+  // Returns { teamId, teamName, leagueId, leagueName } or null if the page can't be read.
+  async getTeamLeagueById(teamId) {
+    if (!teamId) return null
+    const cacheKey = `team_league_${teamId}`
+    const cached = this.cache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+      return cached.data
+    }
+
+    try {
+      const nextData = await this.fetchNextData(`https://www.fotmob.com/teams/${teamId}/overview`, 'team')
+      const fallback = nextData?.props?.pageProps?.fallback
+      const teamKey = fallback && Object.keys(fallback).find(k => k.startsWith('team-'))
+      const details = teamKey ? fallback[teamKey]?.details : null
+      if (!details) return null
+      const result = {
+        teamId,
+        teamName: details.name ?? null,
+        leagueId: details.primaryLeagueId ?? null,
+        leagueName: details.primaryLeagueName ?? null
+      }
+      this.cache.set(cacheKey, { data: result, timestamp: Date.now() })
+      return result
+    } catch (error) {
+      console.error(`FotMob: Error resolving league for team ${teamId}:`, error.message)
+      return null
     }
   }
 
