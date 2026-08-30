@@ -434,6 +434,34 @@ class FotMobService {
     }
   }
 
+  // Read live status straight from a fixture's own match page.
+  //
+  // Needed because FotMob's team-overview `nextMatch.status` is not always updated once a game
+  // kicks off. Observed 2026-08-29 on América v Puebla: the team page still reported
+  // `started: false` while the match page had `started: true`, a 40:51 clock and a 1-0 score.
+  // Both requests were cache-busted, so this is a genuine inconsistency between two of
+  // FotMob's own endpoints — not the CDN staleness handled by cacheBustedUrl.
+  //
+  // Returns null when the page cannot be read, so callers keep the team-page verdict rather
+  // than downgrading a match on a failed fetch.
+  async getMatchLiveStatus(matchId) {
+    if (!matchId) return null
+    // Straight to the HTML path: /matchDetails has been returning 404 for every id since the
+    // JSON API was retired, so going through getMatchDetails would just buy a guaranteed
+    // failed request and an error log on a latency-sensitive path. The 45s cache in
+    // getMatchDetailsFromHtml means every player in the same fixture shares one fetch.
+    const details = await this.getMatchDetailsFromHtml(matchId, true)
+    const st = details?.header?.status
+    if (!st) return null
+    return {
+      started: st.started === true,
+      finished: st.finished === true,
+      ongoing: st.ongoing === true,
+      liveTime: st.liveTime?.short || st.liveTime?.long || null,
+      scoreStr: st.scoreStr || null
+    }
+  }
+
   // Get player data directly by FotMob player ID
   // Falls back to scraping the player page HTML if the API is blocked by Turnstile
   async getPlayerData(fotmobPlayerId) {

@@ -20,6 +20,10 @@ const TRANSFER_APPLY_THRESHOLD_DAYS = 3
 // than in shell: that host has no jq, no python, and a `date` that cannot parse ISO stamps.
 const MATCH_WINDOW_LEAD_MIN = 10   // treat a match as imminent this long before kickoff
 const MATCH_STUCK_MIN = 15         // kicked off this long ago but still "upcoming" = wrong
+// Past this many minutes after kickoff, stop trusting the team page's "not started" and
+// ask the fixture's own match page. Comfortably past any normal lag, and well before
+// MATCH_STUCK_MIN so the fallback has already run by the time the monitor would alert.
+const MATCH_PAGE_FALLBACK_MIN = 5
 
 // FotMob's league names don't all match the names the roster (and the frontend's league
 // filter) use. App.jsx filters with an exact `player.league === league.name` comparison,
@@ -574,8 +578,42 @@ class MatchTrackerFD {
 
           const homeTeam = matchToUse.home?.name || 'Unknown'
           const awayTeam = matchToUse.away?.name || 'Unknown'
-          const homeScore = matchToUse.home?.score ?? 0
-          const awayScore = matchToUse.away?.score ?? 0
+          let homeScore = matchToUse.home?.score ?? 0
+          let awayScore = matchToUse.away?.score ?? 0
+
+          // FotMob's team page sometimes never flips `started` once a game kicks off, leaving a
+          // live match sitting here as "upcoming" indefinitely. That is distinct from the CDN
+          // staleness fixed in fetchNextData — this survives cache-busting, because the two
+          // FotMob endpoints genuinely disagree. Only consult the fixture's own page once
+          // kickoff has meaningfully passed, so the normal case costs nothing extra.
+          if (status === 'upcoming' && matchToUse.status?.utcTime) {
+            const minsSinceKickoff = (Date.now() - new Date(matchToUse.status.utcTime).getTime()) / 60000
+            if (minsSinceKickoff >= MATCH_PAGE_FALLBACK_MIN) {
+              const live = await this.fotmob.getMatchLiveStatus(matchToUse.id)
+              if (live?.finished) {
+                status = 'finished'
+                minute = 90
+                console.log(`FotMob: ${teamName} — team page said upcoming, match page says FINISHED`)
+              } else if (live?.started || live?.ongoing) {
+                status = 'live'
+                if (live.liveTime && /half|ht/i.test(live.liveTime)) {
+                  minute = 'HT'
+                } else {
+                  const m = live.liveTime && live.liveTime.match(/(\d+)/)
+                  if (m) minute = parseInt(m[1], 10)
+                }
+                console.log(`FotMob: ${teamName} — team page said upcoming, match page says LIVE (${live.liveTime})`)
+              }
+              // The team page was wrong about the status, so its score is not trustworthy either.
+              if (live && (live.started || live.finished) && live.scoreStr) {
+                const parts = live.scoreStr.split('-').map(x => parseInt(x.trim(), 10))
+                if (parts.length === 2 && !parts.some(Number.isNaN)) {
+                  homeScore = parts[0]
+                  awayScore = parts[1]
+                }
+              }
+            }
+          }
 
           // VALIDATION: Verify that the player's team is actually in this match
           // Check by both team ID and team name matching to catch API errors or ID mismatches
