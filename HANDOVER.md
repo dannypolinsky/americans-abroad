@@ -1,5 +1,5 @@
 # Handover — Americans Abroad
-_Last updated: 2026-08-29 (late evening)_
+_Last updated: 2026-08-29 (night)_
 
 > **How to use**: Read this first at the start of every session. Update it at the end.
 > Static architecture and deployment docs live in `CLAUDE.md`.
@@ -17,12 +17,17 @@ _Last updated: 2026-08-29 (late evening)_
 - **Game-time monitoring is live** (`monitor-live.sh`, cron `*/5`), and **cron-firing was
   verified**, not assumed. It self-heals a wiped proxy rule and a container that did not come
   back on its own. `/api/health` now carries `matchWindow`.
-- **⚠ A match is showing wrong on the site right now**: América vs Puebla has read "upcoming"
-  for 50+ minutes while actually in the second half. **Different bug from the CDN one** —
-  see open item 1. The new monitor caught it within minutes of going live.
+- **Both "match stuck on upcoming" bugs are now fixed** — they were separate faults with an
+  identical symptom: FotMob's CDN serving hour-old pages (`0c4abd8`), and FotMob's team page
+  contradicting its own match page (`9a31a96`). `matchWindow.stuckUpcoming` is empty and
+  five matches are correctly live.
 
 ## Recent changes
 
+- **2026-08-29 night** — **Match-page fallback for status** (`9a31a96`). Past
+  `MATCH_PAGE_FALLBACK_MIN` (5) minutes after kickoff, a match the team page still calls
+  "not started" is checked against its own match page and the status (and score) taken from
+  there. Found by the monitor built minutes earlier. Verified live on América v Puebla.
 - **2026-08-29 late** — **Game-time monitoring** (`ea32ed1`). `getMatchWindow()` on
   `/api/health` reports `{active, liveMatches, nextKickoffInMin, stuckUpcoming}`, computed
   from live state each call so postponed/delayed kickoffs need no special handling.
@@ -52,54 +57,46 @@ _Last updated: 2026-08-29 (late evening)_
 
 ## Open questions / Next steps
 
-1. **FotMob contradicts its own endpoints — matches stick on "upcoming".** The team overview
-   reports `started: false` while that fixture's own match page reports `started: true` with a
-   live clock. **Verified with cache-busting on both**, so this is *not* the CDN bug fixed in
-   `0c4abd8`. `matchTrackerFD` classifies status from the team page only, so these games never
-   go live on the site. Affects at least the `>1000000000` fixture-id space, which the archive
-   already flags as unreliable for U21 games — so likely a class of fixtures, not one game.
-   **Fix**: when a team-page match has a passed kickoff but `started: false`, fall back to the
-   match page. **Not done.** Live example in the archive.
-2. **Rotate the Gmail app password.** *(Carried over, still not done — oldest live risk here.)*
+1. **Rotate the Gmail app password.** *(Carried over, still not done — oldest live risk here.)*
    A `curl -v` trace on 2026-08-22 printed the base64 AUTH line, which decodes to the password;
    it is in that session's scrollback. Rotate at <https://myaccount.google.com/apppasswords>,
    then update **both** `/share/Container/abc-lottery/.env` (`GMAIL_APP_PASSWORD`) and
    `/share/Container/americans-abroad/alert.conf` (`SMTP_PASS`, spaces stripped).
-3. **Drift entries are never pruned for removed players.** Removing a player strands their
+2. **Drift entries are never pruned for removed players.** Removing a player strands their
    `rosterDrift` entry permanently and it shows in `/api/health` as a pending transfer forever.
    Bit us with Vanney; cleared by hand. Fix: drop entries whose `playerId` is not in the
    roster. **Not done.**
-4. **The monitor scripts are not in this repo.** `monitor.sh` and `monitor-live.sh` live in
+3. **The monitor scripts are not in this repo.** `monitor.sh` and `monitor-live.sh` live in
    `~/.claude/skills/qa-americans-abroad/` and on the NAS. Consistent with prior practice, but
    the scripts that keep the site alive have no version control and no review history.
-5. **Deactivate the retired `FOOTBALL_DATA_KEY`** in the football-data.org account.
+4. **Deactivate the retired `FOOTBALL_DATA_KEY`** in the football-data.org account.
    *(Carried over, status unknown.)* Scrubbed from `CLAUDE.md`, but it is in already-public git
    history, so scrubbing the file did not revoke it.
-6. **The cache-bust fix cannot help the first cycle after a restart.** The bypass needs prior
+5. **The cache-bust fix cannot help the first cycle after a restart.** The bypass needs prior
    state to fire. Self-heals on cycle 2, but a restart during live games costs one poll
    interval (5 min when nothing is live, 60s once it is). Accepted.
-7. **The sweep finds *labelled* Americans, not *eligible* ones.** FotMob's `ccode` is a single
+6. **The sweep finds *labelled* Americans, not *eligible* ones.** FotMob's `ccode` is a single
    primary nationality, so an uncapped dual national filed under another country — the next
    Musah — is invisible. Needs a hand-maintained watchlist. **Not built.**
-8. **`abbrevPosition` has no entry for `'Left Winger'` / `'Right Winger'`** (only
+7. **`abbrevPosition` has no entry for `'Left Winger'` / `'Right Winger'`** (only
    `'Left Wing'` / `'Right Wing'`), so the meta line reads "Right Winger" instead of "RW".
    One-line fix in `src/utils/playerUtils.js`.
-9. **Drift auto-apply updates `team` / `league` / `teamFotmobId` but never `country`** — hence
+8. **Drift auto-apply updates `team` / `league` / `teamFotmobId` but never `country`** — hence
    `Eredivisie/Germany`, `Ligue 1/Belgium`, `MLS/England` in the roster.
-10. **Six orphan headshots in `public/images/`** for players not in the roster: Berchimas,
+9. **Six orphan headshots in `public/images/`** for players not in the roster: Berchimas,
     DeJuan Jones, Luca Moisa, Quinn Sullivan, Liam West. Note `qa-check.sh` still probes
     **Quinn Sullivan's** profile for its FotMob player-scrape check though he is not rostered.
-11. **Expect routine "Player ratings" warnings while Gozo features for the U21s.** FotMob
+10. **Expect routine "Player ratings" warnings while Gozo features for the U21s.** FotMob
     publishes no ratings for Premier League 2 or 3. Liga. Still triage each one.
-12. **Two players sit in leagues the site doesn't list** — Boyd (3. Liga), Pukstas (Croatian
+11. **Two players sit in leagues the site doesn't list** — Boyd (3. Liga), Pukstas (Croatian
     First League) — visible only under "all". Fixing means adding both to `leagues` in *both*
     players.json files. Left for Danny.
-13. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
+12. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
     `cert=expiring<14d`. No renew button — you reinstall. Cert valid to
     **Oct 24 19:45:51 2026 GMT**.
-14. ~~Render fallback~~ **SETTLED 2026-08-22 — there is no Render fallback.** The NAS is the
+13. ~~Render fallback~~ **SETTLED 2026-08-22 — there is no Render fallback.** The NAS is the
     only backend. Do not reintroduce "fallback backend" language.
-15. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
+14. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
     between incidents; `TRANSFER_APPLY_THRESHOLD_DAYS` is still 3.
 
 ---
@@ -108,7 +105,13 @@ _Last updated: 2026-08-29 (late evening)_
 
 _Everything below is the historical record, newest first. Current status lives above._
 
-## 2026-08-29 — FotMob contradicts its own endpoints (OPEN, not fixed)
+## 2026-08-29 — FotMob contradicts its own endpoints (RESOLVED same night)
+
+> **AMENDED 2026-08-29 (night):** fixed in `9a31a96` — the match-page fallback described
+> under "Proposed fix" below was implemented and verified live on this exact fixture
+> (`CF América — team page said upcoming, match page says LIVE (HT)`). The diagnosis
+> below is kept because the two bugs share one symptom and a future session needs to
+> be able to tell them apart.
 
 Found minutes after the game-time monitor went live, which is what it was built to catch.
 
