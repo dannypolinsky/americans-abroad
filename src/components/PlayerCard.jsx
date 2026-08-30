@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchPlayerMatchStats } from '../services/api'
-import { abbrevPosition, getRatingClass } from '../utils/playerUtils'
+import { abbrevPosition, getRatingClass, headshotUrl } from '../utils/playerUtils'
 import TodayMatchSection from './TodayMatchSection'
 import LastGameSection from './LastGameSection'
 import './PlayerCard.css'
@@ -9,6 +9,7 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
   const [expanded, setExpanded] = useState(false)
   const [detailedStats, setDetailedStats] = useState(null)
 
+  const headshot     = headshotUrl(player)
   const isLive       = matchData?.status === 'live'
   const hasTodayMatch = matchData !== null && matchData.status !== 'no_match_today'
   const lastGame     = matchData?.lastGame
@@ -37,12 +38,12 @@ function PlayerCard({ player, matchData, showLastGame = false }) {
       {/* Player identity row */}
       <div className="player-info">
         <div className="photo-wrapper">
-          {player.image ? (
-            <img src={player.image} alt={player.name} className="player-headshot"
+          {headshot ? (
+            <img src={headshot} alt={player.name} className="player-headshot"
               onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
             />
           ) : null}
-          <div className="player-avatar" style={player.image ? {display: 'none'} : {}}>
+          <div className="player-avatar" style={headshot ? {display: 'none'} : {}}>
             {player.name.split(' ').map(n => n[0]).join('')}
           </div>
           {rating && <div className={`photo-rating ${getRatingClass(rating)}`}>{rating}</div>}

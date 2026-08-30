@@ -18,6 +18,9 @@
   --text-accent: #1a237e;
   --border: #e0e0e0;
   --border-light: #eeeeee;
+  /* FotMob headshots are transparent cutouts, so the circle needs its own
+     backdrop — on --card-bg alone, dark hair vanishes into the dark theme. */
+  --headshot-bg: #eceff3;
   --section-header-bg: #f5f5f5;
   --match-info-bg: #f8f9fa;
   --last-game-bg: #fafafa;
@@ -58,6 +61,7 @@
     --text-accent: #7b9ff0;
     --border: #2d3748;
     --border-light: #252c38;
+    --headshot-bg: #c3c9d4;
     --section-header-bg: #1e2535;
     --match-info-bg: #1e2535;
     --last-game-bg: #161b27;

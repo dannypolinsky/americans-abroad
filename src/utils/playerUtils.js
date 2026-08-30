@@ -2,6 +2,16 @@
 
 // ── Display / formatting ───────────────────────────────────────────────────
 
+// FotMob publishes a uniform 192x192 head-and-shoulders cutout for every player it
+// tracks, keyed by the same fotmobId the rest of the app already matches on. Deriving
+// the URL means a newly added player gets a headshot with no roster edit — and it
+// replaces the old per-player `image` field, which mixed wide Wikimedia action shots
+// (unusable once cropped to a 54px circle) with hand-saved files in public/images.
+export const headshotUrl = (player) =>
+  player?.fotmobId
+    ? `https://images.fotmob.com/image_resources/playerimages/${player.fotmobId}.png`
+    : null
+
 export const abbrevPosition = (pos) => {
   const map = {
     'Goalkeeper': 'GK', 'Defender': 'DF', 'Center Back': 'CB', 'Centre Back': 'CB',

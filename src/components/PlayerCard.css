@@ -74,6 +74,7 @@
   object-fit: cover;
   display: block;
   border: 2px solid var(--border);
+  background: var(--headshot-bg);
 }
 
 .player-avatar {
