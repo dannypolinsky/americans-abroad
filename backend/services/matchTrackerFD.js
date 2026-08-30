@@ -15,6 +15,12 @@ const __dirname = dirname(__filename)
 // and brief FotMob data glitches.
 const TRANSFER_APPLY_THRESHOLD_DAYS = 3
 
+// Bounds of the "a game is happening" window reported on /api/health. The NAS monitor uses
+// this to decide whether to run its game-time checks, so the thresholds live here rather
+// than in shell: that host has no jq, no python, and a `date` that cannot parse ISO stamps.
+const MATCH_WINDOW_LEAD_MIN = 10   // treat a match as imminent this long before kickoff
+const MATCH_STUCK_MIN = 15         // kicked off this long ago but still "upcoming" = wrong
+
 // FotMob's league names don't all match the names the roster (and the frontend's league
 // filter) use. App.jsx filters with an exact `player.league === league.name` comparison,
 // so writing an unmapped name silently drops the player out of every league view.
@@ -1315,6 +1321,68 @@ class MatchTrackerFD {
   }
 
   // Health snapshot for /api/health: FotMob scrape freshness + any pending/applied drift.
+  // Is a match on right now (or about to be)? Derived from live state on every call rather
+  // than a precomputed schedule, so postponed and delayed kickoffs need no special handling.
+  // Kept deliberately cheap — the monitor polls this every few minutes and it touches no
+  // network, only the in-memory match map.
+  getMatchWindow() {
+    const now = Date.now()
+    const today = this.getTodayDate()
+    const nameById = new Map(this.players.map(p => [p.id, p.name]))
+
+    const liveFixtures = new Set()
+    const stuckByFixture = new Map()
+    let nextKickoffMs = null
+    let anyInPlay = false
+
+    for (const [playerId, m] of this.matchData) {
+      if (!m?.kickoff) continue
+      // Same guard getAllMatchData uses: ignore entries left over from previous days.
+      const matchDay = new Date(m.kickoff).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      if (matchDay !== today) continue
+
+      const kickoffMs = new Date(m.kickoff).getTime()
+      const minsSinceKickoff = (now - kickoffMs) / 60000
+
+      if (m.status === 'live') {
+        liveFixtures.add(m.fixtureId ?? m.kickoff)
+        anyInPlay = true
+        continue
+      }
+      if (m.status !== 'upcoming') continue
+
+      if (minsSinceKickoff >= 0) {
+        // Kicked off but still filed as upcoming. This deliberately holds the window open:
+        // it is the state we most need eyes on, and it is exactly what a stale upstream
+        // page looks like from in here.
+        anyInPlay = true
+        if (minsSinceKickoff >= MATCH_STUCK_MIN) {
+          const key = m.fixtureId ?? m.kickoff
+          if (!stuckByFixture.has(key)) {
+            stuckByFixture.set(key, {
+              fixture: `${m.homeTeam} vs ${m.awayTeam}`,
+              kickoff: m.kickoff,
+              minutesLate: Math.round(minsSinceKickoff),
+              players: []
+            })
+          }
+          stuckByFixture.get(key).players.push(nameById.get(playerId) || String(playerId))
+        }
+      } else if (nextKickoffMs === null || kickoffMs < nextKickoffMs) {
+        nextKickoffMs = kickoffMs
+      }
+    }
+
+    const nextKickoffInMin = nextKickoffMs === null ? null : Math.round((nextKickoffMs - now) / 60000)
+
+    return {
+      active: anyInPlay || (nextKickoffInMin !== null && nextKickoffInMin <= MATCH_WINDOW_LEAD_MIN),
+      liveMatches: liveFixtures.size,
+      nextKickoffInMin,
+      stuckUpcoming: [...stuckByFixture.values()]
+    }
+  }
+
   getHealth() {
     const scrape = this.fotmob.getScrapeHealth()
     const now = Date.now()
@@ -1361,6 +1429,7 @@ class MatchTrackerFD {
 
     return {
       driftCheck,
+      matchWindow: this.getMatchWindow(),
       rosterNeedsReview: needsReview,
       scrape: {
         lastSuccessAt: scrape.lastSuccessAt,
