@@ -233,14 +233,25 @@ class FotMobService {
     })
   }
 
+  // FotMob serves these pages through a CDN with `max-age=3600, s-maxage=3600` (600s on
+  // match pages), so a plain re-fetch can be answered from a copy an hour old — which is how
+  // a live game kept reporting `started: false` long after kickoff. Our own cache bypass
+  // could not help: the staleness was upstream, not ours. A `Cache-Control: no-cache` request
+  // header is ignored by that CDN (measured: `age` kept climbing), so the only thing that
+  // reliably reaches the origin is changing the cache key — hence the throwaway query param.
+  // Only used where freshness actually matters; routine polling still rides the CDN.
+  cacheBustedUrl(url) {
+    return `${url}${url.includes('?') ? '&' : '?'}_cb=${Date.now()}`
+  }
+
   // Fetch a FotMob page and extract its __NEXT_DATA__ JSON blob (server-side rendered
   // data that bypasses the Turnstile API block). Centralizes timeout handling and
   // scrape-health recording for all three HTML scrape paths (team/match/player).
   // Throws on failure; records the failure reason for health reporting first.
-  async fetchNextData(url, label) {
+  async fetchNextData(url, label, bustCdnCache = false) {
     let response
     try {
-      response = await this.fetchWithTimeout(url)
+      response = await this.fetchWithTimeout(bustCdnCache ? this.cacheBustedUrl(url) : url)
     } catch (err) {
       // Network error, DNS failure, or timeout (AbortError) — a real connectivity problem.
       this.recordScrapeFailure(`network:${label}:${err.name === 'TimeoutError' ? 'timeout' : err.message}`)
@@ -360,7 +371,7 @@ class FotMobService {
     }
 
     try {
-      const nextData = await this.fetchNextData(`https://www.fotmob.com/teams/${teamId}/overview`, 'team')
+      const nextData = await this.fetchNextData(`https://www.fotmob.com/teams/${teamId}/overview`, 'team', forLiveData)
       const fallback = nextData?.props?.pageProps?.fallback
       if (!fallback) {
         throw new Error('No fallback data in team __NEXT_DATA__')
@@ -386,13 +397,13 @@ class FotMobService {
     } catch (error) {
       // Fall back to HTML scraping for any API failure (404, Turnstile, etc.)
       console.log(`FotMob: matchDetails API failed for ${matchId} (${error.message}), trying HTML scrape...`)
-      return await this.getMatchDetailsFromHtml(matchId)
+      return await this.getMatchDetailsFromHtml(matchId, forLiveData)
     }
   }
 
   // Scrape match details from the FotMob match page HTML (__NEXT_DATA__)
   // This bypasses Turnstile because the data is server-side rendered
-  async getMatchDetailsFromHtml(matchId) {
+  async getMatchDetailsFromHtml(matchId, forLiveData = false) {
     const cacheKey = `html_match_${matchId}`
     const cached = this.cache.get(cacheKey)
     if (cached && Date.now() - cached.timestamp < this.liveCacheExpiry) {
@@ -400,7 +411,7 @@ class FotMobService {
     }
 
     try {
-      const nextData = await this.fetchNextData(`https://www.fotmob.com/match/${matchId}`, 'match')
+      const nextData = await this.fetchNextData(`https://www.fotmob.com/match/${matchId}`, 'match', forLiveData)
       const pageProps = nextData.props?.pageProps
       if (!pageProps) {
         throw new Error('No pageProps in __NEXT_DATA__')
@@ -445,7 +456,7 @@ class FotMobService {
     }
 
     try {
-      const nextData = await this.fetchNextData(`https://www.fotmob.com/players/${fotmobPlayerId}`, 'player')
+      const nextData = await this.fetchNextData(`https://www.fotmob.com/players/${fotmobPlayerId}`, 'player', true)
       const pageProps = nextData.props?.pageProps
       if (!pageProps) {
         throw new Error('No pageProps in player __NEXT_DATA__')
