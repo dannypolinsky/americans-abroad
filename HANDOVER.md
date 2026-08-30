@@ -12,13 +12,10 @@ _Last updated: 2026-08-29_
 - **Backend v2.8.0 live on the NAS, frontend live on Ionos — both deployed and verified
   2026-08-29.** Deployed bundle hash matched the local build; `/api/players` and the served
   JS/CSS were both checked against the public URLs, not just localhost.
-- **⚠ THE WORKING TREE IS DEPLOYED BUT NOT COMMITTED.** Six modified files are live on the NAS
-  and Ionos with no commit behind them: `backend/data/players.json`, `src/data/players.json`,
-  `src/components/PlayerCard.jsx`, `src/components/PlayerCard.css`, `src/index.css`,
-  `src/utils/playerUtils.js`. This is the reverse of the usual risk — a NAS rebuild or a
-  `git checkout` would silently revert what is currently serving. **Commit these first.**
+- **Committed and pushed** (`0a88a98`). Working tree clean, `main` in sync with `origin/main`.
+  Nothing is committed-but-undeployed, and nothing is deployed-but-uncommitted.
 - **The GitHub repo is PUBLIC** (`dannypolinsky/americans-abroad`). Assume anything committed
-  is world-readable. `main` was last pushed 2026-08-22; this session's work is not yet on it.
+  is world-readable. `main` last pushed 2026-08-29 (`0a88a98`).
 - **`deploy.sh` semantics** (renamed 2026-08-22): `push` = GitHub only, deploys nothing;
   `nas` = backend; `frontend` = Ionos; **`both` (the default) = `nas` + `frontend`**.
   `./deploy.sh backend` now exits with a pointer instead of running.
@@ -62,51 +59,49 @@ _Last updated: 2026-08-29_
 
 ## Open questions / Next steps
 
-1. **COMMIT THE WORKING TREE.** See Current state — what is live is not in git. Nothing
-   secret-shaped is in the diff (roster data + CSS), and the repo is public.
-2. **Rotate the Gmail app password.** *(Carried over, still not done — oldest live risk here.)*
+1. **Rotate the Gmail app password.** *(Carried over, still not done — oldest live risk here.)*
    A `curl -v` trace during setup on 2026-08-22 printed the base64 AUTH line, which decodes to
    the password; it is in that session's scrollback. Rotate at
    <https://myaccount.google.com/apppasswords>, then update **both**
    `/share/Container/abc-lottery/.env` (`GMAIL_APP_PASSWORD`) and
    `/share/Container/americans-abroad/alert.conf` (`SMTP_PASS`, spaces stripped).
    The Ionos SSH password was also printed in that session; both are local-only.
-3. **Deactivate the retired `FOOTBALL_DATA_KEY`** in the football-data.org account.
+2. **Deactivate the retired `FOOTBALL_DATA_KEY`** in the football-data.org account.
    *(Carried over from 2026-08-22, status still unknown.)* It was scrubbed from `CLAUDE.md`,
    but it is in already-public git history, so scrubbing the file did not revoke it. The
    football-data.org integration itself is gone — data is FotMob-only — so revoking costs
    nothing.
-4. **The sweep finds *labelled* Americans, not *eligible* ones.** FotMob's `ccode` is a single
+3. **The sweep finds *labelled* Americans, not *eligible* ones.** FotMob's `ccode` is a single
    primary nationality, so an uncapped dual national filed under another country — precisely
    the next Musah — is invisible to this method. No automated source fixes that; it needs a
    hand-maintained watchlist. **Not built.**
-5. **`abbrevPosition` has no entry for `'Left Winger'` / `'Right Winger'`** (only
+4. **`abbrevPosition` has no entry for `'Left Winger'` / `'Right Winger'`** (only
    `'Left Wing'` / `'Right Wing'`), so those fall through to the full string and the meta line
    reads "Right Winger" instead of "RW". Pre-existing; now affects 3 more players. One-line fix
    in `src/utils/playerUtils.js`.
-6. **Drift auto-apply updates `team` / `league` / `teamFotmobId` but never `country`.** That is
+5. **Drift auto-apply updates `team` / `league` / `teamFotmobId` but never `country`.** That is
    why the roster contains `Eredivisie/Germany`, `Ligue 1/Belgium` and `MLS/England`. The 12
    new entries are correct; the pre-existing stale ones were left alone.
-7. **Six orphan headshots in `public/images/`** belong to players not in the roster at all:
+6. **Six orphan headshots in `public/images/`** belong to players not in the roster at all:
    Berchimas, DeJuan Jones, Luca Moisa, Quinn Sullivan, Liam West (Cole Campbell was re-added
    this session). Either they were dropped deliberately or they are missing — worth a look.
    Note `qa-check.sh` still probes **Quinn Sullivan's** profile for its FotMob player-scrape
    check even though he is not on the roster.
-8. **Expect routine "Player ratings" warnings while Gozo features for the U21s.** FotMob
+7. **Expect routine "Player ratings" warnings while Gozo features for the U21s.** FotMob
    publishes no player ratings for Premier League 2 or 3. Liga. Still triage each one —
    suspect-by-default stands, only the *reason* is known. Detail in the archive.
-9. **Two players sit in leagues the site doesn't list** — Boyd (3. Liga), Pukstas (Croatian
+8. **Two players sit in leagues the site doesn't list** — Boyd (3. Liga), Pukstas (Croatian
    First League) — so they appear only under "all", never a league filter. Pre-existing and
    **unchanged this session**; all 12 additions landed in leagues already in `leagues[]`, so no
    new filter chips were introduced. Fixing means adding both to `leagues` in *both*
    players.json files. Left for Danny to decide.
-10. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
+9. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
    `cert=expiring<14d`. There is no renew button — you reinstall. Auto-renewal has lapsed twice.
    Cert currently valid to **Oct 24 19:45:51 2026 GMT** (verified 2026-08-29).
-11. ~~Render fallback~~ **SETTLED 2026-08-22 — there is no Render fallback.** The NAS is the
+10. ~~Render fallback~~ **SETTLED 2026-08-22 — there is no Render fallback.** The NAS is the
     only backend. Do not reintroduce "fallback backend" language — earlier handovers describe a
     Render fallback that never existed post-migration, and that stale claim cost a session.
-12. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
+11. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
     between incidents; and `TRANSFER_APPLY_THRESHOLD_DAYS` is still 3, so a deadline-day move
     applies three days later (automatically, and visible as pending in `/api/health` meanwhile).
 
