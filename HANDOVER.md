@@ -1,5 +1,5 @@
 # Handover — Americans Abroad
-_Last updated: 2026-08-29 (evening)_
+_Last updated: 2026-08-29 (late evening)_
 
 > **How to use**: Read this first at the start of every session. Update it at the end.
 > Static architecture and deployment docs live in `CLAUDE.md`.
@@ -9,106 +9,137 @@ _Last updated: 2026-08-29 (evening)_
 
 ## Current state
 
-- **Backend + frontend both live and verified 2026-08-29 evening.** Working tree clean,
-  `main` == `origin/main` == `60a9e16`. Nothing committed-but-undeployed; nothing
-  deployed-but-uncommitted.
-- **Roster is 60 players** (49 → 61 via a seven-league sweep, then −1 when Dylan Vanney was
-  dropped). Drift sweep baseline is now **60**, derived from `/api/health` by both
-  `monitor.sh` and `qa-check.sh` — verified, no hardcoded count anywhere.
-- **Player photos are derived from `fotmobId`**, not stored — a player added later gets a
-  headshot with no roster edit.
-- **Live match tracking was broken and is now fixed** (`0c4abd8`). FotMob's CDN was serving
-  hour-old team pages, so in-progress games sat at "upcoming" indefinitely. Confirmed working:
-  six matches flipped to `live` with correct minutes (47', 50') right after deploy.
-- **The GitHub repo is PUBLIC** (`dannypolinsky/americans-abroad`) — assume anything committed
-  is world-readable.
-- **`deploy.sh`**: `push` = GitHub only, deploys nothing; `nas` = backend; `frontend` = Ionos;
-  **`both` (default) = `nas` + `frontend`**. `./deploy.sh backend` exits with a pointer.
+- **Backend + frontend live and verified.** Working tree clean, `main` == `origin/main` ==
+  `ea32ed1`. Nothing committed-but-undeployed; nothing deployed-but-uncommitted.
+- **Roster is 60 players.** Drift sweep baseline 60, derived from `/api/health` by both
+  monitors — no hardcoded count anywhere.
+- **Player photos derived from `fotmobId`**, not stored — new players get one for free.
+- **Game-time monitoring is live** (`monitor-live.sh`, cron `*/5`), and **cron-firing was
+  verified**, not assumed. It self-heals a wiped proxy rule and a container that did not come
+  back on its own. `/api/health` now carries `matchWindow`.
+- **⚠ A match is showing wrong on the site right now**: América vs Puebla has read "upcoming"
+  for 50+ minutes while actually in the second half. **Different bug from the CDN one** —
+  see open item 1. The new monitor caught it within minutes of going live.
 
 ## Recent changes
 
-- **2026-08-29 eve** — **Dropped Dylan Vanney** (`60a9e16`). Added that afternoon from the
-  La Liga sweep; FotMob moved him to Ventura County FC hours later and drift flagged it same
-  day. Danny: not at a level worth tracking.
-  - **This exposed a real gap**: `checkRosterDrift` only calls `clearDrift` for players it
-    iterates, and it iterates *the roster* — so removing a player **strands their drift entry
-    permanently**, and it shows in `/api/health` as a pending transfer forever. Nothing prunes
-    it. Cleared by hand this time. See archive; **still unfixed in code** (open item 1).
-- **2026-08-29 eve** — **Fixed live matches stuck on "upcoming"** (`0c4abd8`). FotMob serves
-  pages with `max-age=3600, s-maxage=3600`; the container was reading a copy cached before
-  kickoff (measured `age: 3102` on a response saying `started: false` while the match page
-  showed half-time). Our own cache bypass was useless — the staleness was upstream. Full
-  root-cause write-up in the archive.
-- **2026-08-29** — **Headshots** from `headshotUrl(player)` in `src/utils/playerUtils.js`;
-  `PlayerCard.jsx` no longer reads the `image` field.
-  - FotMob headshots are **palette PNGs with a `tRNS` chunk — transparent cutouts**. On the
-    dark card (`--card-bg: #1a1f2b`) dark hair dissolved into the background, hence the
-    `--headshot-bg` token (`#eceff3` light / `#c3c9d4` dark).
-  - The 36 Wikimedia URLs and 13 files in `public/images/` are now **unreferenced but left in
-    place** — `PlayerCard.jsx` was the only reader (grep-verified).
-- **2026-08-29** — **Roster sweep 49 → 61.** Method: league page → team IDs → squad page →
-  filter `ccode == 'USA'`, across Premier League, Ligue 1, La Liga, Bundesliga, Eredivisie,
-  Belgian Pro League and Serie A.
-  - **Timothy Chandler was found and deliberately skipped** (36, effectively done
-    internationally). Danny's call — do not "re-add the missing player" on a later sweep.
-  - **FotMob lists the manager inside the squad payload** under a group titled `coach`.
-    Without that filter, Pellegrino Matarazzo (Real Sociedad, USA) surfaces as a signing.
-  - `positionIdsDesc` can disagree with the squad group (Maloney is `"CB,CM"` but grouped as a
-    midfielder) — take the first fine-grained position that agrees with the group.
+- **2026-08-29 late** — **Game-time monitoring** (`ea32ed1`). `getMatchWindow()` on
+  `/api/health` reports `{active, liveMatches, nextKickoffInMin, stuckUpcoming}`, computed
+  from live state each call so postponed/delayed kickoffs need no special handling.
+  `monitor-live.sh` runs every 5 min and exits in milliseconds unless a game is on.
+  - **The window is computed in Node because the NAS cannot do it**: no `jq`, no `python`,
+    and `date -d` rejects ISO timestamps. The monitor reads one boolean.
+  - **Closes a real blind spot**: it makes an end-to-end request *through Apache*. Every other
+    check, here and in `monitor.sh`, hits localhost — which is why the proxy-rule wipe that
+    killed the public site three times left every check green.
+  - **Alert-only, never auto-restart, for a stuck match.** Today that was stale upstream data;
+    a restart fixes nothing, masks the cause, and costs a poll interval. Restart on
+    *unresponsive*, alert on *wrong*.
+  - Fails open twice over: unreachable health runs the checks anyway, and a payload with no
+    `matchWindow` at all (older backend) also fails open instead of concluding "no game on".
+  - A successful self-heal **always** alerts — silent healing is how a recurring fault stays
+    invisible.
+- **2026-08-29 eve** — **Dropped Dylan Vanney** (`60a9e16`), and hand-cleared the phantom drift
+  entry it stranded. See open item 3.
+- **2026-08-29 eve** — **Fixed live matches stuck on "upcoming"** (`0c4abd8`). FotMob's CDN was
+  serving hour-old team pages. Full root-cause write-up in the archive.
+- **2026-08-29** — **Headshots** from `headshotUrl(player)`; `PlayerCard.jsx` no longer reads
+  the `image` field. FotMob headshots are transparent cutouts, hence the `--headshot-bg` token.
+  The 36 Wikimedia URLs and 13 files in `public/images/` are now unreferenced but left in place.
+- **2026-08-29** — **Roster sweep 49 → 61** across seven leagues, then −1 for Vanney.
+  Chandler deliberately skipped; FotMob lists managers in the squad payload under a `coach`
+  group; `positionIdsDesc` can disagree with the squad group. Detail in the archive.
 
 ## Open questions / Next steps
 
-1. **Drift entries are never pruned for removed players.** Structural, and it will recur the
-   next time a player is dropped mid-drift. Fix: in `checkRosterDrift`, drop any `rosterDrift`
-   entry whose `playerId` is not in the current roster. A few lines. **Not done.**
+1. **FotMob contradicts its own endpoints — matches stick on "upcoming".** The team overview
+   reports `started: false` while that fixture's own match page reports `started: true` with a
+   live clock. **Verified with cache-busting on both**, so this is *not* the CDN bug fixed in
+   `0c4abd8`. `matchTrackerFD` classifies status from the team page only, so these games never
+   go live on the site. Affects at least the `>1000000000` fixture-id space, which the archive
+   already flags as unreliable for U21 games — so likely a class of fixtures, not one game.
+   **Fix**: when a team-page match has a passed kickoff but `started: false`, fall back to the
+   match page. **Not done.** Live example in the archive.
 2. **Rotate the Gmail app password.** *(Carried over, still not done — oldest live risk here.)*
-   A `curl -v` trace during setup on 2026-08-22 printed the base64 AUTH line, which decodes to
-   the password; it is in that session's scrollback. Rotate at
-   <https://myaccount.google.com/apppasswords>, then update **both**
-   `/share/Container/abc-lottery/.env` (`GMAIL_APP_PASSWORD`) and
+   A `curl -v` trace on 2026-08-22 printed the base64 AUTH line, which decodes to the password;
+   it is in that session's scrollback. Rotate at <https://myaccount.google.com/apppasswords>,
+   then update **both** `/share/Container/abc-lottery/.env` (`GMAIL_APP_PASSWORD`) and
    `/share/Container/americans-abroad/alert.conf` (`SMTP_PASS`, spaces stripped).
-   The Ionos SSH password was also printed in that session; both are local-only.
-3. **Deactivate the retired `FOOTBALL_DATA_KEY`** in the football-data.org account.
-   *(Carried over from 2026-08-22, status still unknown.)* It was scrubbed from `CLAUDE.md`,
-   but it is in already-public git history, so scrubbing the file did not revoke it.
-4. **The cache-bust fix cannot help the first cycle after a restart.** The bypass needs prior
-   state to fire, so cycle 1 stores whatever the CDN returns. Self-heals on cycle 2, but a
-   restart during live games costs one poll interval (5 min when nothing is live, 60s once it
-   is). Accepted, not worked around.
-5. **The sweep finds *labelled* Americans, not *eligible* ones.** FotMob's `ccode` is a single
-   primary nationality, so an uncapped dual national filed under another country — precisely
-   the next Musah — is invisible to this method. Needs a hand-maintained watchlist. **Not built.**
-6. **`abbrevPosition` has no entry for `'Left Winger'` / `'Right Winger'`** (only
-   `'Left Wing'` / `'Right Wing'`), so those fall through and the meta line reads
-   "Right Winger" instead of "RW". Pre-existing; one-line fix in `src/utils/playerUtils.js`.
-7. **Drift auto-apply updates `team` / `league` / `teamFotmobId` but never `country`.** That is
-   why the roster contains `Eredivisie/Germany`, `Ligue 1/Belgium` and `MLS/England`. The new
-   entries are correct; the pre-existing stale ones were left alone.
-8. **Six orphan headshots in `public/images/`** belong to players not in the roster at all:
-   Berchimas, DeJuan Jones, Luca Moisa, Quinn Sullivan, Liam West (Cole Campbell was re-added
-   this session). Note `qa-check.sh` still probes **Quinn Sullivan's** profile for its FotMob
-   player-scrape check even though he is not on the roster.
-9. **Expect routine "Player ratings" warnings while Gozo features for the U21s.** FotMob
-   publishes no player ratings for Premier League 2 or 3. Liga. Still triage each one —
-   suspect-by-default stands, only the *reason* is known. Detail in the archive.
-10. **Two players sit in leagues the site doesn't list** — Boyd (3. Liga), Pukstas (Croatian
-    First League) — so they appear only under "all", never a league filter. Pre-existing.
-    Fixing means adding both to `leagues` in *both* players.json files. Left for Danny.
-11. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
-    `cert=expiring<14d`. No renew button — you reinstall. Auto-renewal has lapsed twice.
-    Cert valid to **Oct 24 19:45:51 2026 GMT** (verified 2026-08-29).
-12. ~~Render fallback~~ **SETTLED 2026-08-22 — there is no Render fallback.** The NAS is the
-    only backend. Do not reintroduce "fallback backend" language — earlier handovers describe a
-    Render fallback that never existed post-migration, and that stale claim cost a session.
-13. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
-    between incidents; and `TRANSFER_APPLY_THRESHOLD_DAYS` is still 3, so a deadline-day move
-    applies three days later (automatically, visible as pending in `/api/health` meanwhile).
+3. **Drift entries are never pruned for removed players.** Removing a player strands their
+   `rosterDrift` entry permanently and it shows in `/api/health` as a pending transfer forever.
+   Bit us with Vanney; cleared by hand. Fix: drop entries whose `playerId` is not in the
+   roster. **Not done.**
+4. **The monitor scripts are not in this repo.** `monitor.sh` and `monitor-live.sh` live in
+   `~/.claude/skills/qa-americans-abroad/` and on the NAS. Consistent with prior practice, but
+   the scripts that keep the site alive have no version control and no review history.
+5. **Deactivate the retired `FOOTBALL_DATA_KEY`** in the football-data.org account.
+   *(Carried over, status unknown.)* Scrubbed from `CLAUDE.md`, but it is in already-public git
+   history, so scrubbing the file did not revoke it.
+6. **The cache-bust fix cannot help the first cycle after a restart.** The bypass needs prior
+   state to fire. Self-heals on cycle 2, but a restart during live games costs one poll
+   interval (5 min when nothing is live, 60s once it is). Accepted.
+7. **The sweep finds *labelled* Americans, not *eligible* ones.** FotMob's `ccode` is a single
+   primary nationality, so an uncapped dual national filed under another country — the next
+   Musah — is invisible. Needs a hand-maintained watchlist. **Not built.**
+8. **`abbrevPosition` has no entry for `'Left Winger'` / `'Right Winger'`** (only
+   `'Left Wing'` / `'Right Wing'`), so the meta line reads "Right Winger" instead of "RW".
+   One-line fix in `src/utils/playerUtils.js`.
+9. **Drift auto-apply updates `team` / `league` / `teamFotmobId` but never `country`** — hence
+   `Eredivisie/Germany`, `Ligue 1/Belgium`, `MLS/England` in the roster.
+10. **Six orphan headshots in `public/images/`** for players not in the roster: Berchimas,
+    DeJuan Jones, Luca Moisa, Quinn Sullivan, Liam West. Note `qa-check.sh` still probes
+    **Quinn Sullivan's** profile for its FotMob player-scrape check though he is not rostered.
+11. **Expect routine "Player ratings" warnings while Gozo features for the U21s.** FotMob
+    publishes no ratings for Premier League 2 or 3. Liga. Still triage each one.
+12. **Two players sit in leagues the site doesn't list** — Boyd (3. Liga), Pukstas (Croatian
+    First League) — visible only under "all". Fixing means adding both to `leagues` in *both*
+    players.json files. Left for Danny.
+13. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
+    `cert=expiring<14d`. No renew button — you reinstall. Cert valid to
+    **Oct 24 19:45:51 2026 GMT**.
+14. ~~Render fallback~~ **SETTLED 2026-08-22 — there is no Render fallback.** The NAS is the
+    only backend. Do not reintroduce "fallback backend" language.
+15. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
+    between incidents; `TRANSFER_APPLY_THRESHOLD_DAYS` is still 3.
 
 ---
 
 # 📚 ARCHIVE
 
 _Everything below is the historical record, newest first. Current status lives above._
+
+## 2026-08-29 — FotMob contradicts its own endpoints (OPEN, not fixed)
+
+Found minutes after the game-time monitor went live, which is what it was built to catch.
+
+**Symptom**: América vs Puebla read "upcoming" on the site for 50+ minutes while the match was
+1-0 in the second half.
+
+**This is NOT the CDN staleness fixed in `0c4abd8`.** Both requests below were cache-busted and
+returned `age: null`:
+
+```
+team overview (teams/6576/overview)  ->  "started": false        <- what matchTrackerFD reads
+match page    (match/1000014549)     ->  "started": true, "ongoing": true,
+                                         liveTime "40:51", score "1 - 0"
+```
+
+FotMob simply does not update `nextMatch.status` on the team page for this fixture.
+`matchTrackerFD.updateMatchDataFromFotMob` classifies status **only** from the team page
+(`matchToUse.status?.started || matchToUse.status?.ongoing`), so such a match can never reach
+`live`, no matter how fresh the fetch is.
+
+**Scope**: fixture id `1000014549` sits in the same `>1000000000` id space this archive already
+records as unreliable for U21 games ("does not resolve at fotmob.com/matches/x/<id>"). Liga MX
+and youth fixtures both land there, so treat this as a *class* of fixtures rather than one game.
+
+**Proposed fix (not implemented)**: when a team-page match has a kickoff in the past but still
+reports `started: false`, fetch that fixture's match page and take status from there. Cost is one
+extra request per suspect fixture, only after kickoff, so it is naturally rate-limited. The
+`matchWindow.stuckUpcoming` field already identifies exactly which fixtures qualify.
+
+**Do not "fix" this by restarting anything** — the data is wrong at the source; a restart only
+hides it and costs a poll interval.
 
 ## 2026-08-29 — Live matches stuck on "upcoming" for a whole half (RESOLVED)
 
