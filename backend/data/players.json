@@ -840,6 +840,42 @@
       "age": 21,
       "fotmobId": 1354177,
       "teamFotmobId": 10167
+    },
+    {
+      "id": 135,
+      "name": "Luca Bombino",
+      "team": "Stoke City",
+      "league": "Championship",
+      "country": "England",
+      "position": "Left Back",
+      "number": 27,
+      "age": 20,
+      "fotmobId": 1617160,
+      "teamFotmobId": 10194
+    },
+    {
+      "id": 136,
+      "name": "Caleb Wiley",
+      "team": "Preston North End",
+      "league": "Championship",
+      "country": "England",
+      "position": "Left Back",
+      "number": 12,
+      "age": 21,
+      "fotmobId": 1170744,
+      "teamFotmobId": 8411
+    },
+    {
+      "id": 137,
+      "name": "Jack McGlynn",
+      "team": "Stoke City",
+      "league": "Championship",
+      "country": "England",
+      "position": "Attacking Midfielder",
+      "age": 23,
+      "caps": 13,
+      "fotmobId": 1171013,
+      "teamFotmobId": 10194
     }
   ],
   "leagues": [
