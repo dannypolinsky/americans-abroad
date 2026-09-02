@@ -52,8 +52,21 @@ deploy_nas() {
 
     echo "Syncing backend files to NAS..."
 
-    # Build rsync command (exclude node_modules — NAS will install them)
-    RSYNC_EXCLUDES="--exclude=node_modules --exclude=.env"
+    # Build rsync command (exclude node_modules — NAS will install them).
+    #
+    # An array, not a string: as a string, unquoted expansion word-splits but leaves any
+    # quotes as literal characters, so rsync gets a pattern that matches nothing.
+    #
+    # /data/cache/ is the Docker volume holding rosterDrift.json, transferLog.json and the
+    # two game caches — the ONLY durable record of an applied transfer (players.json is
+    # baked into the image and reverts on every rebuild; see matchTrackerFD.js:77-80).
+    # Syncing into it would overwrite live drift state with whatever stale copy this laptop
+    # has. Harmless only while the local cache dir is empty; run the backend locally once
+    # and it is not. Anchored with a leading / because this rsync's transfer root is
+    # backend/, NOT the repo root — so the pattern is /data/cache/, not backend/data/cache.
+    # (That path difference is why .env's NAS_EXCLUDES, written for the global skill's
+    # repo-root transfer, is deliberately not reused here.)
+    RSYNC_EXCLUDES=(--exclude=node_modules --exclude=.env --exclude=/data/cache/)
     SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5"
 
     # If local NAS IP isn't reachable, fall back to Tailscale IP
@@ -66,17 +79,17 @@ deploy_nas() {
 
     NAS_SSH_KEY="$HOME/.ssh/nas_deploy"
     if [ -f "$NAS_SSH_KEY" ]; then
-        rsync -avz $RSYNC_EXCLUDES \
+        rsync -avz "${RSYNC_EXCLUDES[@]}" \
             -e "ssh $SSH_OPTS -i $NAS_SSH_KEY" \
             backend/ "${QNAP_SSH_USER}@${QNAP_SSH_HOST}:${QNAP_REMOTE_PATH}/"
     elif command -v sshpass &> /dev/null && [ -n "$QNAP_SSH_PASS" ]; then
-        SSHPASS="$QNAP_SSH_PASS" sshpass -e rsync -avz $RSYNC_EXCLUDES \
+        SSHPASS="$QNAP_SSH_PASS" sshpass -e rsync -avz "${RSYNC_EXCLUDES[@]}" \
             -e "ssh $SSH_OPTS" \
             backend/ "${QNAP_SSH_USER}@${QNAP_SSH_HOST}:${QNAP_REMOTE_PATH}/"
     elif [ -n "$QNAP_SSH_PASS" ]; then
         expect << EOF
 set timeout 120
-spawn rsync -avz $RSYNC_EXCLUDES -e "ssh $SSH_OPTS" backend/ ${QNAP_SSH_USER}@${QNAP_SSH_HOST}:${QNAP_REMOTE_PATH}/
+spawn rsync -avz ${RSYNC_EXCLUDES[@]} -e "ssh $SSH_OPTS" backend/ ${QNAP_SSH_USER}@${QNAP_SSH_HOST}:${QNAP_REMOTE_PATH}/
 expect {
     "password:" { send "${QNAP_SSH_PASS}\r"; exp_continue }
     "Password:" { send "${QNAP_SSH_PASS}\r"; exp_continue }
@@ -85,7 +98,7 @@ expect {
 EOF
     else
         # SSH key auth (no password needed)
-        rsync -avz $RSYNC_EXCLUDES \
+        rsync -avz "${RSYNC_EXCLUDES[@]}" \
             -e "ssh $SSH_OPTS" \
             backend/ "${QNAP_SSH_USER}@${QNAP_SSH_HOST}:${QNAP_REMOTE_PATH}/"
     fi

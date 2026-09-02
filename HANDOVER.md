@@ -48,6 +48,26 @@ _Last updated: 2026-09-02 (evening)_
     (`export: '.env': not a valid identifier`). The global script accepts either form.
   - Backup of the pre-change script at `~/.claude/skills/deploy/deploy.sh.bak-2026-09-02`
     (`~/.claude` is not under version control). Delete once you are happy with it.
+- **2026-09-02 eve** — **Stopped `./deploy.sh nas` from clobbering the drift volume.** The
+  project script excluded only `node_modules` and `.env`, so it rsynced into
+  `backend/data/cache/` — the Docker volume holding `rosterDrift.json`, `transferLog.json`
+  and the two game caches, which is the *only* durable record of an applied transfer.
+  - **This was live data loss waiting on one condition**: it was harmless only because the
+    local cache dir happened to be empty. Run the backend locally once and the next deploy
+    overwrites the NAS's drift state with stale laptop copies.
+  - Proved it before and after: with fake `rosterDrift.json` / `transferLog.json` present,
+    the old excludes shipped both; the new ones ship only `data/players.json` and
+    `data/playerStats.json`.
+  - **The pattern is `/data/cache/`, not `backend/data/cache`** — this rsync's transfer root
+    is `backend/`, not the repo root. That path difference is exactly why `.env`'s
+    `NAS_EXCLUDES` (written for the global skill's repo-root transfer) is **not** reused
+    here; sharing one variable between the two scripts would silently mis-target.
+  - Excludes converted from a string to an array, the failure mode `SKILL.md` already
+    documents for the Ionos side.
+  - Verified by running the patched script: roster 63, and the Pukstas drift entry survived
+    with its original `firstSeen` timestamp.
+  - Unlike the `NAS_EXCLUDES` half of the fix, this one **is** version-controlled — it is in
+    `deploy.sh`, so it survives a fresh clone.
 - **2026-09-02 eve** — **Pushed**: `4846873`, `58024ea`, `36930fa` are all on `origin/main`.
   Nothing in this session deploys from GitHub; the push is source control only.
 - **2026-09-02** — **Deployed the three players added from Danny's phone** (`e147202`, PR #1,
@@ -112,6 +132,18 @@ _Last updated: 2026-09-02 (evening)_
      this project from a second machine, set `NAS_EXCLUDES` there first.
    - The guard **warns and continues by design** — it does not block a deploy. A rushed
      operator can still ship nothing and see green above the warning.
+   - **Still outstanding on the deploy tooling** (none are data-loss; the clobber bug was
+     fixed 2026-09-02 eve):
+     - **The two scripts have diverged** and neither is the obvious one to reach for:
+       `./deploy.sh` syncs `backend/` with its own excludes and ignores `NAS_EXCLUDES`; the
+       global skill syncs the whole repo and honours it. Two things that both claim to
+       deploy the NAS, behaving differently, is how the 2026-09-02 confusion started.
+     - **`./deploy.sh`'s env loader is `export $(grep -v '^#' .env | xargs)`** — it
+       word-splits and dies on any `.env` value containing a space. It already bit us once.
+     - Ionos leftovers were **checked and are clean**: `.env`, `README.md`, `HANDOVER.md`,
+       `deploy.sh`, `CLAUDE.md`, `package.json` all absent from the public site. `/.env`
+       returns 300 rather than 404, but that is Apache MultiViews offering `/.` and `/..`,
+       not a file.
 2. **Rotate the Gmail app password.** *(Carried over, still not done — oldest live risk here.)*
    A `curl -v` trace on 2026-08-22 printed the base64 AUTH line, which decodes to the password;
    it is in that session's scrollback. Rotate at <https://myaccount.google.com/apppasswords>,
