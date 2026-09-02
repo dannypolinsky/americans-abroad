@@ -1,5 +1,5 @@
 # Handover — Americans Abroad
-_Last updated: 2026-08-29 (night)_
+_Last updated: 2026-09-02_
 
 > **How to use**: Read this first at the start of every session. Update it at the end.
 > Static architecture and deployment docs live in `CLAUDE.md`.
@@ -10,20 +10,31 @@ _Last updated: 2026-08-29 (night)_
 ## Current state
 
 - **Backend + frontend live and verified.** Working tree clean, `main` == `origin/main` ==
-  `ea32ed1`. Nothing committed-but-undeployed; nothing deployed-but-uncommitted.
-- **Roster is 60 players.** Drift sweep baseline 60, derived from `/api/health` by both
-  monitors — no hardcoded count anywhere.
-- **Player photos derived from `fotmobId`**, not stored — new players get one for free.
+  `e147202`. Nothing committed-but-undeployed; nothing deployed-but-uncommitted.
+- **Roster is 63 players** (was 60). Drift sweep baseline follows `/api/health` — still no
+  hardcoded count anywhere.
+- **Player photos derived from `fotmobId`**, not stored — the three new players get one free.
 - **Game-time monitoring is live** (`monitor-live.sh`, cron `*/5`), and **cron-firing was
   verified**, not assumed. It self-heals a wiped proxy rule and a container that did not come
-  back on its own. `/api/health` now carries `matchWindow`.
-- **Both "match stuck on upcoming" bugs are now fixed** — they were separate faults with an
-  identical symptom: FotMob's CDN serving hour-old pages (`0c4abd8`), and FotMob's team page
-  contradicting its own match page (`9a31a96`). `matchWindow.stuckUpcoming` is empty and
-  five matches are correctly live.
+  back on its own. `/api/health` carries `matchWindow`.
+- **Both "match stuck on upcoming" bugs are fixed** — separate faults with an identical
+  symptom: FotMob's CDN serving hour-old pages (`0c4abd8`), and FotMob's team page
+  contradicting its own match page (`9a31a96`).
 
 ## Recent changes
 
+- **2026-09-02** — **Deployed the three players added from Danny's phone** (`e147202`, PR #1,
+  authored 2026-09-01): Luca Bombino (Stoke City), Caleb Wiley (Preston North End, on loan
+  from Chelsea), Jack McGlynn (Stoke City). All Championship. Roster 60 → 63.
+  - Verified live: `/api/players` returns 63 with all three and their FotMob IDs; Ionos
+    serving bundle `index-Cf45k0Q3.js`, matching the local build.
+  - **Before overwriting, the NAS roster was diffed against git and showed zero runtime
+    drift** — nothing `persistRoster()` had written was clobbered. Worth repeating on any
+    future deploy that ships `players.json`, because that file is *both* source and runtime
+    state.
+  - `./deploy.sh nas` rebuilt the image; the `COPY data/ ./data/` layer was not cached.
+- **2026-09-02** — **Found that the global `/deploy` skill cannot deploy this roster.** See
+  open item 1. No code changed; the finding is the deliverable.
 - **2026-08-29 night** — **Match-page fallback for status** (`9a31a96`). Past
   `MATCH_PAGE_FALLBACK_MIN` (5) minutes after kickoff, a match the team page still calls
   "not started" is checked against its own match page and the status (and score) taken from
@@ -45,7 +56,7 @@ _Last updated: 2026-08-29 (night)_
   - A successful self-heal **always** alerts — silent healing is how a recurring fault stays
     invisible.
 - **2026-08-29 eve** — **Dropped Dylan Vanney** (`60a9e16`), and hand-cleared the phantom drift
-  entry it stranded. See open item 3.
+  entry it stranded. See open item 4.
 - **2026-08-29 eve** — **Fixed live matches stuck on "upcoming"** (`0c4abd8`). FotMob's CDN was
   serving hour-old team pages. Full root-cause write-up in the archive.
 - **2026-08-29** — **Headshots** from `headshotUrl(player)`; `PlayerCard.jsx` no longer reads
@@ -57,46 +68,64 @@ _Last updated: 2026-08-29 (night)_
 
 ## Open questions / Next steps
 
-1. **Rotate the Gmail app password.** *(Carried over, still not done — oldest live risk here.)*
+1. **Never deploy this project's roster with the global `/deploy` skill.** Its script
+   (`~/.claude/skills/deploy/deploy.sh`) passes `--exclude=data` to the NAS rsync, and an
+   unanchored rsync exclude matches `backend/data/` too. It syncs code, prints
+   "Backend deployed to NAS!", and **silently leaves the roster at its old count** — a green
+   deploy that shipped nothing. Use the project-local `./deploy.sh nas` (documented in
+   `CLAUDE.md`), which excludes only `node_modules` and `.env`. **Unfixed**; the fix is either
+   anchoring the exclude to `--exclude=/data` in the global script or dropping it for this
+   project. Note the exclude is not simply wrong — it protects runtime state in projects where
+   `data/` is *only* runtime state; here that file is both.
+2. **A fourth player may be missing.** The phone branch was named
+   `claude/add-players-bombino-wiley-mcglynn-oifole`, but only three players are in the
+   commit and "Oifole" appears nowhere in the roster or the diff. Either that player was
+   dropped mid-session or the name was wrong. **Needs Danny to confirm who was intended.**
+3. **Rotate the Gmail app password.** *(Carried over, still not done — oldest live risk here.)*
    A `curl -v` trace on 2026-08-22 printed the base64 AUTH line, which decodes to the password;
    it is in that session's scrollback. Rotate at <https://myaccount.google.com/apppasswords>,
    then update **both** `/share/Container/abc-lottery/.env` (`GMAIL_APP_PASSWORD`) and
    `/share/Container/americans-abroad/alert.conf` (`SMTP_PASS`, spaces stripped).
-2. **Drift entries are never pruned for removed players.** Removing a player strands their
+4. **Drift entries are never pruned for removed players.** Removing a player strands their
    `rosterDrift` entry permanently and it shows in `/api/health` as a pending transfer forever.
    Bit us with Vanney; cleared by hand. Fix: drop entries whose `playerId` is not in the
    roster. **Not done.**
-3. **The monitor scripts are not in this repo.** `monitor.sh` and `monitor-live.sh` live in
+5. **Pukstas drift pending as of 2026-09-02**: Hajduk Split → Middlesbrough, day 1 of the
+   3-day `TRANSFER_APPLY_THRESHOLD_DAYS` threshold, `applied: false`. If it auto-applies it
+   will interact with items 12 and 10 — his `league` moves off the Croatian First League, and
+   `country` will **not** be updated. Watch it land rather than assuming it landed clean.
+6. **The monitor scripts are not in this repo.** `monitor.sh` and `monitor-live.sh` live in
    `~/.claude/skills/qa-americans-abroad/` and on the NAS. Consistent with prior practice, but
    the scripts that keep the site alive have no version control and no review history.
-4. **Deactivate the retired `FOOTBALL_DATA_KEY`** in the football-data.org account.
+7. **Deactivate the retired `FOOTBALL_DATA_KEY`** in the football-data.org account.
    *(Carried over, status unknown.)* Scrubbed from `CLAUDE.md`, but it is in already-public git
    history, so scrubbing the file did not revoke it.
-5. **The cache-bust fix cannot help the first cycle after a restart.** The bypass needs prior
+8. **The cache-bust fix cannot help the first cycle after a restart.** The bypass needs prior
    state to fire. Self-heals on cycle 2, but a restart during live games costs one poll
    interval (5 min when nothing is live, 60s once it is). Accepted.
-6. **The sweep finds *labelled* Americans, not *eligible* ones.** FotMob's `ccode` is a single
+9. **The sweep finds *labelled* Americans, not *eligible* ones.** FotMob's `ccode` is a single
    primary nationality, so an uncapped dual national filed under another country — the next
    Musah — is invisible. Needs a hand-maintained watchlist. **Not built.**
-7. **`abbrevPosition` has no entry for `'Left Winger'` / `'Right Winger'`** (only
-   `'Left Wing'` / `'Right Wing'`), so the meta line reads "Right Winger" instead of "RW".
-   One-line fix in `src/utils/playerUtils.js`.
-8. **Drift auto-apply updates `team` / `league` / `teamFotmobId` but never `country`** — hence
-   `Eredivisie/Germany`, `Ligue 1/Belgium`, `MLS/England` in the roster.
-9. **Six orphan headshots in `public/images/`** for players not in the roster: Berchimas,
+10. **Drift auto-apply updates `team` / `league` / `teamFotmobId` but never `country`** — hence
+    `Eredivisie/Germany`, `Ligue 1/Belgium`, `MLS/England` in the roster.
+11. **`abbrevPosition` has no entry for `'Left Winger'` / `'Right Winger'`** (only
+    `'Left Wing'` / `'Right Wing'`), so the meta line reads "Right Winger" instead of "RW".
+    One-line fix in `src/utils/playerUtils.js`.
+12. **Two players sit in leagues the site doesn't list** — Boyd (3. Liga), Pukstas (Croatian
+    First League) — visible only under "all". Fixing means adding both to `leagues` in *both*
+    players.json files. Left for Danny. **Note the three new players are all Championship,
+    which the site does list.**
+13. **Six orphan headshots in `public/images/`** for players not in the roster: Berchimas,
     DeJuan Jones, Luca Moisa, Quinn Sullivan, Liam West. Note `qa-check.sh` still probes
     **Quinn Sullivan's** profile for its FotMob player-scrape check though he is not rostered.
-10. **Expect routine "Player ratings" warnings while Gozo features for the U21s.** FotMob
+14. **Expect routine "Player ratings" warnings while Gozo features for the U21s.** FotMob
     publishes no ratings for Premier League 2 or 3. Liga. Still triage each one.
-11. **Two players sit in leagues the site doesn't list** — Boyd (3. Liga), Pukstas (Croatian
-    First League) — visible only under "all". Fixing means adding both to `leagues` in *both*
-    players.json files. Left for Danny.
-12. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
+15. **Before Oct 24, 2026**: reinstall the 90-day myQNAPcloud SSL when `monitor.log` shows
     `cert=expiring<14d`. No renew button — you reinstall. Cert valid to
     **Oct 24 19:45:51 2026 GMT**.
-13. ~~Render fallback~~ **SETTLED 2026-08-22 — there is no Render fallback.** The NAS is the
+16. ~~Render fallback~~ **SETTLED 2026-08-22 — there is no Render fallback.** The NAS is the
     only backend. Do not reintroduce "fallback backend" language.
-14. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
+17. **Optional hardening not built**: a weekly heartbeat email would prove the alert channel
     between incidents; `TRANSFER_APPLY_THRESHOLD_DAYS` is still 3.
 
 ---
