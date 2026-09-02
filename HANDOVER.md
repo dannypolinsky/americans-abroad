@@ -52,6 +52,10 @@ _Last updated: 2026-09-02 (evening)_
     overrides, `manualStatsFile`) was never deploying either.
   - Verified end-to-end by running the patched global script: roster 63 live, and the
     Pukstas drift entry survived with its original `firstSeen`.
+  - **`NAS_EXCLUDES` must be comma-separated, not space-separated.** The first attempt used
+    spaces and broke this project's *own* `./deploy.sh`, which loads `.env` via
+    `export $(grep -v '^#' .env | xargs)` — that word-splits and dies on any space
+    (`export: '.env': not a valid identifier`). The global script accepts either form.
   - Backup of the pre-change script at `~/.claude/skills/deploy/deploy.sh.bak-2026-09-02`
     (`~/.claude` is not under version control). Delete once you are happy with it.
 - **2026-09-02** — **Deployed via `./deploy.sh push`**: `4846873` is on `origin/main`.
