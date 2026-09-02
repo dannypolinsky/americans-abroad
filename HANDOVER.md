@@ -1,5 +1,5 @@
 # Handover — Americans Abroad
-_Last updated: 2026-09-02_
+_Last updated: 2026-09-02 (evening)_
 
 > **How to use**: Read this first at the start of every session. Update it at the end.
 > Static architecture and deployment docs live in `CLAUDE.md`.
@@ -28,13 +28,33 @@ _Last updated: 2026-09-02_
   from Chelsea), Jack McGlynn (Stoke City). All Championship. Roster 60 → 63.
   - Verified live: `/api/players` returns 63 with all three and their FotMob IDs; Ionos
     serving bundle `index-Cf45k0Q3.js`, matching the local build.
-  - **Before overwriting, the NAS roster was diffed against git and showed zero runtime
-    drift** — nothing `persistRoster()` had written was clobbered. Worth repeating on any
-    future deploy that ships `players.json`, because that file is *both* source and runtime
-    state.
-  - `./deploy.sh nas` rebuilt the image; the `COPY data/ ./data/` layer was not cached.
-- **2026-09-02** — **Found that the global `/deploy` skill cannot deploy this roster.** See
-  open item 1. No code changed; the finding is the deliverable.
+  - **CORRECTION to an earlier note in this entry**: `players.json` is *not* durable runtime
+    state. Per `matchTrackerFD.js:77-80`, it is baked into the image and **reverts on every
+    rebuild**; the durable record of an applied transfer is the volume-backed
+    `data/cache/rosterDrift.json`, re-applied to the in-memory roster on startup. So the
+    pre-deploy diff was a reasonable check but not the real safeguard — **the cache volume
+    is**. Never rsync into `backend/data/cache/`.
+  - `./deploy.sh nas` rebuilt the image; the `COPY data/ ./data/` layer was not cached,
+    which is consistent with the roster being baked in rather than volume-mounted.
+- **2026-09-02 eve** — **Fixed the global `/deploy` skill's silent no-op** (open item 1, now
+  settled). `~/.claude/skills/deploy/deploy.sh` NAS excludes are now a `NAS_EXCLUDES` variable
+  overridable per project, defaulting to the previous `node_modules .env dist data` so **all
+  12 NAS projects keep their exact current behavior**. This project's `.env` overrides it to
+  `node_modules .env dist backend/data/cache`.
+  - **Anchoring to `--exclude=/data` was considered and rejected** — it would newly expose
+    `job-search/backend/data` (untracked SQLite + WAL) to being clobbered by a stale laptop
+    copy. Six other projects keep live DBs under `data/`; the exclude is load-bearing.
+  - **Added a pre-sync guard**: the NAS deploy now warns when a git-tracked file matches an
+    exclude, since tracked files are source by definition. It warns and continues, never
+    blocks. It reproduces today's fault — it flags all three of
+    `backend/data/players.json`, `backend/data/playerStats.json`, `src/data/players.json`.
+  - Surfaced a third file I had missed: `backend/data/playerStats.json` (manual stat
+    overrides, `manualStatsFile`) was never deploying either.
+  - Verified end-to-end by running the patched global script: roster 63 live, and the
+    Pukstas drift entry survived with its original `firstSeen`.
+  - Backup of the pre-change script at `~/.claude/skills/deploy/deploy.sh.bak-2026-09-02`
+    (`~/.claude` is not under version control). Delete once you are happy with it.
+- **2026-09-02** — **Deployed via `./deploy.sh push`**: `4846873` is on `origin/main`.
 - **2026-08-29 night** — **Match-page fallback for status** (`9a31a96`). Past
   `MATCH_PAGE_FALLBACK_MIN` (5) minutes after kickoff, a match the team page still calls
   "not started" is checked against its own match page and the status (and score) taken from
@@ -68,15 +88,12 @@ _Last updated: 2026-09-02_
 
 ## Open questions / Next steps
 
-1. **Never deploy this project's roster with the global `/deploy` skill.** Its script
-   (`~/.claude/skills/deploy/deploy.sh`) passes `--exclude=data` to the NAS rsync, and an
-   unanchored rsync exclude matches `backend/data/` too. It syncs code, prints
-   "Backend deployed to NAS!", and **silently leaves the roster at its old count** — a green
-   deploy that shipped nothing. Use the project-local `./deploy.sh nas` (documented in
-   `CLAUDE.md`), which excludes only `node_modules` and `.env`. **Unfixed**; the fix is either
-   anchoring the exclude to `--exclude=/data` in the global script or dropping it for this
-   project. Note the exclude is not simply wrong — it protects runtime state in projects where
-   `data/` is *only* runtime state; here that file is both.
+1. ~~Global `/deploy` cannot ship this roster~~ **SETTLED 2026-09-02 eve.** Fixed via
+   `NAS_EXCLUDES` (see Recent changes). Both `./deploy.sh nas` and the global skill now
+   deploy the roster correctly, and a tracked-file-excluded warning makes any future
+   recurrence loud instead of silent. **Do not "simplify" this by anchoring the global
+   exclude to `/data`** — that breaks `job-search`. One benign warning is expected in
+   `abc-lottery` (`data/people.example.json`, correctly stays local).
 2. **A fourth player may be missing.** The phone branch was named
    `claude/add-players-bombino-wiley-mcglynn-oifole`, but only three players are in the
    commit and "Oifole" appears nowhere in the roster or the diff. Either that player was
