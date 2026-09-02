@@ -10,7 +10,10 @@ _Last updated: 2026-09-02 (evening)_
 ## Current state
 
 - **Backend + frontend live and verified.** Working tree clean, `main` == `origin/main` ==
-  `e147202`. Nothing committed-but-undeployed; nothing deployed-but-uncommitted.
+  `36930fa`. Nothing committed-but-undeployed; nothing deployed-but-uncommitted.
+- **Deploy tooling is fixed and both paths work.** `./deploy.sh nas` (project) and
+  `~/.claude/skills/deploy/deploy.sh nas` (global skill) now both ship the roster. The last
+  NAS deploy was run through the *global* script as the end-to-end proof.
 - **Roster is 63 players** (was 60). Drift sweep baseline follows `/api/health` — still no
   hardcoded count anywhere.
 - **Player photos derived from `fotmobId`**, not stored — the three new players get one free.
@@ -23,24 +26,11 @@ _Last updated: 2026-09-02 (evening)_
 
 ## Recent changes
 
-- **2026-09-02** — **Deployed the three players added from Danny's phone** (`e147202`, PR #1,
-  authored 2026-09-01): Luca Bombino (Stoke City), Caleb Wiley (Preston North End, on loan
-  from Chelsea), Jack McGlynn (Stoke City). All Championship. Roster 60 → 63.
-  - Verified live: `/api/players` returns 63 with all three and their FotMob IDs; Ionos
-    serving bundle `index-Cf45k0Q3.js`, matching the local build.
-  - **CORRECTION to an earlier note in this entry**: `players.json` is *not* durable runtime
-    state. Per `matchTrackerFD.js:77-80`, it is baked into the image and **reverts on every
-    rebuild**; the durable record of an applied transfer is the volume-backed
-    `data/cache/rosterDrift.json`, re-applied to the in-memory roster on startup. So the
-    pre-deploy diff was a reasonable check but not the real safeguard — **the cache volume
-    is**. Never rsync into `backend/data/cache/`.
-  - `./deploy.sh nas` rebuilt the image; the `COPY data/ ./data/` layer was not cached,
-    which is consistent with the roster being baked in rather than volume-mounted.
 - **2026-09-02 eve** — **Fixed the global `/deploy` skill's silent no-op** (open item 1, now
   settled). `~/.claude/skills/deploy/deploy.sh` NAS excludes are now a `NAS_EXCLUDES` variable
   overridable per project, defaulting to the previous `node_modules .env dist data` so **all
   12 NAS projects keep their exact current behavior**. This project's `.env` overrides it to
-  `node_modules .env dist backend/data/cache`.
+  `node_modules,.env,dist,backend/data/cache` (commas — see the delimiter note below).
   - **Anchoring to `--exclude=/data` was considered and rejected** — it would newly expose
     `job-search/backend/data` (untracked SQLite + WAL) to being clobbered by a stale laptop
     copy. Six other projects keep live DBs under `data/`; the exclude is load-bearing.
@@ -58,7 +48,22 @@ _Last updated: 2026-09-02 (evening)_
     (`export: '.env': not a valid identifier`). The global script accepts either form.
   - Backup of the pre-change script at `~/.claude/skills/deploy/deploy.sh.bak-2026-09-02`
     (`~/.claude` is not under version control). Delete once you are happy with it.
-- **2026-09-02** — **Deployed via `./deploy.sh push`**: `4846873` is on `origin/main`.
+- **2026-09-02 eve** — **Pushed**: `4846873`, `58024ea`, `36930fa` are all on `origin/main`.
+  Nothing in this session deploys from GitHub; the push is source control only.
+- **2026-09-02** — **Deployed the three players added from Danny's phone** (`e147202`, PR #1,
+  authored 2026-09-01): Luca Bombino (Stoke City), Caleb Wiley (Preston North End, on loan
+  from Chelsea), Jack McGlynn (Stoke City). All Championship. Roster 60 → 63.
+  - Verified live: `/api/players` returns 63 with all three and their FotMob IDs; Ionos
+    serving bundle `index-Cf45k0Q3.js`, matching the local build.
+  - **How roster state actually persists** (corrects a claim made earlier in this session
+    that `players.json` is both source and runtime state): per `matchTrackerFD.js:77-80`,
+    `players.json` is **baked into the image and reverts on every rebuild**. `persistRoster()`
+    writes it, but that write is ephemeral. The durable record of an applied transfer is the
+    volume-backed `data/cache/rosterDrift.json`, re-applied to the in-memory roster on
+    startup. Diffing the live roster before deploying is a reasonable sanity check but is
+    **not** the safeguard — the cache volume is. Never rsync into `backend/data/cache/`.
+  - `./deploy.sh nas` rebuilt the image; the `COPY data/ ./data/` layer was not cached,
+    which is consistent with the roster being baked in rather than volume-mounted.
 - **2026-08-29 night** — **Match-page fallback for status** (`9a31a96`). Past
   `MATCH_PAGE_FALLBACK_MIN` (5) minutes after kickoff, a match the team page still calls
   "not started" is checked against its own match page and the status (and score) taken from
@@ -98,6 +103,15 @@ _Last updated: 2026-09-02 (evening)_
    recurrence loud instead of silent. **Do not "simplify" this by anchoring the global
    exclude to `/data`** — that breaks `job-search`. One benign warning is expected in
    `abc-lottery` (`data/people.example.json`, correctly stays local).
+   - **Residual gap, deliberately accepted: the fix lives in two gitignored/unversioned
+     places.** `NAS_EXCLUDES` is in `.env` (gitignored, `.gitignore:3`) and the patched
+     script is in `~/.claude/` (not a git repo). **A fresh clone, or this repo on another
+     machine, silently gets the old broken behavior back** — `.env` won't have
+     `NAS_EXCLUDES`, so the default re-hides `backend/data/`. The tracked-file warning is
+     the only thing that would catch it, and it warns rather than blocks. If you ever deploy
+     this project from a second machine, set `NAS_EXCLUDES` there first.
+   - The guard **warns and continues by design** — it does not block a deploy. A rushed
+     operator can still ship nothing and see green above the warning.
 2. **A fourth player may be missing.** The phone branch was named
    `claude/add-players-bombino-wiley-mcglynn-oifole`, but only three players are in the
    commit and "Oifole" appears nowhere in the roster or the diff. Either that player was
