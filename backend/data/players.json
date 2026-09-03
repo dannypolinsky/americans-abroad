@@ -381,20 +381,6 @@
       "teamFotmobId": 9851
     },
     {
-      "id": 32,
-      "name": "Terrence Boyd",
-      "team": "Waldhof Mannheim",
-      "league": "3. Liga",
-      "country": "Germany",
-      "position": "Striker",
-      "number": 13,
-      "age": 34,
-      "caps": 15,
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Terrence_Boyd_-_Aufstiegsfeier_RB_Leipzig_2016.JPG/330px-Terrence_Boyd_-_Aufstiegsfeier_RB_Leipzig_2016.JPG",
-      "fotmobId": 293560,
-      "teamFotmobId": 9743
-    },
-    {
       "id": 36,
       "name": "Alex Zendejas",
       "team": "CF América",
@@ -483,16 +469,16 @@
     {
       "id": 74,
       "name": "Rokas Pukstas",
-      "team": "Hajduk Split",
-      "league": "Croatian First League",
-      "country": "Croatia",
+      "team": "Middlesbrough",
+      "league": "Championship",
+      "country": "England",
       "position": "Midfielder",
       "number": 21,
-      "age": 21,
+      "age": 22,
       "caps": 0,
       "image": "/images/pukstas_rokas.png",
       "fotmobId": 1377897,
-      "teamFotmobId": 10154
+      "teamFotmobId": 8549
     },
     {
       "id": 79,
@@ -876,6 +862,30 @@
       "caps": 13,
       "fotmobId": 1171013,
       "teamFotmobId": 10194
+    },
+    {
+      "id": 138,
+      "name": "Max Arfsten",
+      "team": "Middlesbrough",
+      "league": "Championship",
+      "country": "England",
+      "position": "Left Back",
+      "number": 17,
+      "age": 25,
+      "fotmobId": 1348329,
+      "teamFotmobId": 8549
+    },
+    {
+      "id": 139,
+      "name": "Sebastian Berhalter",
+      "team": "Middlesbrough",
+      "league": "Championship",
+      "country": "England",
+      "position": "Defensive Midfielder",
+      "number": 6,
+      "age": 25,
+      "fotmobId": 1136096,
+      "teamFotmobId": 8549
     }
   ],
   "leagues": [
