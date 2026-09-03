@@ -1,5 +1,5 @@
 # Handover — Americans Abroad
-_Last updated: 2026-09-02 (late)_
+_Last updated: 2026-09-02 (night)_
 
 > **How to use**: Read this first at the start of every session. Update it at the end.
 > Static architecture and deployment docs live in `CLAUDE.md`.
@@ -11,9 +11,10 @@ _Last updated: 2026-09-02 (late)_
 
 - **Backend + frontend live and verified.** Working tree clean, `main` == `origin/main` ==
   `30c2917`. Nothing committed-but-undeployed; nothing deployed-but-uncommitted.
-- **Deploy tooling is fixed and both paths work.** `./deploy.sh nas` (project) and
-  `~/.claude/skills/deploy/deploy.sh nas` (global skill) now both ship the roster. The last
-  NAS deploy was run through the *global* script as the end-to-end proof.
+- **One command deploys everything: `/deploy both`** (global skill) — frontend to Ionos,
+  backend to NAS. Made to actually work on 2026-09-02 night via `NAS_SOURCE=backend/` and
+  `DOCKER_REBUILD=true` in `.env`; verified by reading the running container, not by
+  inference. `./deploy.sh` still exists and still works, but is now the second route.
 - **Roster is 64 players.** Drift sweep baseline follows `/api/health` — still no hardcoded
   count anywhere. **Every league in the roster is now one the site lists** (was not true
   until Boyd and Pukstas moved off 3. Liga / Croatian First League).
@@ -49,6 +50,31 @@ _Last updated: 2026-09-02 (late)_
     (`export: '.env': not a valid identifier`). The global script accepts either form.
   - Backup of the pre-change script at `~/.claude/skills/deploy/deploy.sh.bak-2026-09-02`
     (`~/.claude` is not under version control). Delete once you are happy with it.
+- **2026-09-02 night** — **Made the global `/deploy` skill actually deploy this project**,
+  and **retracted a false claim from earlier the same day.**
+  - **What was wrong**: the global skill rsyncs the *repo root*, so `backend/` landed as a
+    `backend/` **subdirectory** on the NAS. The root `Dockerfile` copies `server.js`,
+    `services/` and `data/` from the build-context **root**, so those copies were never
+    read. It also defaults to `--no-build`, so even overwritten root files never reached
+    the image. **The global skill had never deployed this backend.** Proof at the time:
+    `data/players.json` on the NAS had 64 players while `backend/data/players.json` had 63.
+  - **I had reported it verified, and that was wrong.** The earlier "end-to-end proof" ran
+    the global script and saw roster 63 live — but 63 was already live from a `./deploy.sh`
+    run 40 minutes earlier, and `--no-build` meant the run could not have changed anything.
+    A no-op was mistaken for a successful deploy. **Lesson: verifying a deploy by reading
+    state that was already correct proves nothing — change something, or read the artifact.**
+  - **Fix**: added `NAS_SOURCE` to the global script (default `.`, so the other 11 NAS
+    projects are unaffected) and set `NAS_SOURCE=backend/` plus `DOCKER_REBUILD=true` here.
+    `NAS_EXCLUDES` was rewritten relative to the new transfer root: `node_modules,.env,`
+    `/data/cache/` — the cache pattern is now **anchored**, and the tracked-file guard
+    learned to honour anchored patterns and to scope itself to `NAS_SOURCE`.
+  - **`DOCKER_REBUILD=true` is permanent here**, contradicting the global "default to
+    `--no-build`" rule. That rule assumes bind-mounted source; `docker-compose.yml` mounts
+    only `data/cache`, so the code is baked in by `COPY`.
+  - **Verified inside the running container**, which is the only claim that settles it:
+    `/app/package.json` is `americans-abroad-backend` (not the frontend's), `/app/data/`
+    `players.json` has 64 players, and `express` is installed. Roster 64 live, drift `[]`,
+    site HTTP 200.
 - **2026-09-02 late** — **Roster work** (`30c2917`), deployed to NAS + Ionos, roster 63 → 64.
   Added **Max Arfsten** (`1348329`, Columbus Crew → Middlesbrough, Aug 2026, ~$7.5m) and
   **Sebastian Berhalter** (`1136096`); completed **Rokas Pukstas**'s move to Middlesbrough;
@@ -141,12 +167,22 @@ _Last updated: 2026-09-02 (late)_
 
 ## Open questions / Next steps
 
-1. ~~Global `/deploy` cannot ship this roster~~ **SETTLED 2026-09-02 eve.** Fixed via
-   `NAS_EXCLUDES` (see Recent changes). Both `./deploy.sh nas` and the global skill now
-   deploy the roster correctly, and a tracked-file-excluded warning makes any future
-   recurrence loud instead of silent. **Do not "simplify" this by anchoring the global
-   exclude to `/data`** — that breaks `job-search`. One benign warning is expected in
-   `abc-lottery` (`data/people.example.json`, correctly stays local).
+1. ~~Global `/deploy` cannot ship this roster~~ **SETTLED 2026-09-02 night** — and note the
+   first "settled" that evening was **wrong**: it rested on a no-op deploy mistaken for a
+   successful one. Genuinely fixed by `NAS_SOURCE=backend/` + `DOCKER_REBUILD=true`
+   (see Recent changes), and confirmed by reading `/app` inside the running container.
+   - **Do not "simplify" the global exclude by anchoring it to `/data`** — that breaks
+     `job-search`. One benign warning is expected in `abc-lottery`
+     (`data/people.example.json`, correctly stays local).
+   - **Two deploy routes still exist** — `/deploy` and `./deploy.sh` — and they take
+     different paths to the same result. The divergence that caused all of this is narrowed
+     (both now ship `backend/`'s contents to the root and both rebuild) but not eliminated.
+     `./deploy.sh push` has no global equivalent, which is the only reason it is still here.
+   - **The NAS still holds leftovers from the old repo-root syncs**: a stale `backend/`
+     subdirectory (63-player roster), plus `src/`, `public/`, `index.html`, `.git/`,
+     `deploy.sh`, `CLAUDE.md`, `README.md`, `HANDOVER.md`, `.gitignore`, `.DS_Store`. All
+     inert — nothing builds from them — but the stale `backend/` tree is exactly what made
+     the original diagnosis confusing. **Not cleaned up.**
    - **Residual gap, deliberately accepted: the fix lives in two gitignored/unversioned
      places.** `NAS_EXCLUDES` is in `.env` (gitignored, `.gitignore:3`) and the patched
      script is in `~/.claude/` (not a git repo). **A fresh clone, or this repo on another

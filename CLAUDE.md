@@ -29,12 +29,27 @@ QNAP_SSH_PASS=your-password
 QNAP_REMOTE_PATH=/share/Container/americans-abroad
 ```
 
-Then deploy:
+Then deploy **everything** with the global skill:
 ```bash
-./deploy.sh nas
+/deploy both        # frontend -> Ionos, backend -> NAS
+/deploy nas         # backend only
+/deploy ionos       # frontend only
 ```
 
-This rsyncs the backend code to the NAS and rebuilds/restarts the Docker container.
+Two `.env` settings make the global skill correct for this project — do not remove them:
+
+- `NAS_SOURCE=backend/` — the Dockerfile `COPY`s `server.js`, `services/` and `data/` from
+  the build-context **root**, so `backend/`'s contents must land at `QNAP_REMOTE_PATH`.
+  Without this the files arrive under a `backend/` subdirectory, the image is built from
+  whatever was already at the root, and **the deploy still reports success**. That exact
+  failure went unnoticed on 2026-09-02.
+- `DOCKER_REBUILD=true` — **this project is the exception to the global "default to
+  `--no-build`" rule.** That rule assumes bind-mounted source; `docker-compose.yml` here
+  mounts *only* `data/cache`, so the code is baked in by `COPY` and a deploy without a
+  rebuild changes nothing.
+
+`./deploy.sh` (the project-local script) still exists and does the same NAS/frontend work
+by a different route. Prefer the global skill; see HANDOVER open item 1.
 
 ---
 
@@ -83,7 +98,7 @@ curl https://PolinskyNAS.myqnapcloud.com/api/health
 
 ### Frontend → Ionos
 ```bash
-./deploy.sh frontend
+/deploy ionos       # or ./deploy.sh frontend
 ```
 
 ### Push to GitHub (source control only)
