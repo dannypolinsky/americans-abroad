@@ -1,5 +1,5 @@
 # Handover — Americans Abroad
-_Last updated: 2026-09-02 (evening)_
+_Last updated: 2026-09-02 (late)_
 
 > **How to use**: Read this first at the start of every session. Update it at the end.
 > Static architecture and deployment docs live in `CLAUDE.md`.
@@ -10,12 +10,13 @@ _Last updated: 2026-09-02 (evening)_
 ## Current state
 
 - **Backend + frontend live and verified.** Working tree clean, `main` == `origin/main` ==
-  `36930fa`. Nothing committed-but-undeployed; nothing deployed-but-uncommitted.
+  `30c2917`. Nothing committed-but-undeployed; nothing deployed-but-uncommitted.
 - **Deploy tooling is fixed and both paths work.** `./deploy.sh nas` (project) and
   `~/.claude/skills/deploy/deploy.sh nas` (global skill) now both ship the roster. The last
   NAS deploy was run through the *global* script as the end-to-end proof.
-- **Roster is 63 players** (was 60). Drift sweep baseline follows `/api/health` — still no
-  hardcoded count anywhere.
+- **Roster is 64 players.** Drift sweep baseline follows `/api/health` — still no hardcoded
+  count anywhere. **Every league in the roster is now one the site lists** (was not true
+  until Boyd and Pukstas moved off 3. Liga / Croatian First League).
 - **Player photos derived from `fotmobId`**, not stored — the three new players get one free.
 - **Game-time monitoring is live** (`monitor-live.sh`, cron `*/5`), and **cron-firing was
   verified**, not assumed. It self-heals a wiped proxy rule and a container that did not come
@@ -48,6 +49,29 @@ _Last updated: 2026-09-02 (evening)_
     (`export: '.env': not a valid identifier`). The global script accepts either form.
   - Backup of the pre-change script at `~/.claude/skills/deploy/deploy.sh.bak-2026-09-02`
     (`~/.claude` is not under version control). Delete once you are happy with it.
+- **2026-09-02 late** — **Roster work** (`30c2917`), deployed to NAS + Ionos, roster 63 → 64.
+  Added **Max Arfsten** (`1348329`, Columbus Crew → Middlesbrough, Aug 2026, ~$7.5m) and
+  **Sebastian Berhalter** (`1136096`); completed **Rokas Pukstas**'s move to Middlesbrough;
+  removed **Terrence Boyd**. With Aidan Morris already there, Boro now has four Americans.
+  - IDs were read off FotMob's Middlesbrough squad page, not recalled. FotMob's *search*
+    API is retired (returns the app shell) and `/search?q=` renders results client-side, so
+    the squad page's `__NEXT_DATA__` is the way in. All three headshot URLs return 200.
+  - **Arfsten is filed as `Left Back` though FotMob's primary is LWB** — `abbrevPosition`
+    has no `Left Wing Back` entry, so the accurate label would render unabbreviated (open
+    item 10). Rendering was chosen over precision; revisit if item 10 is ever fixed.
+  - `caps` omitted for both new players rather than guessed — the squad payload has no
+    reliable international count.
+  - **Pukstas's `country` was set to England by hand.** Had the drift auto-applied on its
+    own it would have left `Championship/Croatia` (open item 9).
+  - **A stale drift entry clears itself — I was wrong to plan a hand-edit.** Per
+    `matchTrackerFD.js:1223`, the sweep clears any drift whose `primary.teamId` now matches
+    `player.teamFotmobId`. Watched it: `drift=1` at t+45s after restart, `drift=0` at t+90s
+    once the 64/64 sweep finished. **This refines open item 3** — entries strand only for
+    players *removed* from the roster, because the sweep iterates roster players and never
+    visits a departed one. That is why Vanney needed hand-clearing and Pukstas did not.
+  - Boyd was checked for a drift entry *before* removal (he had none), so nothing is
+    stranded. His photo was a remote Wikimedia URL, so no new orphan file in
+    `public/images/` — that list is unchanged at five.
 - **2026-09-02 eve** — **Stopped `./deploy.sh nas` from clobbering the drift volume.** The
   project script excluded only `node_modules` and `.env`, so it rsynced into
   `backend/data/cache/` — the Docker volume holding `rosterDrift.json`, `transferLog.json`
@@ -153,10 +177,15 @@ _Last updated: 2026-09-02 (evening)_
    `rosterDrift` entry permanently and it shows in `/api/health` as a pending transfer forever.
    Bit us with Vanney; cleared by hand. Fix: drop entries whose `playerId` is not in the
    roster. **Not done.**
-4. **Pukstas drift pending as of 2026-09-02**: Hajduk Split → Middlesbrough, day 1 of the
-   3-day `TRANSFER_APPLY_THRESHOLD_DAYS` threshold, `applied: false`. If it auto-applies it
-   will interact with items 11 and 9 — his `league` moves off the Croatian First League, and
-   `country` will **not** be updated. Watch it land rather than assuming it landed clean.
+   - **Scope confirmed 2026-09-02**: this affects *only* removed players. `checkRosterDrift`
+     iterates the roster and clears any entry whose club now matches
+     (`matchTrackerFD.js:1223`), so a player still on the roster self-heals — verified with
+     Pukstas. A departed player is never iterated, hence never cleared.
+   - **Check `/api/health` for a drift entry before removing a player.** Boyd had none, so
+     his removal stranded nothing.
+4. ~~Pukstas drift pending~~ **SETTLED 2026-09-02 late.** Applied by hand (team, league,
+   `teamFotmobId`, and `country`, which auto-apply would have skipped). The stale drift entry
+   then cleared itself on the next sweep; `rosterDrift` is `[]`.
 5. **The monitor scripts are not in this repo.** `monitor.sh` and `monitor-live.sh` live in
    `~/.claude/skills/qa-americans-abroad/` and on the NAS. Consistent with prior practice, but
    the scripts that keep the site alive have no version control and no review history.
@@ -174,10 +203,10 @@ _Last updated: 2026-09-02 (evening)_
 10. **`abbrevPosition` has no entry for `'Left Winger'` / `'Right Winger'`** (only
     `'Left Wing'` / `'Right Wing'`), so the meta line reads "Right Winger" instead of "RW".
     One-line fix in `src/utils/playerUtils.js`.
-11. **Two players sit in leagues the site doesn't list** — Boyd (3. Liga), Pukstas (Croatian
-    First League) — visible only under "all". Fixing means adding both to `leagues` in *both*
-    players.json files. Left for Danny. **Note the three new players are all Championship,
-    which the site does list.**
+11. ~~Two players sit in leagues the site doesn't list~~ **SETTLED 2026-09-02 late.** Resolved
+    by roster change rather than by adding leagues: Pukstas moved to the Championship and Boyd
+    (3. Liga) was removed. Every league in the roster is now listed. If a player ever joins an
+    unlisted league again, the fix is to add it to `leagues` in *both* players.json files.
 12. **Six orphan headshots in `public/images/`** for players not in the roster: Berchimas,
     DeJuan Jones, Luca Moisa, Quinn Sullivan, Liam West. Note `qa-check.sh` still probes
     **Quinn Sullivan's** profile for its FotMob player-scrape check though he is not rostered.
