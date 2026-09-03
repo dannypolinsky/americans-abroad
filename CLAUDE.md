@@ -48,8 +48,10 @@ Two `.env` settings make the global skill correct for this project — do not re
   mounts *only* `data/cache`, so the code is baked in by `COPY` and a deploy without a
   rebuild changes nothing.
 
-`./deploy.sh` (the project-local script) still exists and does the same NAS/frontend work
-by a different route. Prefer the global skill; see HANDOVER open item 1.
+There is exactly one deploy path. The project-local `./deploy.sh` was **deleted** on
+2026-09-02 — having two scripts that both claimed to deploy the NAS, by different routes
+with different excludes, is what caused that day's silent-no-op bug. Recover it from git
+history if ever needed (`git show 1c53249:deploy.sh`).
 
 ---
 
@@ -98,12 +100,12 @@ curl https://PolinskyNAS.myqnapcloud.com/api/health
 
 ### Frontend → Ionos
 ```bash
-/deploy ionos       # or ./deploy.sh frontend
+/deploy ionos
 ```
 
 ### Push to GitHub (source control only)
 ```bash
-./deploy.sh push   # git push origin main — deploys NOTHING
+git push origin main   # deploys NOTHING
 ```
 
 > **There is no fallback backend.** The QNAP NAS is the only place the backend runs. Render

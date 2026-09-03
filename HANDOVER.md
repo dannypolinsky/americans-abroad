@@ -14,7 +14,8 @@ _Last updated: 2026-09-02 (night)_
 - **One command deploys everything: `/deploy both`** (global skill) — frontend to Ionos,
   backend to NAS. Made to actually work on 2026-09-02 night via `NAS_SOURCE=backend/` and
   `DOCKER_REBUILD=true` in `.env`; verified by reading the running container, not by
-  inference. `./deploy.sh` still exists and still works, but is now the second route.
+  inference. **`./deploy.sh` is deleted** — one deploy path, one place to fix. Push with
+  plain `git push origin main`.
 - **Roster is 64 players.** Drift sweep baseline follows `/api/health` — still no hardcoded
   count anywhere. **Every league in the roster is now one the site lists** (was not true
   until Boyd and Pukstas moved off 3. Liga / Croatian First League).
@@ -174,15 +175,29 @@ _Last updated: 2026-09-02 (night)_
    - **Do not "simplify" the global exclude by anchoring it to `/data`** — that breaks
      `job-search`. One benign warning is expected in `abc-lottery`
      (`data/people.example.json`, correctly stays local).
-   - **Two deploy routes still exist** — `/deploy` and `./deploy.sh` — and they take
-     different paths to the same result. The divergence that caused all of this is narrowed
-     (both now ship `backend/`'s contents to the root and both rebuild) but not eliminated.
-     `./deploy.sh push` has no global equivalent, which is the only reason it is still here.
+   - ~~Two deploy routes still exist~~ **RESOLVED 2026-09-02 night**: `./deploy.sh` is
+     deleted, so `/deploy` is the only deploy path and the global skill is the single place
+     to fix. `push` was not added to the global skill — it is a deploy tool, and
+     `./deploy.sh push` was only `git push origin main` with a warning that mattered when
+     Render auto-deployed. Use `git push origin main`. Recover the old script from
+     `git show 1c53249:deploy.sh` if ever needed.
    - **The NAS still holds leftovers from the old repo-root syncs**: a stale `backend/`
      subdirectory (63-player roster), plus `src/`, `public/`, `index.html`, `.git/`,
      `deploy.sh`, `CLAUDE.md`, `README.md`, `HANDOVER.md`, `.gitignore`, `.DS_Store`. All
      inert — nothing builds from them — but the stale `backend/` tree is exactly what made
-     the original diagnosis confusing. **Not cleaned up.**
+     the original diagnosis confusing. **Not cleaned up**: the remote `rm -rf` was blocked by
+     the permission classifier, so it needs to be run by hand. Verified first that no monitor
+     or alert script depends on any of them (the only matches were two comments, in
+     `monitor-live.sh:99` and `alert.conf:5`). Command to run on the NAS:
+     ```
+     cd /share/Container/americans-abroad && \
+       rm -f .DS_Store .gitignore CLAUDE.md HANDOVER.md README.md deploy.sh \
+             eslint.config.js index.html vite.config.js && \
+       rm -rf .git backend public src
+     ```
+     **Do not touch** `.env`, `alert.conf`, `monitor*.sh`, `monitor.log`, `.monitor-*-state`
+     (NAS-only, not in the repo) or the backend payload (`Dockerfile`, `docker-compose.yml`,
+     `server.js`, `services/`, `routes/`, `data/`, `package*.json`, `.env.example`).
    - **Residual gap, deliberately accepted: the fix lives in two gitignored/unversioned
      places.** `NAS_EXCLUDES` is in `.env` (gitignored, `.gitignore:3`) and the patched
      script is in `~/.claude/` (not a git repo). **A fresh clone, or this repo on another
